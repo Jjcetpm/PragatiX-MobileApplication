@@ -4,8 +4,14 @@ import 'dart:convert';
 
 typedef Response = real_http.Response;
 
-Future<Response> get(Uri url, {Map<String, String>? headers}) async {
-  return processResponse(await real_http.get(url, headers: headers));
+Future<real_http.Response> get(Uri url, {Map<String, String>? headers}) async {
+  // Add cache buster to bypass aggressive CloudFront error caching
+  final timestamp = DateTime.now().millisecondsSinceEpoch;
+  final separator = url.query.isNotEmpty ? '&' : (url.toString().contains('?') ? '&' : '?');
+  final cacheBuster = '_t=$timestamp';
+  final newUrl = Uri.parse('${url.toString()}$separator$cacheBuster');
+  
+  return processResponse(await real_http.get(newUrl, headers: headers));
 }
 
 Future<Response> post(

@@ -11,8 +11,12 @@ class AdminService {
   String get token => authProvider.token ?? '';
 
   Future<http.Response> get(String endpoint) async {
+    final timestamp = DateTime.now().millisecondsSinceEpoch;
+    final separator = endpoint.contains('?') ? '&' : '?';
+    final cacheBuster = '_t=$timestamp';
+    
     return http.get(
-      Uri.parse('${ApiConfig.baseUrl}$endpoint'),
+      Uri.parse('${ApiConfig.baseUrl}$endpoint$separator$cacheBuster'),
       headers: {'Authorization': 'Bearer $token'},
     );
   }
