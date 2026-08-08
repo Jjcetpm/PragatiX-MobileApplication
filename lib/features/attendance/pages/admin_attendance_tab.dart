@@ -64,6 +64,20 @@ class _AdminAttendanceTabState extends State<AdminAttendanceTab> {
     return hasAdmin && !hasSuperAdmin;
   }
 
+  List<dynamic> _safeDecodeList(String body) {
+    if (body.trim().startsWith('<')) {
+      print('Warning: API returned HTML instead of JSON. Body: ${body.substring(0, body.length > 50 ? 50 : body.length)}');
+      return [];
+    }
+    try {
+      final decoded = jsonDecode(body);
+      return decoded['data'] ?? [];
+    } catch (e) {
+      print('Warning: Failed to decode JSON. Error: $e');
+      return [];
+    }
+  }
+
   Future<void> _loadLookups() async {
     try {
       final token = getIt<AuthProvider>().token ?? '';
@@ -82,8 +96,9 @@ class _AdminAttendanceTabState extends State<AdminAttendanceTab> {
       if (!mounted) return;
 
       setState(() {
-        _years = jsonDecode(results[0].body)['data'] ?? [];
-        _departments = jsonDecode(results[1].body)['data'] ?? [];
+        // Safely parse JSON or default to empty list if HTML/Error is returned
+        _years = _safeDecodeList(results[0].body);
+        _departments = _safeDecodeList(results[1].body);
 
         if (_years.isNotEmpty) _yearId = _years.first['id'];
         
@@ -116,7 +131,7 @@ class _AdminAttendanceTabState extends State<AdminAttendanceTab> {
       );
       if (mounted) {
         setState(() {
-          _sections = jsonDecode(res.body)['data'] ?? [];
+          _sections = _safeDecodeList(res.body);
           _sectionId = null;
         });
       }
