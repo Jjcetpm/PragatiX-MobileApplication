@@ -12,13 +12,19 @@ class ApiException implements Exception {
 }
 
 Future<http.Response> processResponse(http.Response response) async {
-  if (response.statusCode >= 400) {
+  if (response.statusCode >= 400 || (response.body.isNotEmpty && response.body.trim().startsWith('<'))) {
     String message = 'An error occurred';
     try {
-      final data = jsonDecode(response.body);
-      message = data['message'] ?? data['error'] ?? message;
+      if (response.body.trim().startsWith('<')) {
+        message = 'Server returned an HTML page (Possible Backend Error or Gateway Timeout)';
+      } else {
+        final data = jsonDecode(response.body);
+        message = data['message'] ?? data['error'] ?? message;
+      }
     } catch (_) {}
-    throw ApiException(response.statusCode, message);
+    // If it was a 200 OK with HTML, we treat it as a 500 server error logically.
+    final statusCode = response.statusCode < 400 ? 500 : response.statusCode;
+    throw ApiException(statusCode, message);
   }
   return response;
 }
