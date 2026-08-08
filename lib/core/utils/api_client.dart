@@ -11,7 +11,11 @@ Future<real_http.Response> get(Uri url, {Map<String, String>? headers}) async {
   final cacheBuster = '_t=$timestamp';
   final newUrl = Uri.parse('${url.toString()}$separator$cacheBuster');
   
-  return processResponse(await real_http.get(newUrl, headers: headers));
+  final mergedHeaders = Map<String, String>.from(headers ?? {});
+  mergedHeaders['Cache-Control'] = 'no-cache';
+  mergedHeaders['Pragma'] = 'no-cache';
+  
+  return processResponse(await real_http.get(newUrl, headers: mergedHeaders));
 }
 
 Future<Response> post(

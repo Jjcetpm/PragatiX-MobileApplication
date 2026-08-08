@@ -17,7 +17,11 @@ class AdminService {
     
     return http.get(
       Uri.parse('${ApiConfig.baseUrl}$endpoint$separator$cacheBuster'),
-      headers: {'Authorization': 'Bearer $token'},
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Cache-Control': 'no-cache',
+        'Pragma': 'no-cache'
+      },
     );
   }
 
