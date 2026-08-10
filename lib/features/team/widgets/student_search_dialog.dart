@@ -101,7 +101,7 @@ class _StudentSearchDialogState extends State<StudentSearchDialog> {
       final authProvider = context.read<AuthProvider>();
       final response = await getIt<TeamProxyService>().get(
         Uri.parse(
-          '${ApiConfig.baseUrl}/api/v1/students/team-member-search?teamId=${widget.currentTeamId}&keyword=${Uri.encodeComponent(keyword)}',
+          '${ApiConfig.baseUrl}/api/v1/students/team-member-search?teamId=${widget.currentTeamId}&keyword=${Uri.encodeComponent(keyword)}&currentStage=${widget.currentStage}',
         ),
         headers: {'Authorization': 'Bearer ${authProvider.token}'},
       );
@@ -171,6 +171,7 @@ class _StudentSearchDialogState extends State<StudentSearchDialog> {
   Widget build(BuildContext context) {
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      insetPadding: const EdgeInsets.all(16),
       child: Container(
         width: MediaQuery.of(context).size.width * 0.9,
         height: MediaQuery.of(context).size.height * 0.9,
@@ -236,11 +237,13 @@ class _StudentSearchDialogState extends State<StudentSearchDialog> {
                         style: const TextStyle(color: Colors.red),
                       ),
                     )
-                  : _results.isEmpty && _searchController.text.isNotEmpty
-                  ? const Center(
+                  : _results.isEmpty
+                  ? Center(
                       child: Text(
-                        'No students found',
-                        style: TextStyle(color: Colors.grey),
+                        _searchController.text.isNotEmpty 
+                            ? 'No eligible students found' 
+                            : 'No eligible students available for this team',
+                        style: const TextStyle(color: Colors.grey),
                       ),
                     )
                   : ListView.builder(

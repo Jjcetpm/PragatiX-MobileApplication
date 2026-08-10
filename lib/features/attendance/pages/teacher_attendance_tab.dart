@@ -148,6 +148,8 @@ class _TeacherAttendanceTabState extends State<TeacherAttendanceTab> {
           }
         }
 
+        _fetchNextAvailablePeriod();
+
         _isLoadingLookups = false;
       });
     } catch (e) {
@@ -158,11 +160,46 @@ class _TeacherAttendanceTabState extends State<TeacherAttendanceTab> {
       ).showSnackBar(SnackBar(content: Text('Error loading filters: $e')));
     }
   }
+  Future<void> _fetchNextAvailablePeriod() async {
+    if (_departmentId == null) return;
+    
+    // Only Year Admin doesn't strictly need a Year ID, but it's passed if available.
+    if (!isYearAdmin && _yearId == null) return;
+
+    try {
+      final dateStr = DateFormat('yyyy-MM-dd').format(_selectedDate);
+      final nextPeriod = await _service.getNextAvailablePeriod(
+        dateStr,
+        _departmentId!,
+        yearId: _yearId,
+        sectionId: _sectionId,
+      );
+      if (mounted) {
+        setState(() {
+          _selectedPeriod = nextPeriod;
+        });
+      }
+    } catch (e) {
+      // Ignore errors silently, it will fallback to Period 1
+      print("Failed to fetch next period: $e");
+    }
+  }
 
   Future<void> _loadStudents() async {
     if ((!isYearAdmin && _yearId == null) || _departmentId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please select Year and Department')),
+      );
+      return;
+    }
+
+    final filteredSections = _sections.where(
+      (s) => s['departmentId'] == _departmentId || s['department']?['id'] == _departmentId,
+    ).toList();
+
+    if (filteredSections.isNotEmpty && _sectionId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please select a Section')),
       );
       return;
     }
@@ -219,6 +256,8 @@ class _TeacherAttendanceTabState extends State<TeacherAttendanceTab> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Attendance Saved Successfully')),
       );
+      // Automatically unlock the next period after saving
+      _fetchNextAvailablePeriod();
     } catch (e) {
       ScaffoldMessenger.of(
         context,
@@ -285,6 +324,7 @@ class _TeacherAttendanceTabState extends State<TeacherAttendanceTab> {
               if (!isYearAdmin) ...[
                 Expanded(
                   child: DropdownButtonFormField<int>(
+                    isExpanded: true,
                     value:
                         (_yearId != null && _years.any((y) => y['id'] == _yearId))
                         ? _yearId
@@ -299,17 +339,22 @@ class _TeacherAttendanceTabState extends State<TeacherAttendanceTab> {
                               y['yearName']?.toString() ??
                                   y['yearNo']?.toString() ??
                                   'Unknown',
+                              overflow: TextOverflow.ellipsis,
                             ),
                           );
                         })
                         .toList(),
-                    onChanged: (v) => setState(() => _yearId = v),
+                    onChanged: (v) {
+                      setState(() => _yearId = v);
+                      _fetchNextAvailablePeriod();
+                    },
                   ),
                 ),
                 const SizedBox(width: 16),
               ],
               Expanded(
                 child: DropdownButtonFormField<int>(
+                  isExpanded: true,
                   value:
                       (_departmentId != null &&
                           _departments.any((d) => d['id'] == _departmentId))
@@ -326,6 +371,7 @@ class _TeacherAttendanceTabState extends State<TeacherAttendanceTab> {
                                 d['deptName']?.toString() ??
                                 d['code']?.toString() ??
                                 'Unknown',
+                            overflow: TextOverflow.ellipsis,
                           ),
                         );
                       })
@@ -346,6 +392,7 @@ class _TeacherAttendanceTabState extends State<TeacherAttendanceTab> {
                         _sectionId = null;
                       }
                     });
+                    _fetchNextAvailablePeriod();
                   },
                 ),
               ),
@@ -354,31 +401,32 @@ class _TeacherAttendanceTabState extends State<TeacherAttendanceTab> {
           const SizedBox(height: 16),
           if (filteredSections.isNotEmpty)
             DropdownButtonFormField<int?>(
+              isExpanded: true,
               value:
                   (_sectionId != null &&
                       filteredSections.any((s) => s['id'] == _sectionId))
                   ? _sectionId
                   : null,
               decoration: const InputDecoration(
-                labelText: 'Section (Optional)',
+                labelText: 'Section',
               ),
-              items: [
-                if (filteredSections.length > 1)
-                  const DropdownMenuItem<int?>(
-                    value: null,
-                    child: Text('All Sections'),
-                  ),
-                ...filteredSections
-                    .where((s) => s['id'] != null)
-                    .map<DropdownMenuItem<int>>((s) {
-                      return DropdownMenuItem<int>(
-                        value: s['id'] as int,
-                        child: Text(s['sectionName']?.toString() ?? 'Unknown'),
-                      );
-                    })
-                    .toList(),
-              ],
-              onChanged: (v) => setState(() => _sectionId = v),
+              hint: const Text('Select Section'),
+              items: filteredSections
+                  .where((s) => s['id'] != null)
+                  .map<DropdownMenuItem<int>>((s) {
+                    return DropdownMenuItem<int>(
+                      value: s['id'] as int,
+                      child: Text(
+                        s['sectionName']?.toString() ?? 'Unknown',
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    );
+                  })
+                  .toList(),
+              onChanged: (v) {
+                setState(() => _sectionId = v);
+                _fetchNextAvailablePeriod();
+              },
             )
           else if (_departmentId != null)
             const Align(
@@ -408,20 +456,35 @@ class _TeacherAttendanceTabState extends State<TeacherAttendanceTab> {
                       firstDate: DateTime(2020),
                       lastDate: DateTime.now(),
                     );
-                    if (d != null) setState(() => _selectedDate = d);
+                    if (d != null) {
+                      setState(() => _selectedDate = d);
+                      _fetchNextAvailablePeriod();
+                    }
                   },
                 ),
               ),
               Expanded(
                 child: DropdownButtonFormField<int>(
+                  isExpanded: true,
                   value: _selectedPeriod,
                   decoration: const InputDecoration(labelText: 'Period'),
                   items: List.generate(
                     8,
-                    (i) => DropdownMenuItem(
-                      value: i + 1,
-                      child: Text('Period ${i + 1}'),
-                    ),
+                    (i) {
+                      final periodNo = i + 1;
+                      final isEnabled = periodNo == _selectedPeriod;
+                      return DropdownMenuItem<int>(
+                        value: periodNo,
+                        enabled: isEnabled,
+                        child: Text(
+                          'Period $periodNo' + (isEnabled ? '' : ' (Locked)'),
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: isEnabled ? Colors.black : Colors.grey,
+                          ),
+                        ),
+                      );
+                    },
                   ),
                   onChanged: (v) {
                     if (v != null) setState(() => _selectedPeriod = v);

@@ -11,12 +11,14 @@ class TeacherActivityWorkflowPage extends StatefulWidget {
   final ActivityModel activity;
   final int? stageId;
   final String? stageName;
+  final String? academicYear;
 
   const TeacherActivityWorkflowPage({
     super.key,
     required this.activity,
     this.stageId,
     this.stageName,
+    this.academicYear,
   });
 
   @override
@@ -27,7 +29,7 @@ class TeacherActivityWorkflowPage extends StatefulWidget {
 class _TeacherActivityWorkflowPageState
     extends State<TeacherActivityWorkflowPage> {
   // Flow steps:
-  // 1: Year selection
+  // 1: Year selection (Skipped if academicYear is provided)
   // 2: Dept selection
   // 3: Section selection
   // 4: Student selection & Award
@@ -64,7 +66,20 @@ class _TeacherActivityWorkflowPageState
   @override
   void initState() {
     super.initState();
-    _fetchYearsForActivity();
+    if (widget.academicYear != null) {
+      _currentFlowStep = 2; // Skip Year Selection
+      // Map 'FIRST_YEAR' to yearNo 1, etc.
+      int yearNo = 1;
+      final ay = widget.academicYear!.toUpperCase();
+      if (ay.contains('SECOND') || ay.contains('2')) yearNo = 2;
+      else if (ay.contains('THIRD') || ay.contains('3')) yearNo = 3;
+      else if (ay.contains('FOURTH') || ay.contains('4')) yearNo = 4;
+      
+      _selectedYear = _fixedYears.firstWhere((y) => y['yearNo'] == yearNo, orElse: () => _fixedYears[0]);
+      _fetchDeptsForYear(_selectedYear);
+    } else {
+      _fetchYearsForActivity();
+    }
   }
 
   @override
@@ -392,7 +407,8 @@ class _TeacherActivityWorkflowPageState
   }
 
   void _handleBackNavigation() {
-    if (_currentFlowStep > 1) {
+    final minStep = widget.academicYear != null ? 2 : 1;
+    if (_currentFlowStep > minStep) {
       setState(() {
         if (_currentFlowStep == 4) {
           if (_hasSections) {
@@ -426,8 +442,9 @@ class _TeacherActivityWorkflowPageState
 
   @override
   Widget build(BuildContext context) {
+    final minStep = widget.academicYear != null ? 2 : 1;
     return PopScope(
-      canPop: _currentFlowStep == 1,
+      canPop: _currentFlowStep == minStep,
       onPopInvokedWithResult: (bool didPop, Object? result) {
         if (didPop) return;
         _handleBackNavigation();

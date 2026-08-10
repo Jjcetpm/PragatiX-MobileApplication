@@ -6,6 +6,9 @@ import 'package:pragatix/features/profile/pages/profile_page.dart';
 import 'package:pragatix/features/captain/pages/student_group_tab.dart';
 import 'package:pragatix/features/student/pages/levels_badges_tab.dart';
 import 'package:pragatix/features/student/pages/activities_tab.dart';
+import 'package:pragatix/features/attendance/pages/student_attendance_tab.dart';
+import 'package:provider/provider.dart';
+import 'package:pragatix/features/attendance/providers/attendance_provider.dart';
 
 
 class CaptainDashboardPage extends StatefulWidget {
@@ -27,10 +30,16 @@ class _CaptainDashboardPageState extends State<CaptainDashboardPage> {
       const PointReviewTab(),
       const LeaderboardTab(),
       const ActivitiesTab(),
+      const StudentAttendanceTab(),
       const StudentGroupTab(),
       const LevelsBadgesTab(),
       const ProfilePage(),
     ];
+
+    // Fetch attendance summary on init
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Provider.of<AttendanceProvider>(context, listen: false).fetchSummary();
+    });
   }
 
   @override
@@ -53,6 +62,10 @@ class _CaptainDashboardPageState extends State<CaptainDashboardPage> {
       const BottomNavigationBarItem(
         icon: Icon(Icons.local_activity_rounded),
         label: 'Activities',
+      ),
+      const BottomNavigationBarItem(
+        icon: Icon(Icons.co_present_rounded),
+        label: 'Attendance',
       ),
       const BottomNavigationBarItem(
         icon: Icon(Icons.groups_rounded),

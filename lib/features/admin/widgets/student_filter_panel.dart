@@ -72,8 +72,15 @@ class StudentFilterPanel extends StatelessWidget {
                   items: [
                     const DropdownMenuItem(value: null, child: Text('All Years')),
                     ...years.map((y) {
-                      final yearVal = y['yearNo']?.toString() ?? y['yearName']?.toString() ?? y['name']?.toString() ?? '';
-                      final yearName = y['yearName']?.toString() ?? y['name']?.toString() ?? 'Year';
+                      String yearVal;
+                      String yearName;
+                      if (y is String) {
+                        yearVal = y;
+                        yearName = y.split('_').map((w) => w.isNotEmpty ? '${w[0].toUpperCase()}${w.substring(1).toLowerCase()}' : '').join(' ');
+                      } else {
+                        yearVal = y['yearNo']?.toString() ?? y['yearName']?.toString() ?? y['name']?.toString() ?? '';
+                        yearName = y['yearName']?.toString() ?? y['year_name']?.toString() ?? y['name']?.toString() ?? (y['yearNo'] != null ? 'Year ${y['yearNo']}' : 'Year');
+                      }
                       return DropdownMenuItem(
                         value: yearVal,
                         child: Text(yearName),

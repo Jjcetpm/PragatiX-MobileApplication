@@ -128,9 +128,14 @@ class AttendanceService {
     throw Exception('Failed to load student summary');
   }
 
-  Future<List<StudentAttendanceHistory>> getStudentHistory() async {
+  Future<List<StudentAttendanceHistory>> getStudentHistory({String? date}) async {
+    String url = '$_baseUrl/api/student/attendance/history';
+    if (date != null) {
+      url += '?date=$date';
+    }
+
     final response = await http.get(
-      Uri.parse('$_baseUrl/api/student/attendance/history'),
+      Uri.parse(url),
       headers: await _getHeaders(),
     );
 
@@ -142,5 +147,34 @@ class AttendanceService {
       }
     }
     throw Exception('Failed to load student history');
+  }
+
+  Future<int> getNextAvailablePeriod(
+    String date,
+    int departmentId, {
+    int? yearId,
+    int? sectionId,
+  }) async {
+    String url =
+        '$_baseUrl/api/teacher/attendance/next-period?date=$date&departmentId=$departmentId';
+    if (yearId != null) {
+      url += '&yearId=$yearId';
+    }
+    if (sectionId != null) {
+      url += '&sectionId=$sectionId';
+    }
+
+    final response = await http.get(
+      Uri.parse(url),
+      headers: await _getHeaders(),
+    );
+
+    if (response.statusCode == 200) {
+      final jsonResponse = jsonDecode(response.body);
+      if (jsonResponse['success']) {
+        return jsonResponse['data'] as int;
+      }
+    }
+    return 1; // Default to period 1 if error
   }
 }

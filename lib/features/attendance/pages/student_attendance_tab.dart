@@ -3,6 +3,7 @@ import 'package:pragatix/core/widgets/pragatix_loader.dart';
 import 'package:provider/provider.dart';
 import 'package:pragatix/features/attendance/providers/attendance_provider.dart';
 import '../services/attendance_service.dart';
+import 'package:intl/intl.dart';
 import '../models/student_attendance_history.dart';
 import '../widgets/fire_streak_icon.dart';
 
@@ -17,22 +18,46 @@ class _StudentAttendanceTabState extends State<StudentAttendanceTab> {
   final AttendanceService _service = AttendanceService();
   List<StudentAttendanceHistory>? _history;
   bool _isLoadingHistory = true;
+  DateTime? _selectedDate;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final provider = Provider.of<AttendanceProvider>(context, listen: false);
+      if (provider.summary == null) {
+        provider.fetchSummary();
+      }
+    });
     _fetchHistory();
   }
 
   Future<void> _fetchHistory() async {
+    setState(() => _isLoadingHistory = true);
     try {
-      final history = await _service.getStudentHistory();
+      final dateStr = _selectedDate != null ? DateFormat('yyyy-MM-dd').format(_selectedDate!) : null;
+      final history = await _service.getStudentHistory(date: dateStr);
       setState(() {
         _history = history;
         _isLoadingHistory = false;
       });
     } catch (e) {
       setState(() => _isLoadingHistory = false);
+    }
+  }
+
+  Future<void> _selectDate(BuildContext context) async {
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: _selectedDate ?? DateTime.now(),
+      firstDate: DateTime(2000),
+      lastDate: DateTime.now(),
+    );
+    if (picked != null && picked != _selectedDate) {
+      setState(() {
+        _selectedDate = picked;
+      });
+      _fetchHistory();
     }
   }
 
@@ -73,7 +98,24 @@ class _StudentAttendanceTabState extends State<StudentAttendanceTab> {
           }
 
           final summary = provider.summary;
-          if (summary == null) return const SizedBox.shrink();
+          if (summary == null) {
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Text('No attendance data available.'),
+                  const SizedBox(height: 16),
+                  ElevatedButton(
+                    onPressed: () {
+                      provider.fetchSummary();
+                      _fetchHistory();
+                    },
+                    child: const Text('Retry'),
+                  ),
+                ],
+              ),
+            );
+          }
 
           return RefreshIndicator(
             onRefresh: () async {
@@ -88,14 +130,39 @@ class _StudentAttendanceTabState extends State<StudentAttendanceTab> {
                 children: [
                   _buildSummaryCards(summary),
                   const SizedBox(height: 24),
-                  const Text(
-                    'Attendance History',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF1E293B),
-                    ),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'Attendance History',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF1E293B),
+                        ),
+                      ),
+                      TextButton.icon(
+                        onPressed: () => _selectDate(context),
+                        icon: const Icon(Icons.calendar_today_rounded, size: 18),
+                        label: Text(_selectedDate != null
+                            ? DateFormat('dd MMM yyyy').format(_selectedDate!)
+                            : 'All Dates'),
+                      ),
+                    ],
                   ),
+                  if (_selectedDate != null)
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: TextButton(
+                        onPressed: () {
+                          setState(() {
+                            _selectedDate = null;
+                          });
+                          _fetchHistory();
+                        },
+                        child: const Text('Clear Filter', style: TextStyle(color: Colors.red)),
+                      ),
+                    ),
                   const SizedBox(height: 12),
                   _buildHistoryList(),
                 ],

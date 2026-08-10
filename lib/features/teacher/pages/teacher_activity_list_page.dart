@@ -111,6 +111,7 @@ class _TeacherActivityListPageState extends State<TeacherActivityListPage> {
             activity: activity,
             stageId: widget.stageId,
             stageName: widget.stageName,
+            academicYear: widget.academicYear,
           ),
         ),
       );
