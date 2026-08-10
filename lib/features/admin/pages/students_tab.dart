@@ -3,6 +3,8 @@ import 'package:pragatix/core/utils/error_handler.dart';
 
 import 'package:pragatix/features/admin/repository/admin_repository.dart';
 import 'package:pragatix/core/di/service_locator.dart';
+import 'package:provider/provider.dart';
+import 'package:pragatix/features/auth/providers/auth_provider.dart';
 
 import '../dialogs/add_student_dialog.dart';
 import '../dialogs/edit_student_dialog.dart';
@@ -81,6 +83,12 @@ class _StudentsTabState extends State<StudentsTab> {
   String? _selectedDepartment;
   String? _selectedSection;
 
+  String? filterYear;
+  int? filterDeptId;
+  int? filterSectionId;
+  List<dynamic> filterDepartments = [];
+  List<dynamic> filterSections = [];
+
   int _pendingBadgeRequests = 0;
 
   DateTime? selectedDob;
@@ -148,7 +156,6 @@ class _StudentsTabState extends State<StudentsTab> {
         repo.getSections(),
         repo.getTeams(),
       ]);
-
       if (!mounted) return;
       setState(() {
         departments = results[0];
@@ -161,6 +168,8 @@ class _StudentsTabState extends State<StudentsTab> {
         isLoadingLookups = false;
 
         if (departments.isNotEmpty) selectedDeptId = departments.first['id'];
+        
+        filterDepartments = List.from(departments); // Default for Admin
       });
     } catch (e) {
       if (!mounted) return;
@@ -178,6 +187,10 @@ class _StudentsTabState extends State<StudentsTab> {
         page: 0,
         size: _pageSize,
         sortBy: 'fullName',
+        keyword: searchQuery,
+        year: filterYear,
+        departmentId: filterDeptId,
+        sectionId: filterSectionId,
       );
       final List<dynamic> fetchedStudents = pageResult['content'] ?? [];
       final int totalPages = pageResult['totalPages'] ?? 1;
@@ -205,6 +218,7 @@ class _StudentsTabState extends State<StudentsTab> {
         isLoading = false;
         _isLoadingMore = false;
         _hasMore = false;
+        _totalStudentsCount = 0;
       });
     }
   }
@@ -220,6 +234,10 @@ class _StudentsTabState extends State<StudentsTab> {
         page: nextPage,
         size: _pageSize,
         sortBy: 'fullName',
+        keyword: searchQuery,
+        year: filterYear,
+        departmentId: filterDeptId,
+        sectionId: filterSectionId,
       );
       final List<dynamic> newStudents = pageResult['content'] ?? [];
       final int totalPages = pageResult['totalPages'] ?? 1;
@@ -640,17 +658,82 @@ class _StudentsTabState extends State<StudentsTab> {
                   children: [
                     StudentFilterPanel(
                       searchController: _searchController,
-                      onChanged: (value) {
+                      onSearchChanged: (value) {
                         setState(() {
-                          searchQuery = value.toLowerCase();
+                          searchQuery = value;
                         });
+                      },
+                      onSearchSubmitted: (value) {
+                        _fetchStudents();
+                      },
+                      isSuperAdmin: context.read<AuthProvider>().currentUser?['roles']?.contains('ROLE_SUPER_ADMIN') ?? false,
+                      years: years,
+                      departments: filterDepartments,
+                      sections: filterSections,
+                      selectedYear: filterYear,
+                      selectedDepartmentId: filterDeptId,
+                      selectedSectionId: filterSectionId,
+                      onYearChanged: (year) async {
+                        setState(() {
+                          filterYear = year;
+                          filterDeptId = null;
+                          filterSectionId = null;
+                          filterSections = [];
+                        });
+                        if (year != null) {
+                          try {
+                            final depts = await getIt<AdminRepository>().getFilterDepartmentsByYear(year);
+                            setState(() => filterDepartments = depts);
+                          } catch (_) {
+                            setState(() => filterDepartments = []);
+                          }
+                        } else {
+                          setState(() => filterDepartments = List.from(departments));
+                        }
+                        _fetchStudents();
+                      },
+                      onDepartmentChanged: (deptId) async {
+                        setState(() {
+                          filterDeptId = deptId;
+                          filterSectionId = null;
+                        });
+                        if (deptId != null) {
+                          try {
+                            final secs = await getIt<AdminRepository>().getFilterSections(
+                              year: filterYear, 
+                              departmentId: deptId
+                            );
+                            setState(() => filterSections = secs);
+                          } catch (_) {
+                            setState(() => filterSections = []);
+                          }
+                        } else {
+                          setState(() => filterSections = []);
+                        }
+                        _fetchStudents();
+                      },
+                      onSectionChanged: (secId) {
+                        setState(() => filterSectionId = secId);
+                        _fetchStudents();
+                      },
+                      onReset: () {
+                        setState(() {
+                          filterYear = null;
+                          filterDeptId = null;
+                          filterSectionId = null;
+                          filterDepartments = List.from(departments);
+                          filterSections = [];
+                          _searchController.clear();
+                          searchQuery = '';
+                        });
+                        _fetchStudents();
                       },
                     ),
                     const SizedBox(height: 16),
                     Expanded(
                       child: StudentList(
                         studentsList: studentsList,
-                        searchQuery: searchQuery,
+                        searchQuery: '', // Pass empty since search is server-side now
                         scrollController: _scrollController,
                         isLoadingMore: _isLoadingMore,
                         hasMore: _hasMore,

@@ -121,9 +121,11 @@ class _TeachersTabState extends State<TeachersTab> {
     });
   }
 
+  int? filterDeptId;
+
   Future<void> _fetchTeachers() async {
     try {
-      final allUsers = await getIt<AdminRepository>().getUsers();
+      final allUsers = await getIt<AdminRepository>().getTeachers(departmentId: filterDeptId);
       setState(() {
         usersList = allUsers.where((u) {
           final List<dynamic> roles = u['roles'] ?? [];
@@ -1052,6 +1054,43 @@ class _TeachersTabState extends State<TeachersTab> {
               padding: const EdgeInsets.all(16.0),
               child: Column(
                 children: [
+                  if (departments.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 16.0),
+                      child: DropdownButtonFormField<int?>(
+                        decoration: InputDecoration(
+                          labelText: 'Filter by Department',
+                          prefixIcon: const Icon(Icons.filter_list),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        ),
+                        value: filterDeptId,
+                        items: [
+                          const DropdownMenuItem<int?>(
+                            value: null,
+                            child: Text('All Departments'),
+                          ),
+                          ...departments.where((d) => d['id'] != null).map((d) {
+                            final dId = int.tryParse(d['id'].toString());
+                            return DropdownMenuItem<int?>(
+                              value: dId,
+                              child: Text(
+                                (d['name'] ?? d['code'] ?? d['deptName'] ?? d['deptCode'] ?? '').toString(),
+                              ),
+                            );
+                          }),
+                        ],
+                        onChanged: (value) {
+                          setState(() {
+                            filterDeptId = value;
+                            isLoading = true;
+                          });
+                          _fetchTeachers();
+                        },
+                      ),
+                    ),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [

@@ -82,22 +82,27 @@ class _TeamDetailsPageState extends State<TeamDetailsPage> {
     }
   }
 
-  Future<void> _addMember(String regNo) async {
+  Future<void> _addMembers(List<String> regNos) async {
+    setState(() {
+      _isLoading = true;
+    });
     try {
       final response = await getIt<TeamProxyService>().post(
         Uri.parse(
-          '${ApiConfig.baseUrl}/api/v1/teams/${widget.teamId}/add-member?regNo=$regNo',
+          '${ApiConfig.baseUrl}/api/v1/teams/${widget.teamId}/add-members',
         ),
         headers: {
           'Authorization': 'Bearer ${context.read<AuthProvider>().token!}',
+          'Content-Type': 'application/json',
         },
+        body: jsonEncode(regNos),
       );
       final data = jsonDecode(response.body);
       if (!mounted) return;
       if (response.statusCode == 200 && data['success'] == true) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Member added successfully!'),
+          SnackBar(
+            content: Text('${regNos.length} member${regNos.length > 1 ? 's' : ''} added successfully!'),
             backgroundColor: Colors.green,
           ),
         );
@@ -105,7 +110,7 @@ class _TeamDetailsPageState extends State<TeamDetailsPage> {
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(data['message'] ?? 'Failed to add member'),
+            content: Text(data['message'] ?? 'Failed to add members'),
             backgroundColor: Colors.redAccent,
           ),
         );
@@ -113,6 +118,7 @@ class _TeamDetailsPageState extends State<TeamDetailsPage> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
+
         SnackBar(content: Text('Error: $e'), backgroundColor: Colors.orange),
       );
     }
@@ -333,15 +339,15 @@ class _TeamDetailsPageState extends State<TeamDetailsPage> {
   }
 
   void _showAddMemberDialog() async {
-    final regNo = await showDialog<String>(
+    final regNos = await showDialog<List<String>>(
       context: context,
       builder: (ctx) => StudentSearchDialog(
         currentTeamId: widget.teamId,
         currentStage: _team?.currentStage ?? 1,
       ),
     );
-    if (regNo != null && regNo.isNotEmpty) {
-      _addMember(regNo);
+    if (regNos != null && regNos.isNotEmpty) {
+      _addMembers(regNos);
     }
   }
 

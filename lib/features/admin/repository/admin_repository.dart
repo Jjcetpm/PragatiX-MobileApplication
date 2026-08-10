@@ -147,6 +147,35 @@ class AdminRepository {
     throw Exception('Failed to load sections');
   }
 
+  Future<List<dynamic>> getFilterDepartmentsByYear(String year) async {
+    final response = await _adminService.get('/api/v1/students/filters/departments?year=${Uri.encodeComponent(year)}');
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      if (data['success'] == true) {
+        return data['data'] ?? [];
+      }
+    }
+    throw Exception('Failed to load filtered departments');
+  }
+
+  Future<List<dynamic>> getFilterSections({String? year, int? departmentId}) async {
+    String url = '/api/v1/students/filters/sections?';
+    if (year != null && year.trim().isNotEmpty) {
+      url += 'year=${Uri.encodeComponent(year.trim())}&';
+    }
+    if (departmentId != null) {
+      url += 'departmentId=$departmentId';
+    }
+    final response = await _adminService.get(url);
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      if (data['success'] == true) {
+        return data['data'] ?? [];
+      }
+    }
+    throw Exception('Failed to load filtered sections');
+  }
+
   // SUBJECTS
   Future<List<dynamic>> getSubjects() async {
     final response = await _adminService.get('/api/v1/admin/subjects');
@@ -169,6 +198,22 @@ class AdminRepository {
   Future<void> deleteSubject(int id) async {
     final response = await _adminService.delete('/api/v1/admin/subjects/$id');
     _handleResponse(response);
+  }
+
+  // GET ALL TEACHERS / USERS
+  Future<List<dynamic>> getTeachers({int? departmentId}) async {
+    String url = '/api/v1/admin/users';
+    if (departmentId != null) {
+      url += '?departmentId=$departmentId';
+    }
+    final response = await _adminService.get(url);
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      if (data['success'] == true) {
+        return data['data'] ?? [];
+      }
+    }
+    throw Exception('Failed to load teachers');
   }
 
   // USERS
@@ -209,10 +254,26 @@ class AdminRepository {
     int page = 0,
     int size = 1000,
     String sortBy = 'fullName',
+    String? keyword,
+    String? year,
+    int? departmentId,
+    int? sectionId,
   }) async {
-    final response = await _adminService.get(
-      '/api/v1/students?page=$page&size=$size&sortBy=$sortBy',
-    );
+    String url = '/api/v1/students?page=$page&size=$size&sortBy=$sortBy';
+    if (keyword != null && keyword.trim().isNotEmpty) {
+      url += '&keyword=${Uri.encodeComponent(keyword.trim())}';
+    }
+    if (year != null && year.trim().isNotEmpty) {
+      url += '&year=${Uri.encodeComponent(year.trim())}';
+    }
+    if (departmentId != null) {
+      url += '&departmentId=$departmentId';
+    }
+    if (sectionId != null) {
+      url += '&sectionId=$sectionId';
+    }
+
+    final response = await _adminService.get(url);
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body);
       if (data['success'] == true) {
@@ -252,8 +313,20 @@ class AdminRepository {
     int page = 0,
     int size = 1000,
     String sortBy = 'fullName',
+    String? keyword,
+    String? year,
+    int? departmentId,
+    int? sectionId,
   }) async {
-    final res = await getStudentsPaginated(page: page, size: size, sortBy: sortBy);
+    final res = await getStudentsPaginated(
+      page: page,
+      size: size,
+      sortBy: sortBy,
+      keyword: keyword,
+      year: year,
+      departmentId: departmentId,
+      sectionId: sectionId,
+    );
     return res['content'] as List<dynamic>;
   }
 

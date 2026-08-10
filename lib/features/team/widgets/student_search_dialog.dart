@@ -68,7 +68,7 @@ class _StudentSearchDialogState extends State<StudentSearchDialog> {
   List<StudentSearchDTO> _results = [];
   bool _isLoading = false;
   String _errorMsg = '';
-  StudentSearchDTO? _selectedStudent;
+  List<StudentSearchDTO> _selectedStudents = [];
 
   @override
   void dispose() {
@@ -86,7 +86,7 @@ class _StudentSearchDialogState extends State<StudentSearchDialog> {
         setState(() {
           _results = [];
           _errorMsg = '';
-          _selectedStudent = null;
+          // Retain selected students when clearing search
         });
       }
     });
@@ -96,13 +96,12 @@ class _StudentSearchDialogState extends State<StudentSearchDialog> {
     setState(() {
       _isLoading = true;
       _errorMsg = '';
-      _selectedStudent = null;
     });
     try {
       final authProvider = context.read<AuthProvider>();
       final response = await getIt<TeamProxyService>().get(
         Uri.parse(
-          '${ApiConfig.baseUrl}/api/v1/students/team-member-search?keyword=${Uri.encodeComponent(keyword)}',
+          '${ApiConfig.baseUrl}/api/v1/students/team-member-search?teamId=${widget.currentTeamId}&keyword=${Uri.encodeComponent(keyword)}',
         ),
         headers: {'Authorization': 'Bearer ${authProvider.token}'},
       );
@@ -126,39 +125,46 @@ class _StudentSearchDialogState extends State<StudentSearchDialog> {
     }
   }
 
-  void _selectStudent(StudentSearchDTO student) {
+  @override
+  void initState() {
+    super.initState();
+    // Load immediately on init
+    _performSearch('');
+  }
+
+  void _toggleStudent(StudentSearchDTO student) {
     if (student.teamId == widget.currentTeamId) return; // Already in this team
 
     // Close keyboard
     FocusScope.of(context).unfocus();
 
-    if (student.teamId != null && student.teamId != widget.currentTeamId) {
-      // Different team same stage prompt handled by caller or we handle it here
-      showDialog(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          title: const Text('Move Student?'),
-          content: Text(
-            'Move ${student.fullName} from ${student.teamName} to this team?',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('No'),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.pop(ctx);
-                setState(() => _selectedStudent = student);
-              },
-              child: const Text('Yes'),
-            ),
-          ],
-        ),
-      );
-    } else {
-      setState(() => _selectedStudent = student);
-    }
+    setState(() {
+      final isAlreadySelected = _selectedStudents.any((s) => s.id == student.id);
+      if (isAlreadySelected) {
+        _selectedStudents.removeWhere((s) => s.id == student.id);
+      } else {
+        _selectedStudents.add(student);
+      }
+    });
+  }
+
+  void _toggleSelectAll() {
+    setState(() {
+      final selectableResults = _results.where((s) => s.teamId != widget.currentTeamId).toList();
+      final allSelected = selectableResults.every((s) => _selectedStudents.any((selected) => selected.id == s.id));
+      
+      if (allSelected) {
+        // Deselect all from current results
+        _selectedStudents.removeWhere((selected) => selectableResults.any((s) => s.id == selected.id));
+      } else {
+        // Select all selectable results that are not yet selected
+        for (var s in selectableResults) {
+          if (!_selectedStudents.any((selected) => selected.id == s.id)) {
+            _selectedStudents.add(s);
+          }
+        }
+      }
+    });
   }
 
   @override
@@ -166,8 +172,8 @@ class _StudentSearchDialogState extends State<StudentSearchDialog> {
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Container(
-        width: 600,
-        height: 600,
+        width: MediaQuery.of(context).size.width * 0.9,
+        height: MediaQuery.of(context).size.height * 0.9,
         padding: const EdgeInsets.all(20),
         child: Column(
           children: [
@@ -202,6 +208,24 @@ class _StudentSearchDialogState extends State<StudentSearchDialog> {
               autofocus: true,
             ),
             const SizedBox(height: 16),
+            if (!_isLoading && _results.isNotEmpty)
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Row(
+                    children: [
+                      Checkbox(
+                        value: _results.where((s) => s.teamId != widget.currentTeamId).isNotEmpty && 
+                               _results.where((s) => s.teamId != widget.currentTeamId).every((s) => _selectedStudents.any((selected) => selected.id == s.id)),
+                        onChanged: (val) => _toggleSelectAll(),
+                        activeColor: Colors.indigo,
+                      ),
+                      const Text('Select All', style: TextStyle(fontWeight: FontWeight.bold)),
+                    ],
+                  ),
+                  Text('${_results.length} eligible students', style: const TextStyle(color: Colors.grey)),
+                ],
+              ),
             Expanded(
               child: _isLoading
                   ? const Center(child: CircularProgressIndicator())
@@ -223,7 +247,7 @@ class _StudentSearchDialogState extends State<StudentSearchDialog> {
                       itemCount: _results.length,
                       itemBuilder: (ctx, index) {
                         final s = _results[index];
-                        final isSelected = _selectedStudent?.id == s.id;
+                        final isSelected = _selectedStudents.any((selected) => selected.id == s.id);
                         final isAlreadyInThisTeam =
                             s.teamId == widget.currentTeamId;
 
@@ -240,19 +264,17 @@ class _StudentSearchDialogState extends State<StudentSearchDialog> {
                                 : BorderSide.none,
                           ),
                           child: ListTile(
-                            onTap: isAlreadyInThisTeam
-                                ? null
-                                : () => _selectStudent(s),
-                            leading: CircleAvatar(
-                              backgroundColor: isSelected
-                                  ? Colors.indigo
-                                  : Colors.grey.shade200,
-                              foregroundColor: isSelected
-                                  ? Colors.white
-                                  : Colors.indigo,
-                              child: const Icon(Icons.person),
-                            ),
-                            title: Text(
+                              onTap: isAlreadyInThisTeam
+                                  ? null
+                                  : () => _toggleStudent(s),
+                              leading: Checkbox(
+                                value: isSelected,
+                                onChanged: isAlreadyInThisTeam 
+                                    ? null 
+                                    : (val) => _toggleStudent(s),
+                                activeColor: Colors.indigo,
+                              ),
+                              title: Text(
                               s.fullName,
                               style: const TextStyle(
                                 fontWeight: FontWeight.bold,
@@ -311,28 +333,40 @@ class _StudentSearchDialogState extends State<StudentSearchDialog> {
             ),
             const SizedBox(height: 16),
             Row(
-              mainAxisAlignment: MainAxisAlignment.end,
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
+                Expanded(
+                  child: Text(
+                    '${_selectedStudents.length} Selected',
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
                 TextButton(
                   onPressed: () => Navigator.pop(context),
                   child: const Text('Cancel'),
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: 8),
                 ElevatedButton(
-                  onPressed: _selectedStudent == null
+                  onPressed: _selectedStudents.isEmpty
                       ? null
                       : () {
-                          Navigator.pop(context, _selectedStudent!.regNo);
+                          Navigator.pop(
+                            context,
+                            _selectedStudents.map((s) => s.regNo).toList(),
+                          );
                         },
                   style: ElevatedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(
-                      horizontal: 24,
+                      horizontal: 16,
                       vertical: 12,
                     ),
                     backgroundColor: Colors.indigo,
                     foregroundColor: Colors.white,
                   ),
-                  child: const Text('Add Member'),
+                  child: Text(_selectedStudents.isEmpty
+                      ? 'Add Members'
+                      : 'Add ${_selectedStudents.length}'),
                 ),
               ],
             ),
