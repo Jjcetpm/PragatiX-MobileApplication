@@ -9,7 +9,7 @@ on:
 jobs:
   # Job 1: Builds the Android APK
   build-android:
-    runs-on: ubuntu-latest # Linux is faster and cheaper for Android builds
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -39,7 +39,7 @@ jobs:
           path: build/app/outputs/flutter-apk/app-release.apk
           retention-days: 30
 
-  # Job 2: Builds the iOS IPA
+  # Job 2: Builds the iOS Frontend App Bundle
   build-ios:
     runs-on: macos-latest
     steps:
@@ -61,12 +61,12 @@ jobs:
           pod install
           cd ..
 
-      - name: Build and Package iOS IPA
-        run: flutter build ipa --release --no-codesign
+      - name: Build iOS App
+        run: flutter build ios --release --no-codesign
 
-      - name: Upload IPA Artifact
+      - name: Upload iOS App Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ios-ipa
-          path: build/ios/ipa/*.ipa
+          name: ios-app
+          path: build/ios/iphoneos/Runner.app
           retention-days: 30
