@@ -96,49 +96,47 @@ class _SuperAdminManagementTabState extends State<SuperAdminManagementTab> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              if (!isEditing) ...[
-                TextField(
-                  controller: fullNameCtrl,
-                  decoration: const InputDecoration(
-                    labelText: 'Full Name',
-                    border: OutlineInputBorder(),
-                  ),
+              TextField(
+                controller: fullNameCtrl,
+                decoration: const InputDecoration(
+                  labelText: 'Full Name',
+                  border: OutlineInputBorder(),
                 ),
-                const SizedBox(height: 16),
-                TextField(
-                  controller: usernameCtrl,
-                  decoration: const InputDecoration(
-                    labelText: 'Username',
-                    border: OutlineInputBorder(),
-                  ),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: usernameCtrl,
+                decoration: const InputDecoration(
+                  labelText: 'Username',
+                  border: OutlineInputBorder(),
                 ),
-                const SizedBox(height: 16),
-                TextField(
-                  controller: passwordCtrl,
-                  decoration: const InputDecoration(
-                    labelText: 'Password',
-                    border: OutlineInputBorder(),
-                  ),
-                  obscureText: true,
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: passwordCtrl,
+                decoration: InputDecoration(
+                  labelText: isEditing ? 'Password (leave blank to keep current)' : 'Password',
+                  border: const OutlineInputBorder(),
                 ),
-                const SizedBox(height: 16),
-                TextField(
-                  controller: emailCtrl,
-                  decoration: const InputDecoration(
-                    labelText: 'Email',
-                    border: OutlineInputBorder(),
-                  ),
+                obscureText: true,
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: emailCtrl,
+                decoration: const InputDecoration(
+                  labelText: 'Email',
+                  border: OutlineInputBorder(),
                 ),
-                const SizedBox(height: 16),
-                TextField(
-                  controller: phoneCtrl,
-                  decoration: const InputDecoration(
-                    labelText: 'Phone',
-                    border: OutlineInputBorder(),
-                  ),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: phoneCtrl,
+                decoration: const InputDecoration(
+                  labelText: 'Phone',
+                  border: OutlineInputBorder(),
                 ),
-                const SizedBox(height: 16),
-              ],
+              ),
+              const SizedBox(height: 16),
               DropdownButtonFormField<String>(
                 value: selectedYear,
                 decoration: const InputDecoration(
@@ -184,40 +182,31 @@ class _SuperAdminManagementTabState extends State<SuperAdminManagementTab> {
               print('Save button pressed! Admin ID: ${admin?['id']}');
               print('Selected Year: $selectedYear');
               
-              if (!isEditing) {
-                if (usernameCtrl.text.trim().isEmpty ||
-                    fullNameCtrl.text.trim().isEmpty) {
-                  print('Validation failed: Username or Full Name is empty');
-                  return;
-                }
-                if (passwordCtrl.text.isEmpty) {
-                  print('Validation failed: Password empty on create');
-                  return;
-                }
+              if (usernameCtrl.text.trim().isEmpty || fullNameCtrl.text.trim().isEmpty) {
+                ScaffoldMessenger.of(dialogContext).showSnackBar(const SnackBar(content: Text('Username and Full Name are required')));
+                return;
+              }
+              if (!isEditing && passwordCtrl.text.isEmpty) {
+                ScaffoldMessenger.of(dialogContext).showSnackBar(const SnackBar(content: Text('Password is required for new admin')));
+                return;
               }
 
-              final data = <String, dynamic>{};
-              
-              if (isEditing) {
-                // ONLY send academicYear
-                if (selectedYear != null) {
-                  data['academicYear'] = selectedYear;
-                } else {
-                  data['academicYear'] = null;
-                }
+              final data = <String, dynamic>{
+                'fullName': fullNameCtrl.text.trim(),
+                'username': usernameCtrl.text.trim(),
+                'email': emailCtrl.text.trim(),
+                'phone': phoneCtrl.text.trim(),
+                'active': admin?['active'] ?? true,
+              };
+
+              if (selectedYear != null) {
+                data['academicYear'] = selectedYear;
               } else {
-                // Send all fields for creation
-                data['fullName'] = fullNameCtrl.text.trim();
-                data['username'] = usernameCtrl.text.trim();
-                data['email'] = emailCtrl.text.trim();
-                data['phone'] = phoneCtrl.text.trim();
-                data['active'] = true;
-                if (selectedYear != null) {
-                  data['academicYear'] = selectedYear;
-                }
-                if (passwordCtrl.text.isNotEmpty) {
-                  data['password'] = passwordCtrl.text;
-                }
+                data['academicYear'] = null; // Important to send null to clear it
+              }
+
+              if (passwordCtrl.text.isNotEmpty) {
+                data['password'] = passwordCtrl.text;
               }
 
               if (selectedYear != null && (!isEditing ? data['active'] == true : true)) {

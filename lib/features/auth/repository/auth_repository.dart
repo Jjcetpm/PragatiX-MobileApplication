@@ -6,27 +6,24 @@ class AuthRepository {
 
   AuthRepository(this._authService);
 
-  Future<Map<String, dynamic>> staffLogin(
-    String username,
-    String password,
-  ) async {
-    final response = await _authService.staffLogin(username, password);
+  Future<String> requestOtp(String email) async {
+    final response = await _authService.requestOtp(email);
     final data = jsonDecode(response.body);
     if (response.statusCode == 200 && data['success'] == true) {
-      return data['data'] ?? {};
+      return data['message'] ?? 'OTP sent successfully';
     }
-    throw Exception(data['message'] ?? 'Staff login failed.');
+    throw Exception(data['message'] ?? 'Failed to send OTP.');
   }
 
-  Future<Map<String, dynamic>> studentLogin(
-    String identity,
-    String password,
+  Future<Map<String, dynamic>> verifyOtp(
+    String email,
+    String otp,
   ) async {
-    final response = await _authService.studentLogin(identity, password);
+    final response = await _authService.verifyOtp(email, otp);
     final data = jsonDecode(response.body);
     if (response.statusCode == 200 && data['success'] == true) {
       return data['data'] ?? {};
     }
-    throw Exception(data['message'] ?? 'Student login failed.');
+    throw Exception(data['message'] ?? 'OTP verification failed.');
   }
 }

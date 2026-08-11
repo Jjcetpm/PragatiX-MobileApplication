@@ -3,19 +3,19 @@ import 'package:pragatix/core/utils/api_client.dart' as http;
 import 'package:pragatix/core/config/api_config.dart';
 
 class AuthService {
-  Future<http.Response> staffLogin(String username, String password) async {
+  Future<http.Response> requestOtp(String email) async {
     return http.post(
-      Uri.parse('${ApiConfig.baseUrl}/api/v1/auth/login'),
+      Uri.parse('${ApiConfig.baseUrl}/api/v1/auth/request-otp'),
       headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({'username': username, 'password': password}),
+      body: jsonEncode({'email': email}),
     );
   }
 
-  Future<http.Response> studentLogin(String identity, String password) async {
+  Future<http.Response> verifyOtp(String email, String otp) async {
     return http.post(
-      Uri.parse('${ApiConfig.baseUrl}/api/v1/auth/student-login'),
+      Uri.parse('${ApiConfig.baseUrl}/api/v1/auth/verify-otp'),
       headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({'identity': identity, 'password': password}),
+      body: jsonEncode({'email': email, 'otp': otp}),
     );
   }
 }
