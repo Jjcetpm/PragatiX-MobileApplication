@@ -2,13 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:pragatix/core/theme/app_theme.dart';
 import 'package:pragatix/core/services/navigator_service.dart';
-import 'package:pragatix/core/services/loading_service.dart';
 import 'package:pragatix/features/xp/providers/xp_provider.dart';
 import 'package:pragatix/features/badge/providers/badge_provider.dart';
 import 'package:pragatix/features/activity/providers/activity_completion_provider.dart';
 import 'package:pragatix/features/student/pages/student_dashboard_page.dart';
 import 'package:pragatix/features/teacher/pages/teacher_dashboard.dart';
 import 'package:pragatix/features/admin/pages/admin_dashboard.dart';
+import 'package:pragatix/features/admin/pages/super_admin_dashboard.dart';
 import 'package:pragatix/features/captain/pages/captain_dashboard_page.dart';
 import 'package:pragatix/features/auth/pages/login_page.dart';
 import 'package:pragatix/features/auth/providers/auth_provider.dart';
@@ -23,10 +23,6 @@ void main() async {
   setupLocator();
 
   final authProvider = getIt<AuthProvider>();
-  
-  // Show loader during initial auth check if possible
-  // Since runApp hasn't been called yet, the overlay is not available.
-  // The login page itself can handle the loading state if needed.
   await authProvider.checkAuthStatus();
 
   runApp(
@@ -56,33 +52,65 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       navigatorKey: NavigatorService.navigatorKey,
       debugShowCheckedModeBanner: false,
-      title: 'pragatiX – Track. Learn. Grow.',
+      title: 'pragatiX â€“ Track. Learn. Grow.',
       theme: AppTheme.light(),
       home: Consumer<AuthProvider>(
         builder: (context, auth, _) {
           if (auth.isAuthenticated) {
-            final role = auth.role ?? '';
             final userType = auth.currentUser?['userType'] ?? '';
             final isCaptain =
                 auth.currentUser?['teamRole'] == 'CAPTAIN' ||
                 auth.currentUser?['teamRole'] == 'VICE_CAPTAIN';
 
-            if (role == 'ROLE_ADMIN') {
-              return const AdminDashboard();
-            } else if (userType == 'TEACHER' ||
-                role == 'ROLE_TEACHER' ||
-                role == 'ROLE_DISCIPLINE_COMMITTEE') {
-              return const TeacherDashboard();
-            } else if (userType == 'CAPTAIN' || isCaptain) {
-              return const CaptainDashboardPage();
-            } else if (role == 'ROLE_STUDENT' ||
-                userType == 'STUDENT' ||
-                role == 'STUDENT') {
-              return const StudentDashboardPage();
-            } else {
-              // Unknown role or missing data
-              return const LoginPage();
+            // Extract roles list from the stored user JSON.
+            // This matches the routing logic in login_page.dart and correctly
+            // handles Admin/Super Admin whose userType may be null/empty.
+            final dynamic rawRoles = auth.currentUser?['roles'];
+            final List<dynamic> storedRoles =
+                rawRoles is List ? rawRoles : [];
+
+            bool hasRole(String roleName) {
+              for (var r in storedRoles) {
+                if (r is String && r == roleName) return true;
+                if (r is Map) {
+                  final name = r['name'] ?? r['authority'] ?? '';
+                  if (name == roleName) return true;
+                }
+              }
+              return false;
             }
+
+            // Super Admin â€” checked BEFORE Admin to avoid downgrade
+            if (hasRole('ROLE_SUPER_ADMIN') || hasRole('ROLE_SUPERADMIN')) {
+              return const SuperAdminDashboard();
+            }
+
+            // Admin
+            if (hasRole('ROLE_ADMIN')) {
+              return const AdminDashboard();
+            }
+
+            // Teacher / CC / HOD / Discipline Committee
+            if (userType == 'TEACHER' ||
+                hasRole('ROLE_TEACHER') ||
+                hasRole('ROLE_DISCIPLINE_COMMITTEE')) {
+              return const TeacherDashboard();
+            }
+
+            // Captain / Vice Captain (student leadership)
+            if (userType == 'CAPTAIN' || isCaptain) {
+              return const CaptainDashboardPage();
+            }
+
+            // Student
+            if (userType == 'STUDENT' ||
+                hasRole('ROLE_STUDENT') ||
+                auth.role == 'STUDENT') {
+              return const StudentDashboardPage();
+            }
+
+            // Unknown/corrupted role â€” force re-login
+            return const LoginPage();
           }
           return const LoginPage();
         },

@@ -230,16 +230,58 @@ class _LoginPageState extends State<LoginPage> {
                           child: Column(
                             mainAxisSize: MainAxisSize.min,
                             children: [
+                              // ── App Logo ──────────────────────────────────
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(16),
+                                child: Image.asset(
+                                  'assets/images/logo.jpg',
+                                  height: 72,
+                                  width: 72,
+                                  fit: BoxFit.contain,
+                                  errorBuilder: (_, __, ___) => const Icon(
+                                    Icons.school_rounded,
+                                    size: 72,
+                                    color: Color(0xFF4F46E5),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 10),
+
+                              // ── App Name ──────────────────────────────────
+                              const Text(
+                                'pragatiX',
+                                style: TextStyle(
+                                  fontSize: 22,
+                                  fontWeight: FontWeight.w900,
+                                  color: Color(0xFF4F46E5),
+                                  letterSpacing: 1.5,
+                                ),
+                              ),
+                              const Text(
+                                'Track. Learn. Grow.',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: Color(0xFF64748B),
+                                  letterSpacing: 0.8,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                              const SizedBox(height: 20),
+                              const Divider(height: 1),
+                              const SizedBox(height: 20),
+
+                              // ── Login Title ───────────────────────────────
                               const Text(
                                 'Login',
                                 style: TextStyle(
-                                  fontSize: 26,
+                                  fontSize: 22,
                                   fontWeight: FontWeight.bold,
                                   color: Color(0xFF1E293B),
                                   letterSpacing: 1.1,
                                 ),
                               ),
                               const SizedBox(height: 6),
+
 
                               Text(
                                 _isOtpStep 

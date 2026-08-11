@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:pragatix/core/theme/app_colors.dart';
+
 import 'package:pragatix/features/profile/models/profile_response.dart';
 import 'package:pragatix/features/profile/repository/profile_repository.dart';
 import 'package:pragatix/shared/widgets/profile_header.dart';
@@ -273,19 +273,6 @@ class _ProfilePageState extends State<ProfilePage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        ElevatedButton.icon(
-          onPressed: () {
-            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Coming soon')));
-          },
-          icon: const Icon(Icons.lock),
-          label: const Text('Change Password'),
-          style: ElevatedButton.styleFrom(
-            padding: const EdgeInsets.symmetric(vertical: 16),
-            backgroundColor: AppColors.studentPrimary,
-            foregroundColor: Colors.white,
-          ),
-        ),
-        const SizedBox(height: 12),
         ElevatedButton.icon(
           onPressed: _handleLogout,
           icon: const Icon(Icons.logout),

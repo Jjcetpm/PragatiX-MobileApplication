@@ -159,6 +159,17 @@ class _DashboardTabState extends State<DashboardTab> {
         final data = jsonDecode(response.body);
         if (data['success'] == true) {
           final resData = data['data'];
+          
+          debugPrint('====== FORENSIC: FLUTTER ROLE RESOLUTION ======');
+          debugPrint('Raw /auth/me data: $resData');
+          debugPrint('isCaptain flag from backend: ${resData['isCaptain']}');
+          debugPrint('isViceCaptain flag from backend: ${resData['isViceCaptain']}');
+          debugPrint('isMember flag from backend: ${resData['isMember']}');
+          debugPrint('teamRole from backend: ${resData['teamRole']}');
+          debugPrint('userType from backend: ${resData['userType']}');
+          debugPrint('subRoles from backend: ${resData['subRoles']}');
+          debugPrint('roles from backend: ${resData['roles']}');
+          
           setState(() {
             studentName = resData['fullName'] ?? '';
             regNo = resData['username'] ?? '';
@@ -177,6 +188,8 @@ class _DashboardTabState extends State<DashboardTab> {
               currentStage = resData['stage'];
             }
           });
+          debugPrint('Final resolved Flutter dashboard state: isCaptain=$isCaptain, isViceCaptain=$isViceCaptain, isMember=$isMember');
+          debugPrint('===============================================');
         }
       }
     } catch (e) {
