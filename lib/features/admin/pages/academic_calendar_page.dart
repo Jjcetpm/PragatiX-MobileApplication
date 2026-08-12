@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:pragatix/core/widgets/pragatix_loader.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../../auth/providers/auth_provider.dart';
@@ -492,7 +493,7 @@ class _AcademicCalendarPageState extends State<AcademicCalendarPage> {
           _buildMonthSelector(),
           Expanded(
             child: _isLoading
-                ? const Center(child: CircularProgressIndicator())
+                ? const Center(child: PragatiXLoader())
                 : ListView(
                     padding: const EdgeInsets.all(16.0),
                     children: [

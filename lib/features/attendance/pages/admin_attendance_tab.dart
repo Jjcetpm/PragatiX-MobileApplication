@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:pragatix/core/widgets/pragatix_loader.dart';
 import 'package:intl/intl.dart';
 import 'dart:convert';
 import 'package:pragatix/core/utils/api_client.dart' as http;
@@ -279,14 +280,14 @@ class _AdminAttendanceTabState extends State<AdminAttendanceTab> {
         ],
       ),
       body: _isLoadingLookups
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(child: PragatiXLoader())
           : Column(
               children: [
                 _buildFilters(),
                 const Divider(),
                 if (_isLoading)
                   const Expanded(
-                    child: Center(child: CircularProgressIndicator()),
+                    child: Center(child: PragatiXLoader()),
                   )
                 else if (_isHoliday)
                   Expanded(

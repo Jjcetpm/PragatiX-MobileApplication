@@ -52,7 +52,7 @@ class _TeachersTabState extends State<TeachersTab> {
 
   // Add/Edit Dialog controllers
   final TextEditingController usernameController = TextEditingController();
-  final TextEditingController passwordController = TextEditingController();
+
   final TextEditingController nameController = TextEditingController();
   final TextEditingController emailController = TextEditingController();
   final TextEditingController sectionController = TextEditingController();
@@ -148,7 +148,6 @@ class _TeachersTabState extends State<TeachersTab> {
 
   Future<void> _addTeacher() async {
     if (usernameController.text.isEmpty ||
-        passwordController.text.isEmpty ||
         nameController.text.isEmpty ||
         emailController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -170,7 +169,7 @@ class _TeachersTabState extends State<TeachersTab> {
     try {
       await getIt<AdminRepository>().addUser({
         'username': usernameController.text.trim(),
-        'password': passwordController.text,
+        'password': 'Welcome@123',
         'fullName': nameController.text.trim(),
         'email': emailController.text.trim(),
         'departmentId': selectedDeptId,
@@ -411,7 +410,7 @@ class _TeachersTabState extends State<TeachersTab> {
 
   void _clearControllers() {
     usernameController.clear();
-    passwordController.clear();
+
     nameController.clear();
     emailController.clear();
     sectionController.clear();
@@ -426,108 +425,89 @@ class _TeachersTabState extends State<TeachersTab> {
   void _showAddTeacherDialog() {
     _clearControllers();
     lastFetchedDeptId = null;
-    showDialog(
-      context: context,
-      builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setDialogState) {
-            if (lastFetchedDeptId != selectedDeptId) {
-              Future.microtask(
-                () => _fetchSectionsForDept(selectedDeptId, setDialogState),
-              );
-            }
-            return AlertDialog(
-              title: const Text(
-                'Add New Staff / User',
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-              content: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    TextField(
-                      controller: usernameController,
-                      decoration: const InputDecoration(
-                        labelText: 'Username *',
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) {
+          return StatefulBuilder(
+            builder: (context, setDialogState) {
+              if (lastFetchedDeptId != selectedDeptId) {
+                Future.microtask(
+                  () => _fetchSectionsForDept(selectedDeptId, setDialogState),
+                );
+              }
+              return Scaffold(
+                appBar: AppBar(
+                  title: const Text(
+                    'Add New Staff / User',
+                    style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
+                  ),
+                  backgroundColor: const Color(0xFF1E293B),
+                  iconTheme: const IconThemeData(color: Colors.white),
+                ),
+                body: SingleChildScrollView(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      TextField(
+                        controller: usernameController,
+                        decoration: const InputDecoration(
+                          labelText: 'Username *',
+                        ),
                       ),
-                    ),
-                    TextField(
-                      controller: nameController,
-                      decoration: const InputDecoration(
-                        labelText: 'Full Name *',
+                      TextField(
+                        controller: nameController,
+                        decoration: const InputDecoration(
+                          labelText: 'Full Name *',
+                        ),
                       ),
-                    ),
-                    TextField(
-                      controller: emailController,
-                      decoration: const InputDecoration(labelText: 'Email *'),
-                    ),
-                    TextField(
-                      controller: passwordController,
-                      obscureText: true,
-                      decoration: const InputDecoration(
-                        labelText: 'Password *',
+                      TextField(
+                        controller: emailController,
+                        decoration: const InputDecoration(labelText: 'Email *'),
                       ),
-                    ),
-                    const SizedBox(height: 15),
-                    DropdownButtonFormField<int?>(
-                      initialValue:
-                          departments.any(
-                            (d) =>
-                                (d['id'] != null
-                                    ? int.tryParse(d['id'].toString())
-                                    : null) ==
-                                selectedDeptId,
-                          )
-                          ? selectedDeptId
-                          : null,
-                      decoration: const InputDecoration(
-                        labelText: 'Department',
-                      ),
-                      items: departments.where((d) => d['id'] != null).map((d) {
-                        final dId = int.tryParse(d['id'].toString());
-                        return DropdownMenuItem<int?>(
-                          value: dId,
-                          child: Text(
-                            (d['code'] ??
-                                    d['name'] ??
-                                    d['deptCode'] ??
-                                    d['deptName'] ??
-                                    '')
-                                .toString(),
+                      const SizedBox(height: 15),
+                      DropdownButtonFormField<int?>(
+                        initialValue: departments.any(
+                                  (d) =>
+                                      (d['id'] != null
+                                          ? int.tryParse(d['id'].toString())
+                                          : null) ==
+                                      selectedDeptId,
+                                )
+                            ? selectedDeptId
+                            : null,
+                        decoration: const InputDecoration(
+                          labelText: 'Department',
+                        ),
+                        items: [
+                          const DropdownMenuItem<int?>(
+                            value: null,
+                            child: Text('No Department (Optional)'),
                           ),
-                        );
-                      }).toList(),
-                      onChanged: (value) {
-                        setDialogState(() {
-                          selectedDeptId = value;
-                          selectedSectionId = null;
-                        });
-                      },
-                    ),
-                    const SizedBox(height: 15),
-                    DropdownButtonFormField<String>(
-                      initialValue: selectedMainRole,
-                      decoration: const InputDecoration(
-                        labelText: 'System Role *',
+                          ...departments.where((d) => d['id'] != null).map((d) {
+                            final dId = int.tryParse(d['id'].toString());
+                            return DropdownMenuItem<int?>(
+                              value: dId,
+                              child: Text(
+                                (d['code'] ??
+                                        d['name'] ??
+                                        d['deptCode'] ??
+                                        d['deptName'] ??
+                                        '')
+                                    .toString(),
+                              ),
+                            );
+                          }),
+                        ],
+                        onChanged: (value) {
+                          setDialogState(() {
+                            selectedDeptId = value;
+                            selectedSectionId = null;
+                          });
+                        },
                       ),
-                      items: const [
-                        DropdownMenuItem(
-                          value: 'ROLE_TEACHER',
-                          child: Text('Teacher'),
-                        ),
-                        DropdownMenuItem(
-                          value: 'ROLE_TRANSPORT',
-                          child: Text('Transport'),
-                        ),
-                      ],
-                      onChanged: (value) {
-                        setDialogState(() {
-                          selectedMainRole = value ?? 'ROLE_TEACHER';
-                        });
-                      },
-                    ),
-                    if (selectedMainRole == 'ROLE_TEACHER') ...[
                       const SizedBox(height: 15),
                       const Text(
                         'Teacher Sub-Roles:',
@@ -684,30 +664,39 @@ class _TeachersTabState extends State<TeachersTab> {
                           );
                         }),
                     ],
-                  ],
                 ),
               ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text('Cancel'),
-                ),
-                ElevatedButton(
-                  onPressed: _addTeacher,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFEA4335),
+              bottomNavigationBar: SafeArea(
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(context),
+                        child: const Text('Cancel', style: TextStyle(color: Colors.red)),
+                      ),
+                      const SizedBox(width: 16),
+                      ElevatedButton(
+                        onPressed: _addTeacher,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFFEA4335),
+                          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                        ),
+                        child: const Text(
+                          'Create',
+                          style: TextStyle(color: Colors.white),
+                        ),
+                      ),
+                    ],
                   ),
-                  child: const Text(
-                    'Create',
-                    style: TextStyle(color: Colors.white),
-                  ),
                 ),
-              ],
+              ),
             );
           },
         );
       },
-    );
+    ));
   }
 
   void _showEditTeacherDialog(Map<String, dynamic> teacher) {
@@ -757,95 +746,84 @@ class _TeachersTabState extends State<TeachersTab> {
       selectedYear = null;
     }
 
-    showDialog(
-      context: context,
-      builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setDialogState) {
-            if (lastFetchedDeptId != selectedDeptId) {
-              Future.microtask(
-                () => _fetchSectionsForDept(selectedDeptId, setDialogState),
-              );
-            }
-            return AlertDialog(
-              title: Text(
-                "Edit User: ${teacher["username"]}",
-                style: const TextStyle(fontWeight: FontWeight.bold),
-              ),
-              content: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    TextField(
-                      controller: nameController,
-                      decoration: const InputDecoration(
-                        labelText: 'Full Name *',
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) {
+          return StatefulBuilder(
+            builder: (context, setDialogState) {
+              if (lastFetchedDeptId != selectedDeptId) {
+                Future.microtask(
+                  () => _fetchSectionsForDept(selectedDeptId, setDialogState),
+                );
+              }
+              return Scaffold(
+                appBar: AppBar(
+                  title: Text(
+                    "Edit User: ${teacher["username"]}",
+                    style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
+                  ),
+                  backgroundColor: const Color(0xFF1E293B),
+                  iconTheme: const IconThemeData(color: Colors.white),
+                ),
+                body: SingleChildScrollView(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      TextField(
+                        controller: nameController,
+                        decoration: const InputDecoration(
+                          labelText: 'Full Name *',
+                        ),
                       ),
-                    ),
-                    TextField(
-                      controller: emailController,
-                      decoration: const InputDecoration(labelText: 'Email *'),
-                    ),
-                    const SizedBox(height: 15),
-                    DropdownButtonFormField<int?>(
-                      initialValue:
-                          departments.any(
-                            (d) =>
-                                (d['id'] != null
-                                    ? int.tryParse(d['id'].toString())
-                                    : null) ==
-                                selectedDeptId,
-                          )
-                          ? selectedDeptId
-                          : null,
-                      decoration: const InputDecoration(
-                        labelText: 'Department',
+                      TextField(
+                        controller: emailController,
+                        decoration: const InputDecoration(labelText: 'Email *'),
                       ),
-                      items: departments.where((d) => d['id'] != null).map((d) {
-                        final dId = int.tryParse(d['id'].toString());
-                        return DropdownMenuItem<int?>(
-                          value: dId,
-                          child: Text(
-                            (d['code'] ??
-                                    d['name'] ??
-                                    d['deptCode'] ??
-                                    d['deptName'] ??
-                                    '')
-                                .toString(),
+                      const SizedBox(height: 15),
+                      DropdownButtonFormField<int?>(
+                        initialValue:
+                            departments.any(
+                              (d) =>
+                                  (d['id'] != null
+                                      ? int.tryParse(d['id'].toString())
+                                      : null) ==
+                                  selectedDeptId,
+                            )
+                            ? selectedDeptId
+                            : null,
+                        decoration: const InputDecoration(
+                          labelText: 'Department',
+                        ),
+                        items: [
+                          const DropdownMenuItem<int?>(
+                            value: null,
+                            child: Text('No Department (Optional)'),
                           ),
-                        );
-                      }).toList(),
-                      onChanged: (value) {
-                        setDialogState(() {
-                          selectedDeptId = value;
-                          selectedSectionId = null;
-                        });
-                      },
-                    ),
-                    const SizedBox(height: 15),
-                    DropdownButtonFormField<String>(
-                      initialValue: selectedMainRole,
-                      decoration: const InputDecoration(
-                        labelText: 'System Role *',
+                          ...departments.where((d) => d['id'] != null).map((d) {
+                            final dId = int.tryParse(d['id'].toString());
+                            return DropdownMenuItem<int?>(
+                              value: dId,
+                              child: Text(
+                                (d['code'] ??
+                                        d['name'] ??
+                                        d['deptCode'] ??
+                                        d['deptName'] ??
+                                        '')
+                                    .toString(),
+                              ),
+                            );
+                          }),
+                        ],
+                        onChanged: (value) {
+                          setDialogState(() {
+                            selectedDeptId = value;
+                            selectedSectionId = null;
+                          });
+                        },
                       ),
-                      items: const [
-                        DropdownMenuItem(
-                          value: 'ROLE_TEACHER',
-                          child: Text('Teacher'),
-                        ),
-                        DropdownMenuItem(
-                          value: 'ROLE_TRANSPORT',
-                          child: Text('Transport'),
-                        ),
-                      ],
-                      onChanged: (value) {
-                        setDialogState(() {
-                          selectedMainRole = value ?? 'ROLE_TEACHER';
-                        });
-                      },
-                    ),
-                    if (selectedMainRole == 'ROLE_TEACHER') ...[
                       const SizedBox(height: 15),
                       const Text(
                         'Teacher Sub-Roles:',
@@ -1002,30 +980,39 @@ class _TeachersTabState extends State<TeachersTab> {
                           );
                         }),
                     ],
-                  ],
                 ),
               ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text('Cancel'),
-                ),
-                ElevatedButton(
-                  onPressed: () => _editTeacher(teacher['id']),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFEA4335),
+              bottomNavigationBar: SafeArea(
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(context),
+                        child: const Text('Cancel', style: TextStyle(color: Colors.red)),
+                      ),
+                      const SizedBox(width: 16),
+                      ElevatedButton(
+                        onPressed: () => _editTeacher(teacher['id']),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFFEA4335),
+                          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                        ),
+                        child: const Text(
+                          'Save Changes',
+                          style: TextStyle(color: Colors.white),
+                        ),
+                      ),
+                    ],
                   ),
-                  child: const Text(
-                    'Save Changes',
-                    style: TextStyle(color: Colors.white),
-                  ),
                 ),
-              ],
+              ),
             );
           },
         );
       },
-    );
+    ));
   }
 
   @override
@@ -1058,6 +1045,7 @@ class _TeachersTabState extends State<TeachersTab> {
                     Padding(
                       padding: const EdgeInsets.only(bottom: 16.0),
                       child: DropdownButtonFormField<int?>(
+                        isExpanded: true,
                         decoration: InputDecoration(
                           labelText: 'Filter by Department',
                           prefixIcon: const Icon(Icons.filter_list),
@@ -1092,36 +1080,42 @@ class _TeachersTabState extends State<TeachersTab> {
                       ),
                     ),
                   Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      ElevatedButton.icon(
-                        onPressed: _showManageSubjectsDialog,
-                        icon: const Icon(
-                          Icons.book_outlined,
-                          color: Colors.white,
-                          size: 18,
-                        ),
-                        label: const Text(
-                          'Manage Subjects',
-                          style: TextStyle(color: Colors.white),
-                        ),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF1E293B),
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          onPressed: _showManageSubjectsDialog,
+                          icon: const Icon(
+                            Icons.book_outlined,
+                            color: Colors.white,
+                            size: 18,
+                          ),
+                          label: const Text(
+                            'Manage Subjects',
+                            style: TextStyle(color: Colors.white),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF1E293B),
+                          ),
                         ),
                       ),
-                      ElevatedButton.icon(
-                        onPressed: _showAddTeacherDialog,
-                        icon: const Icon(
-                          Icons.add,
-                          color: Colors.white,
-                          size: 18,
-                        ),
-                        label: const Text(
-                          'Add Teacher',
-                          style: TextStyle(color: Colors.white),
-                        ),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFFEA4335),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          onPressed: _showAddTeacherDialog,
+                          icon: const Icon(
+                            Icons.add,
+                            color: Colors.white,
+                            size: 18,
+                          ),
+                          label: const Text(
+                            'Add Teacher',
+                            style: TextStyle(color: Colors.white),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFFEA4335),
+                          ),
                         ),
                       ),
                     ],

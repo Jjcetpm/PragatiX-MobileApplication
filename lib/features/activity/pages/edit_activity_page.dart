@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:pragatix/core/widgets/pragatix_loader.dart';
 import 'package:pragatix/features/activity/models/activity_model.dart';
 import 'package:pragatix/features/activity/providers/activity_provider.dart';
 import 'package:pragatix/features/activity/widgets/activity_form.dart';
@@ -160,7 +161,7 @@ class _EditActivityPageState extends State<EditActivityPage>
             listenable: widget.provider,
             builder: (context, _) {
               if (widget.provider.isLoadingDependencies) {
-                return const Center(child: CircularProgressIndicator());
+                return const Center(child: PragatiXLoader());
               }
               return Column(
                 children: [

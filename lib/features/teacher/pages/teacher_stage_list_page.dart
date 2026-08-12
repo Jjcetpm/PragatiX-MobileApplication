@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:pragatix/core/widgets/pragatix_loader.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:pragatix/core/config/api_config.dart';
@@ -45,6 +46,8 @@ class _TeacherStageListPageState extends State<TeacherStageListPage> {
   bool _isLoading = true;
   int _pendingBadgeRequests = 0;
   int _pendingPenaltyRequests = 0;
+
+  bool get _isHod => widget.subRoles.contains('HOD') || widget.subRoles.contains('ROLE_HOD');
 
   bool get _isCc => widget.subRoles.any(
         (r) =>
@@ -192,7 +195,7 @@ class _TeacherStageListPageState extends State<TeacherStageListPage> {
         ),
         elevation: 2,
         actions: [
-          if (_isCc) ...[
+                    if (_isCc)
             IconButton(
               icon: Badge(
                 isLabelVisible: _pendingBadgeRequests > 0,
@@ -216,6 +219,7 @@ class _TeacherStageListPageState extends State<TeacherStageListPage> {
                 ).then((_) => _fetchPendingBadges());
               },
             ),
+          if (_isCc || _isHod)
             IconButton(
               icon: const Icon(
                 Icons.people_alt_rounded,
@@ -232,7 +236,6 @@ class _TeacherStageListPageState extends State<TeacherStageListPage> {
                 );
               },
             ),
-          ],
           Consumer<PenaltyProvider>(
             builder: (context, penaltyProvider, _) {
               final count = penaltyProvider.pendingCount > 0
@@ -388,7 +391,7 @@ class _TeacherStageListPageState extends State<TeacherStageListPage> {
               color: _tealPrimary,
               child: _isLoading
                   ? const Center(
-                      child: CircularProgressIndicator(color: _tealPrimary),
+                      child: PragatiXLoader(),
                     )
                   : _stages.isEmpty
                       ? ListView(

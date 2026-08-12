@@ -263,7 +263,7 @@ class _StudentAttendanceTabState extends State<StudentAttendanceTab> {
       return const Center(
         child: Padding(
           padding: EdgeInsets.all(16.0),
-          child: CircularProgressIndicator(),
+          child: PragatiXLoader(),
         ),
       );
     }

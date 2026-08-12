@@ -167,12 +167,17 @@ class _AddStudentDialogState extends State<AddStudentDialog> {
         !guardianRelations.contains(selectedGuardianRel))
       selectedGuardianRel = null;
 
-    return AlertDialog(
-      title: const Text(
-        'Register New Student',
-        style: TextStyle(fontWeight: FontWeight.bold),
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text(
+          'Register New Student',
+          style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
+        ),
+        backgroundColor: const Color(0xFF1E293B),
+        iconTheme: const IconThemeData(color: Colors.white),
       ),
-      content: SingleChildScrollView(
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16.0),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -396,28 +401,42 @@ class _AddStudentDialogState extends State<AddStudentDialog> {
           ],
         ),
       ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('Cancel'),
+      bottomNavigationBar: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Cancel', style: TextStyle(color: Colors.red)),
+              ),
+              const SizedBox(width: 16),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF1E293B),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                ),
+                onPressed: () {
+                  widget.onAddStudent(
+                    departmentId: selectedDeptId,
+                    academicYearId: selectedAcademicYearId,
+                    yearId: selectedYearId,
+                    semesterId: selectedSemesterId,
+                    genderId: selectedGenderId,
+                    sectionId: selectedSectionId,
+                    groupId: selectedGroupId,
+                    address: addressController.text,
+                    dob: selectedDob,
+                  );
+                },
+                child: const Text('Save'),
+              ),
+            ],
+          ),
         ),
-        ElevatedButton(
-          onPressed: () {
-            widget.onAddStudent(
-              departmentId: selectedDeptId,
-              academicYearId: selectedAcademicYearId,
-              yearId: selectedYearId,
-              semesterId: selectedSemesterId,
-              genderId: selectedGenderId,
-              sectionId: selectedSectionId,
-              groupId: selectedGroupId,
-              address: addressController.text,
-              dob: selectedDob,
-            );
-          },
-          child: const Text('Save'),
-        ),
-      ],
+      ),
     );
   }
 }

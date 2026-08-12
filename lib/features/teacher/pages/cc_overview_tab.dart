@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:pragatix/core/widgets/pragatix_loader.dart';
 
 // Import necessary dependencies
 
@@ -127,7 +128,7 @@ class _CCOverviewTabState extends State<CCOverviewTab> {
           ),
         ),
         child: isLoading
-            ? const Center(child: CircularProgressIndicator())
+            ? const Center(child: PragatiXLoader())
             : hasError
             ? Center(
                 child: Column(

@@ -1,4 +1,5 @@
 import 'package:pragatix/features/auth/providers/auth_provider.dart';
+import 'package:pragatix/core/widgets/pragatix_loader.dart';
 import 'package:provider/provider.dart';
 import 'package:pragatix/features/activity/widgets/activity_basic_information_section.dart';
 import 'package:pragatix/features/activity/widgets/activity_xp_section.dart';
@@ -603,7 +604,7 @@ class ActivityFormState extends State<ActivityForm> {
   @override
   Widget build(BuildContext context) {
     if (widget.isCc && _isLoadingCcProfile) {
-      return const Center(child: CircularProgressIndicator());
+      return const Center(child: PragatiXLoader());
     }
 
     int stepNum = 1;

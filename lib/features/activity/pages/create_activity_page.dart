@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:pragatix/core/widgets/pragatix_loader.dart';
 import 'package:pragatix/features/activity/providers/activity_provider.dart';
 import 'package:pragatix/features/activity/widgets/activity_form.dart';
 import 'package:pragatix/features/activity/widgets/sticky_bottom_buttons.dart';
@@ -149,7 +150,7 @@ class _CreateActivityPageState extends State<CreateActivityPage>
             listenable: widget.provider,
             builder: (context, _) {
               if (widget.provider.isLoadingDependencies) {
-                return const Center(child: CircularProgressIndicator());
+                return const Center(child: PragatiXLoader());
               }
               return Column(
                 children: [

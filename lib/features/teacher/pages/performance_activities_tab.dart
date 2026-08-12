@@ -1,4 +1,5 @@
 import 'package:pragatix/features/auth/providers/auth_provider.dart';
+import 'package:pragatix/core/widgets/pragatix_loader.dart';
 import 'package:provider/provider.dart';
 import 'package:pragatix/core/config/api_config.dart';
 import 'dart:convert';
@@ -794,7 +795,7 @@ class _PerformanceActivitiesTabState extends State<PerformanceActivitiesTab> {
 
   Widget _buildAwardXpTabBody() {
     if (_isLoadingActivities) {
-      return const Center(child: CircularProgressIndicator());
+      return const Center(child: PragatiXLoader());
     }
 
     switch (_currentFlowStep) {
@@ -1061,7 +1062,7 @@ class _PerformanceActivitiesTabState extends State<PerformanceActivitiesTab> {
 
   Widget _buildYearSelection() {
     if (_isLoadingStudents) {
-      return const Center(child: CircularProgressIndicator());
+      return const Center(child: PragatiXLoader());
     }
 
     final years = _availableYearsList;
@@ -1322,7 +1323,7 @@ class _PerformanceActivitiesTabState extends State<PerformanceActivitiesTab> {
 
   Widget _buildStudentListAndAward() {
     if (_isLoadingStudents) {
-      return const Center(child: CircularProgressIndicator());
+      return const Center(child: PragatiXLoader());
     }
 
     final String xpValue = _selectedEvent?['xp'] ?? '0';

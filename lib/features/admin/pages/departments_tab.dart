@@ -1,4 +1,5 @@
 import 'package:pragatix/features/auth/providers/auth_provider.dart';
+import 'package:pragatix/core/widgets/pragatix_loader.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter/material.dart';
 import 'package:pragatix/core/utils/error_handler.dart';
@@ -9,7 +10,6 @@ Future<List<dynamic>> _apiGetDepartments(String token) async {
   try {
     return await getIt<AdminRepository>().getDepartments();
   } catch (e) {
-    // Fallback
     return [];
   }
 }
@@ -87,7 +87,6 @@ class _DepartmentsTabState extends State<DepartmentsTab> {
     try {
       await getIt<AdminRepository>().addDepartment(name, code);
       if (!context.mounted) return;
-
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Department added successfully!'),
@@ -138,7 +137,6 @@ class _DepartmentsTabState extends State<DepartmentsTab> {
     try {
       await getIt<AdminRepository>().editDepartment(id, name, code);
       if (!context.mounted) return;
-
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Department updated successfully!'),
@@ -176,7 +174,6 @@ class _DepartmentsTabState extends State<DepartmentsTab> {
     try {
       await getIt<AdminRepository>().deleteDepartment(id);
       if (!context.mounted) return;
-
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Department deleted successfully'),
@@ -194,20 +191,25 @@ class _DepartmentsTabState extends State<DepartmentsTab> {
   void _showAddDeptDialog() {
     nameController.clear();
     codeController.clear();
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (pageContext) => Scaffold(
+          appBar: AppBar(
+            title: const Text(
+              'Add New Department',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
+            ),
+            backgroundColor: const Color(0xFF1E293B),
+            iconTheme: const IconThemeData(color: Colors.white),
           ),
-          title: const Text(
-            'Add New Department',
-            style: TextStyle(fontWeight: FontWeight.bold),
-          ),
-          content: SingleChildScrollView(
+          body: SingleChildScrollView(
+            padding: const EdgeInsets.all(16.0),
             child: Column(
-              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 TextField(
                   controller: nameController,
@@ -229,24 +231,40 @@ class _DepartmentsTabState extends State<DepartmentsTab> {
               ],
             ),
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
-            ),
-            ElevatedButton(
-              onPressed: _addDepartment,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF1E293B),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
+          bottomNavigationBar: SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(pageContext),
+                    child: const Text(
+                      'Cancel',
+                      style: TextStyle(color: Colors.red),
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  ElevatedButton(
+                    onPressed: _addDepartment,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF1E293B),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 24,
+                        vertical: 12,
+                      ),
+                    ),
+                    child: const Text(
+                      'Add',
+                      style: TextStyle(color: Colors.white),
+                    ),
+                  ),
+                ],
               ),
-              child: const Text('Add', style: TextStyle(color: Colors.white)),
             ),
-          ],
-        );
-      },
+          ),
+        ),
+      ),
     );
   }
 
@@ -254,87 +272,91 @@ class _DepartmentsTabState extends State<DepartmentsTab> {
     nameController.text = dept['name'] ?? '';
     codeController.text = dept['code'] ?? '';
     final sectionNameController = TextEditingController();
+    List<dynamic> deptSections = [];
+    bool loadingSections = true;
 
-    showDialog(
-      context: context,
-      builder: (context) {
-        List<dynamic> deptSections = [];
-        bool loadingSections = true;
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (pageContext) {
+          return StatefulBuilder(
+            builder: (context, setPageState) {
+              Future<void> fetchDeptSections() async {
+                setPageState(() => loadingSections = true);
+                try {
+                  final sections = await getIt<AdminRepository>()
+                      .getDepartmentSections(dept['id']);
+                  setPageState(() {
+                    deptSections = sections;
+                    loadingSections = false;
+                  });
+                } catch (e) {
+                  debugPrint('Error fetching dept sections: $e');
+                  setPageState(() => loadingSections = false);
+                }
+              }
 
-        Future<void> fetchDeptSections(StateSetter dialogSetState) async {
-          dialogSetState(() => loadingSections = true);
-          try {
-            final sections = await getIt<AdminRepository>()
-                .getDepartmentSections(dept['id']);
-            dialogSetState(() {
-              deptSections = sections;
-              loadingSections = false;
-            });
-            return;
-          } catch (e) {
-            debugPrint('Error fetching dept sections: $e');
-          }
-          dialogSetState(() => loadingSections = false);
-        }
+              Future<void> addSection() async {
+                final secName =
+                    sectionNameController.text.trim().toUpperCase();
+                if (secName.isEmpty) return;
+                try {
+                  await getIt<AdminRepository>().addDepartmentSection(
+                    dept['id'],
+                    secName,
+                  );
+                  sectionNameController.clear();
+                  fetchDeptSections();
+                } catch (e) {
+                  if (!mounted) return;
+                  ScaffoldMessenger.of(this.context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        e.toString().replaceAll('Exception: ', ''),
+                      ),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
+              }
 
-        Future<void> addSection(StateSetter dialogSetState) async {
-          final secName = sectionNameController.text.trim().toUpperCase();
-          if (secName.isEmpty) return;
-          try {
-            await getIt<AdminRepository>().addDepartmentSection(
-              dept['id'],
-              secName,
-            );
-            sectionNameController.clear();
-            fetchDeptSections(dialogSetState);
-          } catch (e) {
-            if (!mounted) return;
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(e.toString().replaceAll('Exception: ', '')),
-                backgroundColor: Colors.red,
-              ),
-            );
-          }
-        }
+              Future<void> deleteSection(int sectionId) async {
+                try {
+                  await getIt<AdminRepository>()
+                      .deleteDepartmentSection(sectionId);
+                  fetchDeptSections();
+                } catch (e) {
+                  if (!mounted) return;
+                  ScaffoldMessenger.of(this.context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        e.toString().replaceAll('Exception: ', ''),
+                      ),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
+              }
 
-        Future<void> deleteSection(
-          int sectionId,
-          StateSetter dialogSetState,
-        ) async {
-          try {
-            await getIt<AdminRepository>().deleteDepartmentSection(sectionId);
-            fetchDeptSections(dialogSetState);
-          } catch (e) {
-            if (!mounted) return;
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(e.toString().replaceAll('Exception: ', '')),
-                backgroundColor: Colors.red,
-              ),
-            );
-          }
-        }
+              if (loadingSections && deptSections.isEmpty) {
+                Future.microtask(fetchDeptSections);
+              }
 
-        return StatefulBuilder(
-          builder: (context, dialogSetState) {
-            if (loadingSections && deptSections.isEmpty) {
-              Future.microtask(() => fetchDeptSections(dialogSetState));
-            }
-
-            return AlertDialog(
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-              ),
-              title: Text(
-                "Edit Department: ${dept["code"]}",
-                style: const TextStyle(fontWeight: FontWeight.bold),
-              ),
-              content: SizedBox(
-                width: 400,
-                child: SingleChildScrollView(
+              return Scaffold(
+                appBar: AppBar(
+                  title: Text(
+                    'Edit Department: ${dept["code"]}',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                  backgroundColor: const Color(0xFF1E293B),
+                  iconTheme: const IconThemeData(color: Colors.white),
+                ),
+                body: SingleChildScrollView(
+                  padding: const EdgeInsets.all(16.0),
                   child: Column(
-                    mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       const Text(
@@ -388,7 +410,7 @@ class _DepartmentsTabState extends State<DepartmentsTab> {
                           ),
                           const SizedBox(width: 8),
                           ElevatedButton(
-                            onPressed: () => addSection(dialogSetState),
+                            onPressed: addSection,
                             style: ElevatedButton.styleFrom(
                               backgroundColor: const Color(0xFF1E293B),
                               padding: const EdgeInsets.symmetric(
@@ -402,81 +424,81 @@ class _DepartmentsTabState extends State<DepartmentsTab> {
                       ),
                       const SizedBox(height: 16),
                       loadingSections
-                          ? const Center(child: CircularProgressIndicator())
-                          : (deptSections.isEmpty
-                                ? const Padding(
-                                    padding: EdgeInsets.symmetric(
-                                      vertical: 8.0,
+                          ? const Center(child: PragatiXLoader())
+                          : deptSections.isEmpty
+                          ? const Padding(
+                              padding: EdgeInsets.symmetric(vertical: 8.0),
+                              child: Text(
+                                'No sections created yet.',
+                                style: TextStyle(
+                                  color: Colors.grey,
+                                  fontStyle: FontStyle.italic,
+                                ),
+                              ),
+                            )
+                          : ListView.builder(
+                              shrinkWrap: true,
+                              physics: const NeverScrollableScrollPhysics(),
+                              itemCount: deptSections.length,
+                              itemBuilder: (context, idx) {
+                                final sec = deptSections[idx];
+                                return ListTile(
+                                  title: Text(
+                                    'Section ${sec["sectionName"] ?? sec["name"] ?? ""}',
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
                                     ),
-                                    child: Text(
-                                      'No sections created yet.',
-                                      style: TextStyle(
-                                        color: Colors.grey,
-                                        fontStyle: FontStyle.italic,
-                                      ),
+                                  ),
+                                  trailing: IconButton(
+                                    icon: const Icon(
+                                      Icons.delete_outline,
+                                      color: Colors.red,
                                     ),
-                                  )
-                                : ListView.builder(
-                                    shrinkWrap: true,
-                                    physics:
-                                        const NeverScrollableScrollPhysics(),
-                                    itemCount: deptSections.length,
-                                    itemBuilder: (context, idx) {
-                                      final sec = deptSections[idx];
-                                      return ListTile(
-                                        title: Text(
-                                          "Section ${sec["sectionName"] ?? sec["name"] ?? ''}",
-                                          style: const TextStyle(
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        ),
-                                        trailing: IconButton(
-                                          icon: const Icon(
-                                            Icons.delete_outline,
-                                            color: Colors.red,
-                                          ),
-                                          onPressed: () => deleteSection(
-                                            sec['id'],
-                                            dialogSetState,
-                                          ),
-                                        ),
-                                      );
-                                    },
-                                  )),
+                                    onPressed: () => deleteSection(sec['id']),
+                                  ),
+                                );
+                              },
+                            ),
                     ],
                   ),
                 ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () {
-                    Navigator.pop(context);
-                  },
-                  child: const Text(
-                    'Cancel',
-                    style: TextStyle(color: Colors.grey),
-                  ),
-                ),
-                ElevatedButton(
-                  onPressed: () {
-                    _editDepartment(dept['id']);
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF1E293B),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
+                bottomNavigationBar: SafeArea(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(context),
+                          child: const Text(
+                            'Cancel',
+                            style: TextStyle(color: Colors.red),
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        ElevatedButton(
+                          onPressed: () => _editDepartment(dept['id']),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF1E293B),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 24,
+                              vertical: 12,
+                            ),
+                          ),
+                          child: const Text(
+                            'Save',
+                            style: TextStyle(color: Colors.white),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                  child: const Text(
-                    'Save',
-                    style: TextStyle(color: Colors.white),
-                  ),
                 ),
-              ],
-            );
-          },
-        );
-      },
+              );
+            },
+          );
+        },
+      ),
     );
   }
 
@@ -493,7 +515,7 @@ class _DepartmentsTabState extends State<DepartmentsTab> {
         elevation: 0,
       ),
       body: isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(child: PragatiXLoader())
           : Column(
               children: [
                 if (departments.isNotEmpty)
@@ -636,7 +658,7 @@ class _DepartmentsTabState extends State<DepartmentsTab> {
                                             ),
                                             const SizedBox(height: 4),
                                             Text(
-                                              "Code: ${dept["code"] ?? ""}",
+                                              'Code: ${dept["code"] ?? ""}',
                                               style: TextStyle(
                                                 fontSize: 12,
                                                 color: Colors.grey.shade600,
@@ -669,54 +691,59 @@ class _DepartmentsTabState extends State<DepartmentsTab> {
                                             onPressed: () {
                                               showDialog(
                                                 context: context,
-                                                builder: (context) => AlertDialog(
-                                                  shape: RoundedRectangleBorder(
-                                                    borderRadius:
-                                                        BorderRadius.circular(
-                                                          16,
-                                                        ),
-                                                  ),
-                                                  title: const Text(
-                                                    'Delete Department',
-                                                    style: TextStyle(
-                                                      fontWeight:
-                                                          FontWeight.bold,
-                                                    ),
-                                                  ),
-                                                  content: Text(
-                                                    "Are you sure you want to delete department ${dept["code"]}?",
-                                                  ),
-                                                  actions: [
-                                                    TextButton(
-                                                      onPressed: () =>
-                                                          Navigator.pop(
-                                                            context,
-                                                          ),
-                                                      child: const Text(
-                                                        'Cancel',
-                                                        style: TextStyle(
-                                                          color: Colors.grey,
-                                                        ),
+                                                builder: (context) =>
+                                                    AlertDialog(
+                                                      shape: RoundedRectangleBorder(
+                                                        borderRadius:
+                                                            BorderRadius.circular(
+                                                              16,
+                                                            ),
                                                       ),
-                                                    ),
-                                                    TextButton(
-                                                      onPressed: () {
-                                                        Navigator.pop(context);
-                                                        _deleteDepartment(
-                                                          dept['id'],
-                                                        );
-                                                      },
-                                                      child: const Text(
-                                                        'Delete',
+                                                      title: const Text(
+                                                        'Delete Department',
                                                         style: TextStyle(
-                                                          color: Colors.red,
                                                           fontWeight:
                                                               FontWeight.bold,
                                                         ),
                                                       ),
+                                                      content: Text(
+                                                        'Are you sure you want to delete department ${dept["code"]}?',
+                                                      ),
+                                                      actions: [
+                                                        TextButton(
+                                                          onPressed: () =>
+                                                              Navigator.pop(
+                                                                context,
+                                                              ),
+                                                          child: const Text(
+                                                            'Cancel',
+                                                            style: TextStyle(
+                                                              color:
+                                                                  Colors.grey,
+                                                            ),
+                                                          ),
+                                                        ),
+                                                        TextButton(
+                                                          onPressed: () {
+                                                            Navigator.pop(
+                                                              context,
+                                                            );
+                                                            _deleteDepartment(
+                                                              dept['id'],
+                                                            );
+                                                          },
+                                                          child: const Text(
+                                                            'Delete',
+                                                            style: TextStyle(
+                                                              color: Colors.red,
+                                                              fontWeight:
+                                                                  FontWeight
+                                                                      .bold,
+                                                            ),
+                                                          ),
+                                                        ),
+                                                      ],
                                                     ),
-                                                  ],
-                                                ),
                                               );
                                             },
                                           ),

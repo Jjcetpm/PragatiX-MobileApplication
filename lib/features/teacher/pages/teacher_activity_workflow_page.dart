@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:pragatix/core/widgets/pragatix_loader.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:pragatix/core/config/api_config.dart';
@@ -276,7 +277,7 @@ class _TeacherActivityWorkflowPageState
     }
   }
 
-  Future<void> _submitAward() async {
+  Future<void> _submitAward({bool isPenaltySubmit = false}) async {
     if (_selectedStudentIds.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -295,6 +296,7 @@ class _TeacherActivityWorkflowPageState
         'activityId': widget.activity.id,
         'assignmentId': _assignmentId ?? widget.activity.id,
         'remarks': _remarksController.text.trim(),
+        'result': isPenaltySubmit ? 'FAIL' : 'PASS',
       };
 
       final response = await getIt<TeacherProxyService>().post(
@@ -312,7 +314,7 @@ class _TeacherActivityWorkflowPageState
           if (!mounted) return;
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text(data['message'] ?? 'XP Awarded successfully!'),
+              content: Text(data['message'] ?? 'XP processed successfully!'),
               backgroundColor: Colors.green,
             ),
           );
@@ -326,7 +328,7 @@ class _TeacherActivityWorkflowPageState
       final errorData = jsonDecode(response.body);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(errorData['message'] ?? 'Failed to award XP'),
+          content: Text(errorData['message'] ?? 'Failed to process XP'),
           backgroundColor: Colors.redAccent,
         ),
       );
@@ -481,7 +483,7 @@ class _TeacherActivityWorkflowPageState
         ),
         body: _isLoading
             ? const Center(
-                child: CircularProgressIndicator(color: Color(0xFF11998E)),
+                child: PragatiXLoader(),
               )
             : _buildFlowBody(),
       ),
@@ -796,10 +798,13 @@ class _TeacherActivityWorkflowPageState
   }
 
   Widget _buildStudentListAndAward() {
-    final bool isPenalty = widget.activity.penaltyEnabled && !widget.activity.awardEnabled;
-    final int xpAmount = isPenalty ? widget.activity.penaltyXp : widget.activity.awardXp;
-    final String xpLabel = isPenalty ? 'Penalty' : 'Award';
-    final Color themeColor = isPenalty ? const Color(0xFFEF4444) : const Color(0xFF10B981);
+    final bool isOnlyPenalty = widget.activity.penaltyEnabled && !widget.activity.awardEnabled;
+    final bool isBoth = widget.activity.penaltyEnabled && widget.activity.awardEnabled;
+    final int awardAmount = widget.activity.awardXp;
+    final int penaltyAmount = widget.activity.penaltyXp;
+    final Color awardColor = const Color(0xFF10B981);
+    final Color penaltyColor = const Color(0xFFEF4444);
+    
     final showStudents = _filteredStudentsList;
 
     return Column(
@@ -820,25 +825,50 @@ class _TeacherActivityWorkflowPageState
                       color: Color(0xFF1E293B),
                     ),
                   ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 6,
-                    ),
-                    decoration: BoxDecoration(
-                      color: themeColor.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: themeColor.withOpacity(0.3)),
-                    ),
-                    child: Text(
-                      '$xpLabel: $xpAmount XP',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: themeColor,
-                        fontSize: 13,
+                  if (isBoth)
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: awardColor.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: awardColor.withOpacity(0.3)),
+                          ),
+                          child: Text('Award: $awardAmount', style: TextStyle(color: awardColor, fontSize: 12, fontWeight: FontWeight.bold)),
+                        ),
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: penaltyColor.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: penaltyColor.withOpacity(0.3)),
+                          ),
+                          child: Text('Penalty: -$penaltyAmount', style: TextStyle(color: penaltyColor, fontSize: 12, fontWeight: FontWeight.bold)),
+                        ),
+                      ],
+                    )
+                  else
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: (isOnlyPenalty ? penaltyColor : awardColor).withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: (isOnlyPenalty ? penaltyColor : awardColor).withOpacity(0.3)),
+                      ),
+                      child: Text(
+                        '${isOnlyPenalty ? 'Penalty' : 'Award'}: ${isOnlyPenalty ? "-$penaltyAmount" : awardAmount} XP',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: (isOnlyPenalty ? penaltyColor : awardColor),
+                          fontSize: 13,
+                        ),
                       ),
                     ),
-                  ),
                 ],
               ),
               const SizedBox(height: 12),
@@ -884,7 +914,7 @@ class _TeacherActivityWorkflowPageState
                   style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
                 ),
                 value: _selectAll,
-                activeColor: themeColor,
+                activeColor: isOnlyPenalty ? penaltyColor : awardColor,
                 onChanged: (val) {
                   setState(() {
                     _selectAll = val ?? false;
@@ -936,7 +966,7 @@ class _TeacherActivityWorkflowPageState
 
                     return CheckboxListTile(
                       value: isChecked,
-                      activeColor: themeColor,
+                      activeColor: isOnlyPenalty ? penaltyColor : awardColor,
                       title: Text(
                         name,
                         style: const TextStyle(
@@ -1006,36 +1036,105 @@ class _TeacherActivityWorkflowPageState
                 ),
               ),
               const SizedBox(height: 12),
-              SizedBox(
-                width: double.infinity,
-                height: 48,
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: themeColor,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  onPressed: _isAwarding ? null : _submitAward,
-                  child: _isAwarding
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(
-                            color: Colors.white,
-                            strokeWidth: 2,
+              if (isBoth)
+                Row(
+                  children: [
+                    Expanded(
+                      child: SizedBox(
+                        height: 48,
+                        child: ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: awardColor,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
                           ),
-                        )
-                      : Text(
-                          "${isPenalty ? 'Deduct XP from' : 'Award XP to'} ${_selectedStudentIds.length} Students",
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                            fontSize: 15,
-                          ),
+                          onPressed: _isAwarding ? null : () => _submitAward(isPenaltySubmit: false),
+                          child: _isAwarding
+                              ? const SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(
+                                    color: Colors.white,
+                                    strokeWidth: 2,
+                                  ),
+                                )
+                              : Text(
+                                  "Award ${_selectedStudentIds.length}",
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                    fontSize: 15,
+                                  ),
+                                ),
                         ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: SizedBox(
+                        height: 48,
+                        child: ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: penaltyColor,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          onPressed: _isAwarding ? null : () => _submitAward(isPenaltySubmit: true),
+                          child: _isAwarding
+                              ? const SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(
+                                    color: Colors.white,
+                                    strokeWidth: 2,
+                                  ),
+                                )
+                              : Text(
+                                  "Penalize ${_selectedStudentIds.length}",
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                    fontSize: 15,
+                                  ),
+                                ),
+                        ),
+                      ),
+                    ),
+                  ],
+                )
+              else
+                SizedBox(
+                  width: double.infinity,
+                  height: 48,
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: isOnlyPenalty ? penaltyColor : awardColor,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    onPressed: _isAwarding ? null : () => _submitAward(isPenaltySubmit: isOnlyPenalty),
+                    child: _isAwarding
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              color: Colors.white,
+                              strokeWidth: 2,
+                            ),
+                          )
+                        : Text(
+                            "${isOnlyPenalty ? 'Deduct XP from' : 'Award XP to'} ${_selectedStudentIds.length} Students",
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                              fontSize: 15,
+                            ),
+                          ),
+                  ),
                 ),
-              ),
             ],
           ),
         ),

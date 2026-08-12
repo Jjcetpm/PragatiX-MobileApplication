@@ -109,9 +109,13 @@ class _ActivityDetailsScreenState extends State<ActivityDetailsScreen> {
     final String description =
         activity['description'] ?? 'No description provided.';
     final int rewardXp = activity['rewardXp'] ?? 0;
+    final int penaltyXp = activity['penaltyXp'] ?? 0;
     final int awardedXp = activity['awardedXp'] ?? 0;
     final String status = activity['status'] ?? 'PENDING';
     final bool isCompleted = status == 'COMPLETED';
+    final String xpType = activity['xpType']?.toString().toLowerCase() ?? 'reward';
+    final bool isPenalty = xpType == 'penalty';
+    final bool isBoth = xpType == 'both' || (xpType != 'penalty' && rewardXp > 0 && penaltyXp > 0);
 
     final String facultyName = activity['facultyName'] ?? 'Unassigned';
     final String frequency = activity['frequency'] ?? 'N/A';
@@ -240,12 +244,28 @@ class _ActivityDetailsScreenState extends State<ActivityDetailsScreen> {
                 ),
                 const SizedBox(height: 16),
 
-                _InfoRow(
-                  icon: Icons.star_rounded,
-                  title: 'Reward',
-                  value: '$rewardXp XP',
-                  iconColor: Colors.amber,
-                ),
+                if (isBoth) ...[
+                  _InfoRow(
+                    icon: Icons.star_rounded,
+                    title: 'Reward',
+                    value: '$rewardXp XP',
+                    iconColor: Colors.amber,
+                  ),
+                  const SizedBox(height: 16),
+                  _InfoRow(
+                    icon: Icons.warning_amber_rounded,
+                    title: 'Penalty',
+                    value: '-$penaltyXp XP',
+                    iconColor: Colors.red,
+                  ),
+                ] else ...[
+                  _InfoRow(
+                    icon: isPenalty ? Icons.warning_amber_rounded : Icons.star_rounded,
+                    title: isPenalty ? 'Penalty' : 'Reward',
+                    value: isPenalty ? '-$rewardXp XP' : '$rewardXp XP',
+                    iconColor: isPenalty ? Colors.red : Colors.amber,
+                  ),
+                ],
                 const SizedBox(height: 16),
                 _InfoRow(
                   icon: Icons.military_tech_rounded,

@@ -1,4 +1,5 @@
 import 'package:pragatix/features/auth/providers/auth_provider.dart';
+import 'package:pragatix/core/widgets/pragatix_loader.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter/material.dart';
 import 'package:pragatix/features/activity/services/activity_proxy_service.dart';
@@ -87,7 +88,7 @@ class _GroupActivityDeptPageState extends State<GroupActivityDeptPage> {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (_) => const Center(child: CircularProgressIndicator()),
+      builder: (_) => const Center(child: PragatiXLoader()),
     );
 
     try {
@@ -169,7 +170,7 @@ class _GroupActivityDeptPageState extends State<GroupActivityDeptPage> {
         elevation: 0,
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(child: PragatiXLoader())
           : _errorMessage != null
           ? Center(
               child: Column(

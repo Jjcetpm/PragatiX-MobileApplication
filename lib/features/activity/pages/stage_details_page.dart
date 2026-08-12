@@ -1,4 +1,5 @@
 import 'package:pragatix/features/auth/providers/auth_provider.dart';
+import 'package:pragatix/core/widgets/pragatix_loader.dart';
 import 'package:provider/provider.dart';
 import 'package:pragatix/core/config/api_config.dart';
 import 'dart:convert';
@@ -161,7 +162,7 @@ class _StageDetailsPageState extends State<StageDetailsPage> {
         ),
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(child: PragatiXLoader())
           : Padding(
               padding: const EdgeInsets.all(16),
               child: Column(

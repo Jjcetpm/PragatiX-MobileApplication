@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:pragatix/core/widgets/pragatix_loader.dart';
 import 'package:pragatix/core/di/service_locator.dart';
 import 'package:pragatix/features/activity/models/activity_model.dart';
 import 'package:pragatix/features/activity/providers/activity_provider.dart';
@@ -1363,7 +1364,7 @@ class _AssignStaffPageState extends State<AssignStaffPage> {
                   widget.provider.isSaving)
                 Container(
                   color: Colors.black.withValues(alpha: 0.1),
-                  child: const Center(child: CircularProgressIndicator()),
+                  child: const Center(child: PragatiXLoader()),
                 ),
             ],
           );

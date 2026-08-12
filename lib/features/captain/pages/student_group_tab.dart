@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:pragatix/core/widgets/pragatix_loader.dart';
 import 'package:pragatix/core/utils/error_handler.dart';
 import 'package:pragatix/features/auth/providers/auth_provider.dart';
 import 'package:provider/provider.dart';
@@ -66,7 +67,7 @@ class _StudentGroupTabState extends State<StudentGroupTab> {
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+      return const Scaffold(body: Center(child: PragatiXLoader()));
     }
 
     final hasGroup = _groupData != null;

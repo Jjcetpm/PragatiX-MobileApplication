@@ -29,11 +29,13 @@ class _TeamGroupManagementTabState extends State<TeamGroupManagementTab> {
   List<dynamic> _departments = [];
   List<dynamic> _academicYears = [];
   List<dynamic> _sections = [];
+  List<dynamic> _stages = [];
 
   // Filter selections
   int? selectedDeptId;
   String? selectedYear;
   int? selectedSectionId;
+  int? selectedStage;
 
   // Role info
   bool isSuperAdmin = false;
@@ -160,6 +162,7 @@ class _TeamGroupManagementTabState extends State<TeamGroupManagementTab> {
       debugPrint('Error in initialization: $e');
     }
 
+    await _fetchStages();
     await _fetchGroups();
   }
 
@@ -183,6 +186,73 @@ class _TeamGroupManagementTabState extends State<TeamGroupManagementTab> {
       }
     } catch (e) {
       debugPrint('Error fetching sections: $e');
+    }
+  }
+
+  String? _mapYearToEnumName(String? rawYear) {
+    if (rawYear == null) return null;
+    final clean = rawYear.trim().toUpperCase();
+    if (clean.contains('FIRST') || clean == '1' || clean == 'I' || clean.contains('1ST')) {
+      return 'FIRST_YEAR';
+    }
+    if (clean.contains('SECOND') || clean == '2' || clean == 'II' || clean.contains('2ND')) {
+      return 'SECOND_YEAR';
+    }
+    if (clean.contains('THIRD') || clean == '3' || clean == 'III' || clean.contains('3RD')) {
+      return 'THIRD_YEAR';
+    }
+    if (clean.contains('FOURTH') || clean == '4' || clean == 'IV' || clean.contains('4TH')) {
+      return 'FOURTH_YEAR';
+    }
+    return null;
+  }
+
+  Future<void> _fetchStages() async {
+    final auth = context.read<AuthProvider>();
+    final currentUser = auth.currentUser;
+
+    final String? ccYear = currentUser?['ccDetails']?['academicYear']?.toString() ??
+        currentUser?['year']?.toString();
+    final String? adminYear = currentUser?['adminDetails']?['academicYear']?.toString();
+
+    String? queryYear;
+    if (isCC) {
+      queryYear = ccYear;
+    } else if (isAdmin) {
+      queryYear = adminYear;
+    } else if (selectedYear != null && selectedYear != 'All') {
+      queryYear = selectedYear;
+    }
+
+    final String? mappedYear = _mapYearToEnumName(queryYear);
+    String url = '${ApiConfig.baseUrl}/api/v1/admin/stages';
+    if (mappedYear != null) {
+      url += '?academicYear=$mappedYear';
+    }
+
+    try {
+      final response = await getIt<TeamProxyService>().get(
+        Uri.parse(url),
+        headers: {
+          'Authorization': 'Bearer ${auth.token!}',
+        },
+      );
+      if (response.statusCode == 200) {
+        final stageData = jsonDecode(response.body);
+        if (stageData['data'] is List) {
+          if (mounted) {
+            setState(() {
+              _stages = stageData['data'] ?? [];
+              // If the selected stage is no longer in the loaded stages, reset it
+              if (selectedStage != null && !_stages.any((s) => s['id'] == selectedStage)) {
+                selectedStage = null;
+              }
+            });
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('Error fetching stages: $e');
     }
   }
 
@@ -420,6 +490,7 @@ class _TeamGroupManagementTabState extends State<TeamGroupManagementTab> {
                                   selectedSectionId = null;
                                   _sections = [];
                                 });
+                                _fetchStages();
                                 _fetchGroups();
                               },
                             ),
@@ -457,6 +528,17 @@ class _TeamGroupManagementTabState extends State<TeamGroupManagementTab> {
                                 _fetchGroups();
                               },
                             ),
+                          _buildDropdown<int>(
+                            'Stage',
+                            _stages,
+                            (s) => s['name'] ?? 'Stage ${s['id']}',
+                            selectedStage,
+                            (val) {
+                              setState(() {
+                                selectedStage = val;
+                              });
+                            },
+                          ),
                         ],
                       ),
                     ),
@@ -488,8 +570,20 @@ class _TeamGroupManagementTabState extends State<TeamGroupManagementTab> {
                       ),
                     // GROUPS LIST
                     Expanded(
-                      child: _groups.isEmpty
-                          ? Center(
+                      child: Builder(
+                        builder: (context) {
+                          final displayGroups = _groups.where((g) {
+                            if (selectedStage != null) {
+                              final currentStage = (g['teamMembers'] as List?)?.isNotEmpty == true
+                                  ? (g['teamMembers'][0]['currentStage'] ?? 1)
+                                  : 1;
+                              return currentStage == selectedStage;
+                            }
+                            return true;
+                          }).toList();
+
+                          if (displayGroups.isEmpty) {
+                            return Center(
                               child: Column(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
@@ -514,12 +608,14 @@ class _TeamGroupManagementTabState extends State<TeamGroupManagementTab> {
                                   ),
                                 ],
                               ),
-                            )
-                          : ListView.builder(
-                              padding: const EdgeInsets.symmetric(vertical: 8),
-                          itemCount: _groups.length,
-                          itemBuilder: (context, index) {
-                            final g = _groups[index];
+                            );
+                          }
+
+                          return ListView.builder(
+                            padding: const EdgeInsets.symmetric(vertical: 8),
+                            itemCount: displayGroups.length,
+                            itemBuilder: (context, index) {
+                              final g = displayGroups[index];
                             final captainName = g['captainName'] ?? 'No Captain';
                             final viceCaptainName = g['viceCaptainName'] ?? 'No Vice Captain';
                             final memberCount =
@@ -655,10 +751,12 @@ class _TeamGroupManagementTabState extends State<TeamGroupManagementTab> {
                               ),
                             );
                           },
-                        ),
-                ),
-              ],
-            ),
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              ),
     );
   }
 
@@ -691,7 +789,7 @@ class _TeamGroupManagementTabState extends State<TeamGroupManagementTab> {
             ),
             ...items.map(
               (e) => DropdownMenuItem<T>(
-                value: (T == String) ? e as T : e['id'] as T,
+                value: (e is Map) ? e['id'] as T : e as T,
                 child: Text(labelBuilder(e), overflow: TextOverflow.ellipsis),
               ),
             ),

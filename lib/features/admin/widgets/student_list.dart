@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:pragatix/core/widgets/pragatix_loader.dart';
 import '../dialogs/delete_student_dialog.dart';
 
 class StudentList extends StatelessWidget {
@@ -75,7 +76,7 @@ class StudentList extends StatelessWidget {
               child: SizedBox(
                 width: 24,
                 height: 24,
-                child: CircularProgressIndicator(strokeWidth: 2.5),
+                child: PragatiXLoader(),
               ),
             ),
           );

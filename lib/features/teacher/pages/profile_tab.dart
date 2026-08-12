@@ -1,4 +1,5 @@
 import 'package:pragatix/features/auth/providers/auth_provider.dart';
+import 'package:pragatix/core/widgets/pragatix_loader.dart';
 import 'package:provider/provider.dart';
 import 'package:pragatix/core/config/api_config.dart';
 import 'dart:convert';
@@ -71,7 +72,7 @@ class _ProfileTabState extends State<ProfileTab> {
         elevation: 0,
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(child: PragatiXLoader())
           : Container(
               color: const Color(0xFFF1F5F9),
               width: double.infinity,

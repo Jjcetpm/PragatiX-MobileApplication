@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:pragatix/core/widgets/pragatix_loader.dart';
 import 'package:flutter/material.dart';
 import 'package:pragatix/core/di/service_locator.dart';
 import 'package:pragatix/core/config/api_config.dart';
@@ -267,7 +268,7 @@ class _DepartmentStudentListPageState extends State<DepartmentStudentListPage> {
       ),
       body: SafeArea(
         child: _isLoading
-            ? const Center(child: CircularProgressIndicator(color: Color(0xFF38BDF8)))
+            ? const Center(child: PragatiXLoader())
             : RefreshIndicator(
                 onRefresh: _fetchStudents,
                 color: const Color(0xFF38BDF8),

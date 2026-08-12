@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:pragatix/core/widgets/pragatix_loader.dart';
 import 'package:pragatix/core/di/service_locator.dart';
 import 'package:pragatix/core/theme/app_colors.dart';
 import 'package:pragatix/core/utils/error_handler.dart';
@@ -235,7 +236,7 @@ class _CCAssignActivityPageState extends State<CCAssignActivityPage> {
       ),
       body: _isLoading
           ? const Center(
-              child: CircularProgressIndicator(color: Color(0xFF11998E)),
+              child: PragatiXLoader(),
             )
           : Column(
               children: [

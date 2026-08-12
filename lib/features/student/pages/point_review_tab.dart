@@ -10,6 +10,7 @@ import 'package:pragatix/core/di/service_locator.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:pragatix/features/attendance/providers/attendance_provider.dart';
 import 'package:pragatix/features/attendance/widgets/fire_streak_icon.dart';
+import 'package:pragatix/core/widgets/pragatix_loader.dart';
 
 class PointReviewTab extends StatefulWidget {
   const PointReviewTab({super.key});
@@ -128,9 +129,7 @@ class _PointReviewTabState extends State<PointReviewTab> {
       return const Scaffold(
         backgroundColor: Color(0xFFF8FAFC),
         body: Center(
-          child: CircularProgressIndicator(
-            valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF4F46E5)),
-          ),
+          child: PragatiXLoader(fullScreen: false, message: 'Loading Points...'),
         ),
       );
     }
@@ -227,35 +226,47 @@ class _PointReviewTabState extends State<PointReviewTab> {
           Expanded(child: _buildHistoryList(xpProvider.history)),
         ],
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => _showEvidenceSubmitSheet(xpProvider),
-        backgroundColor: const Color(0xFF4F46E5),
-        child: const Icon(Icons.add, color: Colors.white, size: 28),
-      ),
     );
   }
 
   // Section A: Category Summary Cards Grid
   Widget _buildCategoryCards(Map<String, int> categories) {
+    final list = [
+      {
+        'title': 'Individual XP',
+        'value': categories['individualXp'] ?? 0,
+        'color': Colors.purple,
+        'priority': 'HIGH',
+        'decay': 'Active participation ✓',
+      },
+      {
+        'title': 'Group XP',
+        'value': categories['groupXp'] ?? 0,
+        'color': Colors.green,
+        'priority': 'HIGH',
+        'decay': 'Team efforts ✓',
+      },
+      {
+        'title': 'MUST XP',
+        'value': categories['mustXp'] ?? 0,
+        'color': Colors.amber.shade700,
+        'priority': 'MANDATORY',
+        'decay': 'Required for stage ↺',
+      },
+    ];
+
     return SizedBox(
       height: 120,
       child: ListView(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 16),
         physics: const BouncingScrollPhysics(),
-        children: categories.entries.map((entry) {
-          final String cat = entry.key;
-          final int val = entry.value;
-          final config =
-              categoryConfig[cat] ??
-              {
-                'color': Colors.grey,
-                'priority': 'MEDIUM',
-                'decay': 'Permanent',
-              };
-          final Color color = config['color'];
-          final String priority = config['priority'];
-          final String decay = config['decay'];
+        children: list.map((item) {
+          final String cat = item['title'] as String;
+          final int val = item['value'] as int;
+          final Color color = item['color'] as Color;
+          final String priority = item['priority'] as String;
+          final String decay = item['decay'] as String;
 
           return Container(
             width: 180,

@@ -1,6 +1,8 @@
 import 'package:pragatix/features/auth/repository/auth_repository.dart';
 import 'package:pragatix/core/di/service_locator.dart';
 import 'package:provider/provider.dart';
+import 'dart:async';
+import 'package:pinput/pinput.dart';
 import 'package:pragatix/features/auth/providers/auth_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:pragatix/features/student/pages/student_dashboard_page.dart';
@@ -25,6 +27,31 @@ class _LoginPageState extends State<LoginPage> {
   
   bool _isLoading = false;
   bool _isOtpStep = false;
+  bool _agreedToTerms = false;
+  
+  Timer? _timer;
+  int _secondsRemaining = 0;
+
+  void _startTimer() {
+    _timer?.cancel();
+    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (_secondsRemaining == 0) {
+        timer.cancel();
+      } else {
+        setState(() {
+          _secondsRemaining--;
+        });
+      }
+    });
+  }
+
+  String _formatTimer(int totalSeconds) {
+    final int minutes = totalSeconds ~/ 60;
+    final int seconds = totalSeconds % 60;
+    final String minutesStr = minutes.toString().padLeft(2, '0');
+    final String secondsStr = seconds.toString().padLeft(2, '0');
+    return '$minutesStr:$secondsStr';
+  }
 
   Future<void> _handleRequestOtp() async {
     if (!_formKey.currentState!.validate()) return;
@@ -41,7 +68,9 @@ class _LoginPageState extends State<LoginPage> {
       setState(() {
         _isLoading = false;
         _isOtpStep = true;
+        _secondsRemaining = 180;
       });
+      _startTimer();
       LoadingService.hide();
       
       ScaffoldMessenger.of(context).showSnackBar(
@@ -66,6 +95,16 @@ class _LoginPageState extends State<LoginPage> {
 
   Future<void> _handleVerifyOtp() async {
     if (!_formKey.currentState!.validate()) return;
+
+    if (_secondsRemaining == 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('OTP has expired. Please click Resend OTP.'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+      return;
+    }
 
     setState(() => _isLoading = true);
     LoadingService.show(message: "Verifying OTP...");
@@ -188,6 +227,7 @@ class _LoginPageState extends State<LoginPage> {
 
   @override
   void dispose() {
+    _timer?.cancel();
     _emailController.dispose();
     _otpController.dispose();
     super.dispose();
@@ -211,13 +251,18 @@ class _LoginPageState extends State<LoginPage> {
           ),
         ),
         child: SafeArea(
-          child: Stack(
-            children: [
-              Center(
-                child: SingleChildScrollView(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 24.0),
-                    child: Card(
+          child: CustomScrollView(
+            slivers: [
+              SliverFillRemaining(
+                hasScrollBody: false,
+                child: Column(
+                  children: [
+                    Expanded(
+                      child: Center(
+                        child: SingleChildScrollView(
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                            child: Card(
                       elevation: 16,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(24),
@@ -234,53 +279,44 @@ class _LoginPageState extends State<LoginPage> {
                               ClipRRect(
                                 borderRadius: BorderRadius.circular(16),
                                 child: Image.asset(
-                                  'assets/images/logo.jpg',
-                                  height: 72,
-                                  width: 72,
+                                  'assets/images/logo.png',
+                                  height: 96,
+                                  width: 96,
                                   fit: BoxFit.contain,
                                   errorBuilder: (_, __, ___) => const Icon(
                                     Icons.school_rounded,
-                                    size: 72,
+                                    size: 96,
                                     color: Color(0xFF4F46E5),
                                   ),
                                 ),
                               ),
                               const SizedBox(height: 10),
 
-                              // ── App Name ──────────────────────────────────
-                              const Text(
-                                'pragatiX',
-                                style: TextStyle(
-                                  fontSize: 22,
-                                  fontWeight: FontWeight.w900,
-                                  color: Color(0xFF4F46E5),
-                                  letterSpacing: 1.5,
-                                ),
+                              // ── App Name & Title ──────────────────────────
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  const Text(
+                                    'PragatiX',
+                                    style: TextStyle(
+                                      fontSize: 26,
+                                      fontWeight: FontWeight.w900,
+                                      color: Color(0xFF4F46E5),
+                                      letterSpacing: 1.2,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  const Text(
+                                    'Login',
+                                    style: TextStyle(
+                                      fontSize: 26,
+                                      fontWeight: FontWeight.bold,
+                                      color: Color(0xFF1E293B),
+                                    ),
+                                  ),
+                                ],
                               ),
-                              const Text(
-                                'Track. Learn. Grow.',
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  color: Color(0xFF64748B),
-                                  letterSpacing: 0.8,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                              const SizedBox(height: 20),
-                              const Divider(height: 1),
-                              const SizedBox(height: 20),
-
-                              // ── Login Title ───────────────────────────────
-                              const Text(
-                                'Login',
-                                style: TextStyle(
-                                  fontSize: 22,
-                                  fontWeight: FontWeight.bold,
-                                  color: Color(0xFF1E293B),
-                                  letterSpacing: 1.1,
-                                ),
-                              ),
-                              const SizedBox(height: 6),
+                              const SizedBox(height: 4),
 
 
                               Text(
@@ -320,13 +356,37 @@ class _LoginPageState extends State<LoginPage> {
                                     ),
                                   ),
                                 ),
-                                const SizedBox(height: 32),
+                                const SizedBox(height: 16),
+                                Row(
+                                  children: [
+                                    Checkbox(
+                                      value: _agreedToTerms,
+                                      onChanged: (value) {
+                                        setState(() {
+                                          _agreedToTerms = value ?? false;
+                                        });
+                                      },
+                                      activeColor: primaryColor,
+                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+                                    ),
+                                    Expanded(
+                                      child: Text(
+                                        'I agree to the Terms of Service and Privacy Policy',
+                                        style: TextStyle(
+                                          fontSize: 13,
+                                          color: Colors.grey.shade700,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 24),
 
                                 SizedBox(
                                   width: double.infinity,
                                   height: 52,
                                   child: ElevatedButton(
-                                    onPressed: _isLoading ? null : _handleRequestOtp,
+                                    onPressed: (_isLoading || !_agreedToTerms) ? null : _handleRequestOtp,
                                     style: ElevatedButton.styleFrom(
                                       backgroundColor: primaryColor,
                                       foregroundColor: Colors.white,
@@ -354,49 +414,92 @@ class _LoginPageState extends State<LoginPage> {
                                   ),
                                 ),
                               ] else ...[
-                                TextFormField(
+                                Pinput(
                                   controller: _otpController,
-                                  keyboardType: TextInputType.number,
-                                  maxLength: 4,
+                                  length: 4,
+                                  onCompleted: (pin) {
+                                    if (!_isLoading) {
+                                      _handleVerifyOtp();
+                                    }
+                                  },
                                   validator: (v) {
                                     if (v == null || v.trim().isEmpty) return 'OTP is required';
                                     if (v.trim().length != 4) return 'OTP must be 4 digits';
                                     return null;
                                   },
-                                  decoration: InputDecoration(
-                                    labelText: 'OTP',
-                                    hintText: 'Enter 4-digit OTP',
-                                    prefixIcon: const Icon(Icons.lock_outline_rounded),
-                                    border: OutlineInputBorder(
+                                  defaultPinTheme: PinTheme(
+                                    width: 56,
+                                    height: 56,
+                                    textStyle: const TextStyle(
+                                      fontSize: 22,
+                                      color: primaryColor,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      border: Border.all(color: Colors.grey.shade400),
                                       borderRadius: BorderRadius.circular(16),
                                     ),
-                                    focusedBorder: OutlineInputBorder(
+                                  ),
+                                  focusedPinTheme: PinTheme(
+                                    width: 56,
+                                    height: 56,
+                                    textStyle: const TextStyle(
+                                      fontSize: 22,
+                                      color: primaryColor,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      border: Border.all(color: primaryColor, width: 2),
                                       borderRadius: BorderRadius.circular(16),
-                                      borderSide: const BorderSide(
-                                        color: primaryColor,
-                                        width: 2.0,
-                                      ),
+                                    ),
+                                  ),
+                                  errorPinTheme: PinTheme(
+                                    width: 56,
+                                    height: 56,
+                                    textStyle: const TextStyle(
+                                      fontSize: 22,
+                                      color: Colors.redAccent,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      border: Border.all(color: Colors.redAccent, width: 2),
+                                      borderRadius: BorderRadius.circular(16),
                                     ),
                                   ),
                                 ),
                                 const SizedBox(height: 16),
                                 
-                                TextButton(
-                                  onPressed: () {
-                                    setState(() {
-                                      _isOtpStep = false;
-                                      _otpController.clear();
-                                    });
-                                  },
-                                  child: const Text('Change Email', style: TextStyle(color: primaryColor)),
-                                ),
-                                const SizedBox(height: 8),
+                                 Row(
+                                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                   children: [
+                                     Text(
+                                       _secondsRemaining > 0
+                                           ? 'Expires in: ${_formatTimer(_secondsRemaining)}'
+                                           : 'OTP expired',
+                                       style: TextStyle(
+                                         color: _secondsRemaining > 0 ? Colors.grey.shade700 : Colors.red,
+                                         fontWeight: FontWeight.bold,
+                                       ),
+                                     ),
+                                     TextButton(
+                                       onPressed: _secondsRemaining == 0 ? _handleRequestOtp : null,
+                                       child: Text(
+                                         'Resend OTP',
+                                         style: TextStyle(
+                                           color: _secondsRemaining == 0 ? primaryColor : Colors.grey,
+                                           fontWeight: FontWeight.bold,
+                                         ),
+                                       ),
+                                     ),
+                                   ],
+                                 ),
+                                 const SizedBox(height: 16),
 
                                 SizedBox(
                                   width: double.infinity,
                                   height: 52,
                                   child: ElevatedButton(
-                                    onPressed: _isLoading ? null : _handleVerifyOtp,
+                                    onPressed: (_isLoading || _secondsRemaining == 0) ? null : _handleVerifyOtp,
                                     style: ElevatedButton.styleFrom(
                                       backgroundColor: primaryColor,
                                       foregroundColor: Colors.white,
@@ -428,20 +531,22 @@ class _LoginPageState extends State<LoginPage> {
                           ),
                         ),
                       ),
+                      ),
                     ),
                   ),
                 ),
               ),
-              const Positioned(
-                bottom: 16.0,
-                left: 0,
-                right: 0,
+              const Padding(
+                padding: EdgeInsets.only(bottom: 16.0),
                 child: AppCopyrightFooter(),
               ),
             ],
           ),
         ),
-      ),
+      ],
+    ),
+  ),
+),
     );
   }
 }

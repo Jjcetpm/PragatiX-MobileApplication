@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:pragatix/core/widgets/pragatix_loader.dart';
 import 'package:intl/intl.dart';
 import 'dart:convert';
 import 'package:pragatix/core/utils/api_client.dart' as http;
@@ -287,7 +288,7 @@ class _TeacherAttendanceTabState extends State<TeacherAttendanceTab> {
         elevation: 0,
       ),
       body: _isLoadingLookups
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(child: PragatiXLoader())
           : Column(
               children: [
                 _buildFilters(),
@@ -505,7 +506,7 @@ class _TeacherAttendanceTabState extends State<TeacherAttendanceTab> {
 
   Widget _buildStudentList() {
     if (_isLoading) {
-      return const Center(child: CircularProgressIndicator());
+      return const Center(child: PragatiXLoader());
     }
 
     if (_isHoliday) {
@@ -560,6 +561,7 @@ class _TeacherAttendanceTabState extends State<TeacherAttendanceTab> {
         ),
         Expanded(
           child: ListView.builder(
+            padding: const EdgeInsets.only(bottom: 100.0),
             itemCount: _students!.length,
             itemBuilder: (context, index) {
               final s = _students![index];

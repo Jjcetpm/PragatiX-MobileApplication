@@ -10,6 +10,8 @@ import 'package:pragatix/features/xp/providers/xp_provider.dart';
 import 'package:pragatix/features/attendance/providers/attendance_provider.dart';
 import 'package:pragatix/features/attendance/widgets/fire_streak_icon.dart';
 import 'package:pragatix/core/di/service_locator.dart';
+import 'package:pragatix/core/widgets/pragatix_loader.dart';
+import 'package:pragatix/core/utils/proof_viewer_utils.dart';
 
 class LevelsBadgesTab extends StatefulWidget {
   const LevelsBadgesTab({super.key});
@@ -182,9 +184,7 @@ class _LevelsBadgesTabState extends State<LevelsBadgesTab>
       return Scaffold(
         backgroundColor: Colors.transparent,
         body: Center(
-          child: CircularProgressIndicator(
-            valueColor: AlwaysStoppedAnimation<Color>(primaryColor),
-          ),
+          child: PragatiXLoader(fullScreen: false, message: 'Loading Badges...'),
         ),
       );
     }
@@ -806,9 +806,28 @@ class _LevelsBadgesTabState extends State<LevelsBadgesTab>
           (r) => r['badgeId'] == badgeId && r['status'] == 'REJECTED',
         );
 
+        String? proofLink;
+        if (isEarned || isPending || isRejected) {
+          final req = badgeProvider.myBadgeRequests.firstWhere(
+            (r) => r['badgeId'] == badgeId,
+            orElse: () => null,
+          );
+          if (req != null && req['proofLink'] != null) {
+            proofLink = req['proofLink'];
+          } else if (isEarned) {
+            final earned = badgeProvider.earnedBadges.firstWhere(
+              (b) => (b['badgeId'] ?? b['badge']?['id']) == badgeId,
+              orElse: () => null,
+            );
+            if (earned != null && earned['evidenceUrl'] != null) {
+              proofLink = earned['evidenceUrl'];
+            }
+          }
+        }
+
         return GestureDetector(
           onTap: () =>
-              _showBadgeDetailModal(badge, isEarned, isPending, isRejected),
+              _showBadgeDetailModal(badge, isEarned, isPending, isRejected, proofLink),
           child: Card(
             color: Colors.white,
             elevation: 2,
@@ -896,6 +915,7 @@ class _LevelsBadgesTabState extends State<LevelsBadgesTab>
     bool isEarned,
     bool isPending,
     bool isRejected,
+    String? proofLink,
   ) {
     final int badgeId = badge['id'];
     final String name = badge['name'] ?? 'Unknown';
@@ -991,6 +1011,34 @@ class _LevelsBadgesTabState extends State<LevelsBadgesTab>
                       ),
                     ),
                     const SizedBox(height: 20),
+
+                    if (proofLink != null && proofLink.isNotEmpty) ...[
+                      Text(
+                        'Submitted Proof Link',
+                        style: TextStyle(
+                          color: textColor,
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      InkWell(
+                        onTap: () => ProofViewerUtils.openProof(
+                          context,
+                          proofLink,
+                          title: 'Proof Link',
+                        ),
+                        child: Text(
+                          proofLink,
+                          style: TextStyle(
+                            color: Colors.blue.shade700,
+                            decoration: TextDecoration.underline,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                    ],
 
                     // Badge Approval Workflow (6 Steps)
                     Text(
@@ -1133,10 +1181,18 @@ class _LevelsBadgesTabState extends State<LevelsBadgesTab>
                             height: 48,
                             child: ElevatedButton(
                               onPressed: () {
-                                final link = proofLinkController.text.trim();
+                                var link = proofLinkController.text.trim();
+                                if (link.isNotEmpty &&
+                                    !link.startsWith('http://') &&
+                                    !link.startsWith('https://')) {
+                                  link = 'https://' + link;
+                                }
                                 if (link.isEmpty ||
                                     Uri.tryParse(link)?.hasAbsolutePath !=
                                         true) {
+                                  ScaffoldMessenger.of(
+                                    context,
+                                  ).hideCurrentSnackBar();
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     const SnackBar(
                                       content: Text(
@@ -1147,6 +1203,9 @@ class _LevelsBadgesTabState extends State<LevelsBadgesTab>
                                   );
                                   return;
                                 }
+                                ScaffoldMessenger.of(
+                                  context,
+                                ).hideCurrentSnackBar();
                                 final provider = context.read<BadgeProvider>();
                                 provider
                                     .requestBadgeWorkflow(

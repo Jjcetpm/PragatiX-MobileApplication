@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:pragatix/core/widgets/pragatix_loader.dart';
 import 'package:provider/provider.dart';
 import 'package:pragatix/features/auth/providers/auth_provider.dart';
 import '../services/attendance_settings_service.dart';
@@ -128,7 +129,7 @@ class _AttendanceSettingsPageState extends State<AttendanceSettingsPage> {
         elevation: 0,
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(child: PragatiXLoader())
           : ListView(
               padding: const EdgeInsets.all(16.0),
               children: [

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:pragatix/core/widgets/pragatix_loader.dart';
 import 'package:pragatix/core/di/service_locator.dart';
 import 'package:pragatix/core/utils/error_handler.dart';
 import 'package:pragatix/features/activity/models/activity_model.dart';
@@ -607,7 +608,7 @@ class _QuickAssignActivityPickerState extends State<_QuickAssignActivityPicker> 
             ),
           Expanded(
             child: _loading
-                ? const Center(child: CircularProgressIndicator(color: Color(0xFF11998E)))
+                ? const Center(child: PragatiXLoader())
                 : _activities.isEmpty
                     ? Center(
                         child: Text(

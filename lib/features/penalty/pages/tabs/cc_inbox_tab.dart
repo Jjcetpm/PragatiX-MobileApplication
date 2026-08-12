@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:pragatix/core/widgets/pragatix_loader.dart';
 import 'package:provider/provider.dart';
 import 'package:pragatix/features/penalty/providers/penalty_provider.dart';
 import 'package:pragatix/features/penalty/models/penalty_request.dart';
@@ -49,7 +50,7 @@ class CcInboxTab extends StatelessWidget {
                 // If it's loading and there's no data yet, show the full spinner.
                 // Otherwise, show the list so the animation can play out smoothly.
                 if (provider.isLoading && provider.ccInbox.isEmpty) {
-                  return const Center(child: CircularProgressIndicator());
+                  return const Center(child: PragatiXLoader());
                 }
 
                 if (provider.error != null) {

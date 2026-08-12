@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:pragatix/core/widgets/pragatix_loader.dart';
 
 class EditStudentDialog extends StatefulWidget {
   final Map<String, dynamic> student;
@@ -34,7 +35,6 @@ class EditStudentDialog extends StatefulWidget {
     required DateTime? dob,
     required String address,
     required bool active,
-    required String password,
   })
   onEditStudent;
   final VoidCallback clearControllers;
@@ -79,7 +79,6 @@ class _EditStudentDialogState extends State<EditStudentDialog> {
   final TextEditingController addressController = TextEditingController();
   List<dynamic> dialogSections = [];
   bool isActive = true;
-  final TextEditingController passwordController = TextEditingController();
   final List<String> guardianRelations = [
     'Father',
     'Mother',
@@ -121,7 +120,6 @@ class _EditStudentDialogState extends State<EditStudentDialog> {
     widget.sprNoController.text = s['sprNo'] ?? '';
     addressController.text = s['address'] ?? '';
     isActive = s['active'] ?? true;
-    passwordController.text = '';
 
     final g = s['guardian'];
     if (g != null) {
@@ -213,7 +211,6 @@ class _EditStudentDialogState extends State<EditStudentDialog> {
   @override
   void dispose() {
     addressController.dispose();
-    passwordController.dispose();
     super.dispose();
   }
 
@@ -292,42 +289,20 @@ class _EditStudentDialogState extends State<EditStudentDialog> {
       contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
     );
 
-    return Dialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Container(
-        constraints: const BoxConstraints(maxWidth: 600),
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text(
+          'Edit Student',
+          style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
+        ),
+        backgroundColor: const Color(0xFF1E293B),
+        iconTheme: const IconThemeData(color: Colors.white),
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
         child: Column(
-          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: const Color(0xFF1E293B),
-                borderRadius: const BorderRadius.vertical(
-                  top: Radius.circular(16),
-                ),
-              ),
-              child: const Row(
-                children: [
-                  Icon(Icons.edit, color: Colors.white),
-                  SizedBox(width: 8),
-                  Text(
-                    'Edit Student',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                      fontSize: 18,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Flexible(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
                     Card(
                       elevation: 2,
                       margin: const EdgeInsets.only(bottom: 16),
@@ -558,7 +533,7 @@ class _EditStudentDialogState extends State<EditStudentDialog> {
                                 ? const Center(
                                     child: Padding(
                                       padding: EdgeInsets.all(8.0),
-                                      child: CircularProgressIndicator(),
+                                      child: PragatiXLoader(),
                                     ),
                                   )
                                 : DropdownButtonFormField<int>(
@@ -588,7 +563,7 @@ class _EditStudentDialogState extends State<EditStudentDialog> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            _buildSectionTitle('Account & Security'),
+                            _buildSectionTitle('Account & Status'),
                             DropdownButtonFormField<int>(
                               value: selectedGroupId,
                               decoration: inputDecoration('Group'),
@@ -602,18 +577,6 @@ class _EditStudentDialogState extends State<EditStudentDialog> {
                                   .toList(),
                               onChanged: (val) =>
                                   setState(() => selectedGroupId = val),
-                            ),
-                            const SizedBox(height: 16),
-                            TextField(
-                              controller: passwordController,
-                              obscureText: true,
-                              decoration:
-                                  inputDecoration(
-                                    'New Password (Optional)',
-                                  ).copyWith(
-                                    helperText:
-                                        'Leave blank to keep current password',
-                                  ),
                             ),
                             const SizedBox(height: 16),
                             SwitchListTile(
@@ -630,55 +593,52 @@ class _EditStudentDialogState extends State<EditStudentDialog> {
                         ),
                       ),
                     ),
-                  ],
-                ),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  TextButton(
-                    onPressed: () => Navigator.pop(context),
-                    child: const Text('Cancel'),
-                  ),
-                  const SizedBox(width: 16),
-                  ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 24,
-                        vertical: 12,
-                      ),
-                      backgroundColor: const Color(0xFF1E293B),
-                      foregroundColor: Colors.white,
-                    ),
-                    onPressed: () {
-                      widget.onEditStudent(
-                        id: widget.student['id'],
-                        fullName: widget.nameController.text.trim(),
-                        email: widget.emailController.text.trim(),
-                        phone: widget.phoneController.text.trim(),
-                        genderId: selectedGenderId,
-                        departmentId: selectedDeptId,
-                        academicYearId: selectedAcademicYearId,
-                        yearId: selectedYearId,
-                        semesterId: selectedSemesterId,
-                        sectionId: selectedSectionId,
-                        groupId: selectedGroupId,
-                        sprNo: widget.sprNoController.text.trim(),
-                        dob: selectedDob,
-                        address: addressController.text.trim(),
-                        active: isActive,
-                        password: passwordController.text.trim(),
-                      );
-                    },
-                    child: const Text('Update Student'),
-                  ),
-                ],
-              ),
-            ),
           ],
+        ),
+      ),
+      bottomNavigationBar: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Cancel', style: TextStyle(color: Colors.red)),
+              ),
+              const SizedBox(width: 16),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 24,
+                    vertical: 12,
+                  ),
+                  backgroundColor: const Color(0xFF1E293B),
+                  foregroundColor: Colors.white,
+                ),
+                onPressed: () {
+                  widget.onEditStudent(
+                    id: widget.student['id'],
+                    fullName: widget.nameController.text.trim(),
+                    email: widget.emailController.text.trim(),
+                    phone: widget.phoneController.text.trim(),
+                    genderId: selectedGenderId,
+                    departmentId: selectedDeptId,
+                    academicYearId: selectedAcademicYearId,
+                    yearId: selectedYearId,
+                    semesterId: selectedSemesterId,
+                    sectionId: selectedSectionId,
+                    groupId: selectedGroupId,
+                    sprNo: widget.sprNoController.text.trim(),
+                    dob: selectedDob,
+                    address: addressController.text.trim(),
+                    active: isActive,
+                  );
+                },
+                child: const Text('Update Student'),
+              ),
+            ],
+          ),
         ),
       ),
     );

@@ -50,12 +50,6 @@ class _ActivitiesTabState extends State<ActivitiesTab> {
               .map((st) {
                 return st as Map<String, dynamic>;
               })
-              .where((st) {
-                final bool isLocked = st['isLocked'] == true;
-                final bool isCompleted = st['isCompleted'] == true;
-                // Hide future stages entirely, show only past (completed) and current stages
-                return !(isLocked && !isCompleted);
-              })
               .toList();
 
           mapped.sort(

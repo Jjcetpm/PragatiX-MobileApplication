@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:pragatix/core/widgets/pragatix_loader.dart';
 import 'package:provider/provider.dart';
 import 'package:pragatix/features/auth/providers/auth_provider.dart';
 import 'package:pragatix/features/admin/repository/admin_repository.dart';
@@ -158,7 +159,7 @@ class _CaptainRewardSettingsPageState extends State<CaptainRewardSettingsPage> {
         iconTheme: const IconThemeData(color: Colors.white),
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(child: PragatiXLoader())
           : SingleChildScrollView(
               padding: const EdgeInsets.all(20.0),
               child: Form(
@@ -239,20 +240,23 @@ class _CaptainRewardSettingsPageState extends State<CaptainRewardSettingsPage> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Reward Engine',
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF1E293B)),
-                    ),
-                    SizedBox(height: 4),
-                    Text(
-                      'Enable/Disable the weekly automated reward engine',
-                      style: TextStyle(fontSize: 12, color: Colors.grey),
-                    ),
-                  ],
+                const Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Reward Engine',
+                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF1E293B)),
+                      ),
+                      SizedBox(height: 4),
+                      Text(
+                        'Enable/Disable the weekly automated reward engine',
+                        style: TextStyle(fontSize: 12, color: Colors.grey),
+                      ),
+                    ],
+                  ),
                 ),
+                const SizedBox(width: 8),
                 Switch(
                   value: isEnabled,
                   activeThumbColor: const Color(0xFF4A90E2),

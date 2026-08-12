@@ -1306,7 +1306,6 @@ extension StudentsTabDialogs on _StudentsTabState {
     final TextEditingController addressCtrl = TextEditingController(
       text: student['address'] ?? '',
     );
-    final TextEditingController passwordCtrl = TextEditingController();
 
     // Guardian Controllers
     final TextEditingController guardianNameCtrl = TextEditingController();
@@ -1440,45 +1439,53 @@ extension StudentsTabDialogs on _StudentsTabState {
     int? selectedGroupId = student['groupId'];
     bool active = student['active'] ?? true;
 
-    showDialog(
-      context: context,
-      builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setDialogState) {
-            // Filter sections by department ID (Section entity nests department as a sub-object)
-            final filteredSections = sections.where((sec) {
-              final depId = sec['department'] != null
-                  ? sec['department']['id']
-                  : sec['departmentId'];
-              return depId == selectedDeptId;
-            }).toList();
-            final uniqueFilteredSections = dedup(filteredSections);
-            if (selectedSectionId != null &&
-                !uniqueFilteredSections.any(
-                  (sec) => sec['id'] == selectedSectionId,
-                )) {
-              selectedSectionId = null;
-            }
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) {
+          return StatefulBuilder(
+            builder: (context, setDialogState) {
+              // Filter sections by department ID (Section entity nests department as a sub-object)
+              final filteredSections = sections.where((sec) {
+                final depId = sec['department'] != null
+                    ? sec['department']['id']
+                    : sec['departmentId'];
+                return depId == selectedDeptId;
+              }).toList();
+              final uniqueFilteredSections = dedup(filteredSections);
+              if (selectedSectionId != null &&
+                  !uniqueFilteredSections.any(
+                    (sec) => sec['id'] == selectedSectionId,
+                  )) {
+                selectedSectionId = null;
+              }
 
-            return AlertDialog(
-              title: Text(
-                "Edit Student: ${student["regNo"]}",
-                style: const TextStyle(fontWeight: FontWeight.bold),
-              ),
-              content: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
+              return Scaffold(
+                appBar: AppBar(
+                  title: Text(
+                    "Edit Student: ${student["regNo"]}",
+                    style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
+                  ),
+                  backgroundColor: const Color(0xFF1E293B),
+                  iconTheme: const IconThemeData(color: Colors.white),
+                ),
+                body: SingleChildScrollView(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
                     TextField(
                       controller: nameCtrl,
                       decoration: const InputDecoration(
                         labelText: 'Full Name *',
                       ),
                     ),
+                    const SizedBox(height: 12),
                     TextField(
                       controller: emailCtrl,
                       decoration: const InputDecoration(labelText: 'Email *'),
                     ),
+                    const SizedBox(height: 12),
                     TextField(
                       controller: phoneCtrl,
                       keyboardType: TextInputType.phone,
@@ -1488,21 +1495,15 @@ extension StudentsTabDialogs on _StudentsTabState {
                         counterText: '',
                       ),
                     ),
+                    const SizedBox(height: 12),
                     TextField(
                       controller: sprCtrl,
                       decoration: const InputDecoration(labelText: 'SPR No'),
                     ),
+                    const SizedBox(height: 12),
                     TextField(
                       controller: addressCtrl,
                       decoration: const InputDecoration(labelText: 'Address'),
-                    ),
-                    TextField(
-                      controller: passwordCtrl,
-                      obscureText: true,
-                      decoration: const InputDecoration(
-                        labelText:
-                            'Change Password (leave empty to keep current)',
-                      ),
                     ),
                     const SizedBox(height: 10),
                     Row(
@@ -1535,6 +1536,7 @@ extension StudentsTabDialogs on _StudentsTabState {
                     ),
                     const SizedBox(height: 10),
                     DropdownButtonFormField<int>(
+                      isExpanded: true,
                       value:
                           uniqueDepartments.any(
                             (d) => d['id'] == selectedDeptId,
@@ -1557,7 +1559,9 @@ extension StudentsTabDialogs on _StudentsTabState {
                         });
                       },
                     ),
+                    const SizedBox(height: 12),
                     DropdownButtonFormField<int>(
+                      isExpanded: true,
                       value:
                           uniqueAcademicYears.any(
                             (ay) => ay['id'] == selectedAcademicYearId,
@@ -1579,7 +1583,9 @@ extension StudentsTabDialogs on _StudentsTabState {
                         });
                       },
                     ),
+                    const SizedBox(height: 12),
                     DropdownButtonFormField<int>(
+                      isExpanded: true,
                       value: uniqueYears.any((y) => y['id'] == selectedYearId)
                           ? selectedYearId
                           : null,
@@ -1598,7 +1604,9 @@ extension StudentsTabDialogs on _StudentsTabState {
                         });
                       },
                     ),
+                    const SizedBox(height: 12),
                     DropdownButtonFormField<int>(
+                      isExpanded: true,
                       value:
                           uniqueSemesters.any(
                             (s) => s['id'] == selectedSemesterId,
@@ -1624,7 +1632,9 @@ extension StudentsTabDialogs on _StudentsTabState {
                         });
                       },
                     ),
+                    const SizedBox(height: 12),
                     DropdownButtonFormField<int>(
+                      isExpanded: true,
                       value:
                           uniqueGenders.any((g) => g['id'] == selectedGenderId)
                           ? selectedGenderId
@@ -1642,7 +1652,9 @@ extension StudentsTabDialogs on _StudentsTabState {
                         });
                       },
                     ),
+                    const SizedBox(height: 12),
                     DropdownButtonFormField<int?>(
+                      isExpanded: true,
                       value:
                           uniqueFilteredSections.any(
                             (sec) => sec['id'] == selectedSectionId,
@@ -1670,7 +1682,9 @@ extension StudentsTabDialogs on _StudentsTabState {
                         });
                       },
                     ),
+                    const SizedBox(height: 12),
                     DropdownButtonFormField<int?>(
+                      isExpanded: true,
                       value:
                           uniqueGroups.any(
                             (grp) => grp['id'] == selectedGroupId,
@@ -1773,49 +1787,60 @@ extension StudentsTabDialogs on _StudentsTabState {
                   ],
                 ),
               ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text('Cancel'),
-                ),
-                ElevatedButton(
-                  onPressed: () {
-                    _editStudent(
-                      id: student['id'],
-                      fullName: nameCtrl.text.trim(),
-                      email: emailCtrl.text.trim(),
-                      phone: phoneCtrl.text.trim(),
-                      genderId: selectedGenderId,
-                      departmentId: selectedDeptId,
-                      academicYearId: selectedAcademicYearId,
-                      yearId: selectedYearId,
-                      semesterId: selectedSemesterId,
-                      sectionId: selectedSectionId,
-                      groupId: selectedGroupId,
-                      sprNo: sprCtrl.text.trim(),
-                      dob: editDob,
-                      address: addressCtrl.text.trim(),
-                      active: active,
-                      password: passwordCtrl.text.trim(),
-                      guardianName: guardianNameCtrl.text.trim(),
-                      guardianRel: selectedGuardianRel,
-                      guardianPhone: guardianPhoneCtrl.text.trim(),
-                      guardianEmail: guardianEmailCtrl.text.trim(),
-                    );
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF11998e),
+              bottomNavigationBar: SafeArea(
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(context),
+                        child: const Text('Cancel', style: TextStyle(color: Colors.red)),
+                      ),
+                      const SizedBox(width: 16),
+                      ElevatedButton(
+                        onPressed: () {
+                          _editStudent(
+                            id: student['id'],
+                            fullName: nameCtrl.text.trim(),
+                            email: emailCtrl.text.trim(),
+                            phone: phoneCtrl.text.trim(),
+                            genderId: selectedGenderId,
+                            departmentId: selectedDeptId,
+                            academicYearId: selectedAcademicYearId,
+                            yearId: selectedYearId,
+                            semesterId: selectedSemesterId,
+                            sectionId: selectedSectionId,
+                            groupId: selectedGroupId,
+                            sprNo: sprCtrl.text.trim(),
+                            dob: editDob,
+                            address: addressCtrl.text.trim(),
+                            active: active,
+                            password: '',
+                            guardianName: guardianNameCtrl.text.trim(),
+                            guardianRel: selectedGuardianRel,
+                            guardianPhone: guardianPhoneCtrl.text.trim(),
+                            guardianEmail: guardianEmailCtrl.text.trim(),
+                          );
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF11998e),
+                          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                        ),
+                        child: const Text(
+                          'Save Changes',
+                          style: TextStyle(color: Colors.white),
+                        ),
+                      ),
+                    ],
                   ),
-                  child: const Text(
-                    'Save Changes',
-                    style: TextStyle(color: Colors.white),
-                  ),
                 ),
-              ],
+              ),
             );
           },
         );
       },
-    );
-  }
+    ),
+  );
+}
 }

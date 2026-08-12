@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:pragatix/core/widgets/pragatix_loader.dart';
 import 'package:provider/provider.dart';
 import 'package:pragatix/features/penalty/providers/penalty_provider.dart';
 import 'package:pragatix/features/penalty/models/penalty_request.dart';
@@ -12,7 +13,7 @@ class MyRequestsTab extends StatelessWidget {
     return Consumer<PenaltyProvider>(
       builder: (context, provider, child) {
         if (provider.isLoading) {
-          return const Center(child: CircularProgressIndicator());
+          return const Center(child: PragatiXLoader());
         }
 
         if (provider.error != null) {

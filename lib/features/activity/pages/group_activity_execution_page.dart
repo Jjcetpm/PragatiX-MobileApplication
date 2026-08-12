@@ -1,4 +1,5 @@
 import 'package:pragatix/features/auth/providers/auth_provider.dart';
+import 'package:pragatix/core/widgets/pragatix_loader.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter/material.dart';
 
@@ -216,7 +217,7 @@ class _GroupActivityExecutionPageState
         elevation: 0,
       ),
       body: _isLoadingGroups
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(child: PragatiXLoader())
           : _errorMessage != null
           ? _buildErrorView()
           : _buildGroupsListStep(),

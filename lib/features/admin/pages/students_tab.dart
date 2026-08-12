@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:pragatix/core/widgets/pragatix_loader.dart';
 import 'package:pragatix/core/utils/error_handler.dart';
 
 import 'package:pragatix/features/admin/repository/admin_repository.dart';
@@ -486,9 +487,10 @@ class _StudentsTabState extends State<StudentsTab> {
   }
 
   void _showAddStudentDialog() {
-    showDialog(
-      context: context,
-      builder: (context) => AddStudentDialog(
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => AddStudentDialog(
         regNoController: regNoController,
         nameController: nameController,
         emailController: emailController,
@@ -531,13 +533,15 @@ class _StudentsTabState extends State<StudentsTab> {
               );
             },
       ),
+      ),
     );
   }
 
   void _showEditStudentDialog(Map<String, dynamic> student) {
-    showDialog(
-      context: context,
-      builder: (context) => EditStudentDialog(
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => EditStudentDialog(
         student: student,
         regNoController: regNoController,
         nameController: nameController,
@@ -573,7 +577,6 @@ class _StudentsTabState extends State<StudentsTab> {
               required dob,
               required address,
               required active,
-              required password,
             }) async {
               await _editStudent(
                 id: id,
@@ -591,9 +594,10 @@ class _StudentsTabState extends State<StudentsTab> {
                 dob: dob,
                 address: address,
                 active: active,
-                password: password,
+                password: '',
               );
             },
+      ),
       ),
     );
   }
@@ -649,7 +653,7 @@ class _StudentsTabState extends State<StudentsTab> {
         ],
       ),
       body: isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(child: PragatiXLoader())
           : RefreshIndicator(
               onRefresh: () => _fetchStudents(isRefresh: true),
               child: Padding(

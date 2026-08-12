@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:pragatix/core/widgets/pragatix_loader.dart';
 import 'package:provider/provider.dart';
 import 'package:pragatix/features/activity/models/activity_model.dart';
 import 'package:pragatix/features/activity/services/cc_activity_service.dart';
@@ -332,28 +333,30 @@ class _CCTeacherAssignPageState extends State<CCTeacherAssignPage> {
                               : Colors.grey.shade600,
                         ),
                         const SizedBox(width: 6),
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              'Only Today',
-                              style: TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.bold,
-                                color: _assignmentDuration == 'ONLY_TODAY'
-                                    ? const Color(0xFF11998E)
-                                    : const Color(0xFF1E293B),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                'Only Today',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.bold,
+                                  color: _assignmentDuration == 'ONLY_TODAY'
+                                      ? const Color(0xFF11998E)
+                                      : const Color(0xFF1E293B),
+                                ),
                               ),
-                            ),
-                            Text(
-                              'Temporary (Expires midnight)',
-                              style: TextStyle(
-                                fontSize: 9,
-                                color: Colors.grey.shade600,
+                              Text(
+                                'Temporary (Expires midnight)',
+                                style: TextStyle(
+                                  fontSize: 9,
+                                  color: Colors.grey.shade600,
+                                ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
                       ],
                     ),
@@ -395,28 +398,30 @@ class _CCTeacherAssignPageState extends State<CCTeacherAssignPage> {
                               : Colors.grey.shade600,
                         ),
                         const SizedBox(width: 6),
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              'Permanent',
-                              style: TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.bold,
-                                color: _assignmentDuration == 'PERMANENT'
-                                    ? const Color(0xFF11998E)
-                                    : const Color(0xFF1E293B),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                'Permanent',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.bold,
+                                  color: _assignmentDuration == 'PERMANENT'
+                                      ? const Color(0xFF11998E)
+                                      : const Color(0xFF1E293B),
+                                ),
                               ),
-                            ),
-                            Text(
-                              'Fixed assigned faculty',
-                              style: TextStyle(
-                                fontSize: 9,
-                                color: Colors.grey.shade600,
+                              Text(
+                                'Fixed assigned faculty',
+                                style: TextStyle(
+                                  fontSize: 9,
+                                  color: Colors.grey.shade600,
+                                ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
                       ],
                     ),
@@ -549,7 +554,7 @@ class _CCTeacherAssignPageState extends State<CCTeacherAssignPage> {
   Widget _buildBody() {
     if (_isLoading) {
       return const Center(
-        child: CircularProgressIndicator(color: Color(0xFF11998E)),
+        child: PragatiXLoader(),
       );
     }
 

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:pragatix/core/widgets/pragatix_loader.dart';
 import 'package:provider/provider.dart';
 import 'package:pragatix/features/activity/providers/activity_completion_provider.dart';
 import 'package:pragatix/features/activity/models/activity_completion_request.dart';
@@ -324,7 +325,7 @@ class _TeacherActivityRequestsTabState extends State<TeacherActivityRequestsTab>
       body: Consumer<ActivityCompletionProvider>(
         builder: (context, provider, _) {
           if (provider.isLoading && provider.inbox.isEmpty) {
-            return const Center(child: CircularProgressIndicator());
+            return const Center(child: PragatiXLoader());
           }
           if (provider.error != null) {
             return Center(

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:pragatix/core/widgets/pragatix_loader.dart';
 import 'package:provider/provider.dart';
 import 'package:pragatix/features/auth/providers/auth_provider.dart';
 import 'package:pragatix/shared/providers/student_search_provider.dart';
@@ -52,7 +53,7 @@ class _StudentSearchDialogState extends State<StudentSearchDialog> {
                 child: Consumer<StudentSearchProvider>(
                   builder: (context, provider, child) {
                     if (provider.isLoading) {
-                      return const Center(child: CircularProgressIndicator());
+                      return const Center(child: PragatiXLoader());
                     }
 
                     if (provider.error.isNotEmpty) {

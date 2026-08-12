@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:pragatix/core/widgets/pragatix_loader.dart';
 import '../models/activity_model.dart';
 import '../providers/activity_provider.dart';
 import '../../../shared/widgets/activity_card.dart';
@@ -205,7 +206,7 @@ class _GlobalActivityPageState extends State<GlobalActivityPage>
         listenable: _provider,
         builder: (context, _) {
           if (_provider.isLoadingActivities) {
-            return const Center(child: CircularProgressIndicator());
+            return const Center(child: PragatiXLoader());
           }
 
           if (_provider.error != null) {

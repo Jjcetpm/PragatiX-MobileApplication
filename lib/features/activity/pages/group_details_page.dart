@@ -1,4 +1,5 @@
 import 'package:pragatix/features/auth/providers/auth_provider.dart';
+import 'package:pragatix/core/widgets/pragatix_loader.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter/material.dart';
 import 'package:pragatix/features/activity/services/activity_proxy_service.dart';
@@ -259,7 +260,7 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
         elevation: 0,
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(child: PragatiXLoader())
           : SingleChildScrollView(
               padding: const EdgeInsets.all(16),
               child: Column(

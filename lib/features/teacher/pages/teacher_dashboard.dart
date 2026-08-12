@@ -1,4 +1,5 @@
 import 'package:pragatix/features/auth/providers/auth_provider.dart';
+import 'package:pragatix/core/widgets/pragatix_loader.dart';
 import 'package:provider/provider.dart';
 import 'package:pragatix/core/config/api_config.dart';
 import 'dart:convert';
@@ -102,7 +103,6 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
         const LeaderboardTab(),
         const TeacherActivityRequestsTab(),
         if (_canManageGroups) const TeamGroupManagementTab(),
-        if (_isHod) const HodPerformanceTab(),
         const ProfilePage(),
       ];
       if (_currentIndex >= _screens.length) {
@@ -114,7 +114,7 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
   @override
   Widget build(BuildContext context) {
     if (isProfileLoading) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+      return const Scaffold(body: Center(child: PragatiXLoader()));
     }
 
     final List<BottomNavigationBarItem> barItems = [
@@ -149,11 +149,6 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
           icon: Icon(Icons.groups_rounded),
           label: 'Groups',
         ),
-      if (_isHod)
-        const BottomNavigationBarItem(
-          icon: Icon(Icons.analytics_outlined),
-          label: 'HOD Report',
-        ),
       const BottomNavigationBarItem(
         icon: Icon(Icons.person_rounded),
         label: 'Profile',
@@ -162,7 +157,7 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
 
     return Scaffold(
       body: _screens.isEmpty
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(child: PragatiXLoader())
           : _screens[_currentIndex],
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentIndex < barItems.length ? _currentIndex : 0,

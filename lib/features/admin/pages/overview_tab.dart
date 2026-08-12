@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:pragatix/core/widgets/pragatix_loader.dart';
 import 'package:intl/intl.dart';
 import 'package:pragatix/features/admin/repository/admin_repository.dart';
 import 'package:pragatix/features/admin/pages/students_tab.dart';
@@ -120,7 +121,7 @@ class _OverviewTabState extends State<OverviewTab> {
           ),
         ),
         child: isLoading
-            ? const Center(child: CircularProgressIndicator())
+            ? const Center(child: PragatiXLoader())
             : hasError
                 ? Center(
                     child: Column(

@@ -1,4 +1,5 @@
 import 'package:pragatix/features/auth/providers/auth_provider.dart';
+import 'package:pragatix/core/widgets/pragatix_loader.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:pragatix/features/badge/providers/badge_provider.dart';
@@ -38,7 +39,7 @@ class _TeamBadgeClaimsTabState extends State<TeamBadgeClaimsTab> {
     if (badgeProvider.isLoading) {
       return Scaffold(
         backgroundColor: bgColor,
-        body: Center(child: CircularProgressIndicator(color: primaryColor)),
+        body: Center(child: PragatiXLoader()),
       );
     }
 

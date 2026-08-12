@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:pragatix/core/widgets/pragatix_loader.dart';
 import 'package:pragatix/features/admin/repository/admin_repository.dart';
 import 'package:pragatix/shared/widgets/profile_header.dart';
 import 'package:pragatix/shared/widgets/shared_profile_card.dart';
@@ -52,7 +53,7 @@ class _ProfileTabState extends State<ProfileTab> {
         elevation: 0,
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(child: PragatiXLoader())
           : Container(
               color: const Color(0xFFF1F5F9),
               width: double.infinity,

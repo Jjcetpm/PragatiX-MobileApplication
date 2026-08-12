@@ -1,4 +1,5 @@
 import 'package:pragatix/features/auth/providers/auth_provider.dart';
+import 'package:pragatix/core/widgets/pragatix_loader.dart';
 import 'package:provider/provider.dart';
 import 'package:pragatix/core/config/api_config.dart';
 import 'package:http/http.dart' as http;
@@ -9,6 +10,7 @@ import 'package:pragatix/features/teacher/services/teacher_proxy_service.dart';
 import 'package:pragatix/shared/widgets/shared_student_card.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:pragatix/features/teacher/pages/teacher_student_detail.dart';
+import 'package:pragatix/features/teacher/pages/cc_student_profile_page.dart';
 import 'package:pragatix/core/di/service_locator.dart';
 import 'package:pragatix/core/utils/string_utils.dart';
 
@@ -43,7 +45,7 @@ class _StudentsTabState extends State<StudentsTab> {
   final TextEditingController _searchController = TextEditingController();
 
   String? filterYear;
-  final TextEditingController filterSectionController = TextEditingController();
+  String? filterSectionName;
 
   // Single Student controllers
   final TextEditingController nameController = TextEditingController();
@@ -74,7 +76,6 @@ class _StudentsTabState extends State<StudentsTab> {
   @override
   void dispose() {
     _searchController.dispose();
-    filterSectionController.dispose();
     nameController.dispose();
     emailController.dispose();
     phoneController.dispose();
@@ -129,7 +130,7 @@ class _StudentsTabState extends State<StudentsTab> {
   void initState() {
     super.initState();
     final bool isHod = widget.subRoles.contains('HOD');
-    if (isCc) {
+    if (isCc || isHod) {
       _fetchMeProfile().then((_) {
         _fetchStudents();
       });
@@ -618,16 +619,46 @@ class _StudentsTabState extends State<StudentsTab> {
 
   @override
   Widget build(BuildContext context) {
+    final bool isHod = widget.subRoles.contains('HOD');
     final filteredStudents = studentsList.where((s) {
+      final String sYear = s['year']?.toString().trim().toLowerCase() ?? '';
+      final String sDeptName = s['departmentName']?.toString().trim().toLowerCase() ?? '';
+      final String sSection = s['section']?.toString().trim().toLowerCase() ?? '';
+
+      // HOD filtering
+      if (isHod && !isCc) {
+        if (ccDeptName != null && ccDeptName!.isNotEmpty) {
+           if (sDeptName != ccDeptName!.trim().toLowerCase()) return false;
+        }
+        if (filterYear != null && filterYear!.isNotEmpty) {
+           final targetNo = _getYearNumber(filterYear!);
+           final sNo = _getYearNumber(sYear);
+           if (targetNo != -1 && sNo != -1 && targetNo != sNo) return false;
+        }
+        if (filterSectionName != null && filterSectionName!.isNotEmpty) {
+           if (_normalizeSectionName(sSection) != _normalizeSectionName(filterSectionName!)) return false;
+        }
+      }
+
+      // CC filtering
+      if (isCc) {
+        if (ccDeptName != null && ccDeptName!.isNotEmpty && sDeptName != ccDeptName!.trim().toLowerCase()) return false;
+        if (ccYear != null && ccYear!.isNotEmpty) {
+           final targetNo = _getYearNumber(ccYear!);
+           final sNo = _getYearNumber(sYear);
+           if (targetNo != -1 && sNo != -1 && targetNo != sNo) return false;
+        }
+        if (ccSection != null && ccSection!.isNotEmpty && _normalizeSectionName(sSection) != _normalizeSectionName(ccSection!)) return false;
+      }
+
       if (searchQuery.isEmpty) return true;
       final String sId = (s['regNo'] ?? '').toString().toLowerCase();
       final String name = (s['fullName'] ?? '').toString().toLowerCase();
       final String spr = (s['sprNo'] ?? '').toString().toLowerCase();
-      final String deptName = (s['departmentName'] ?? '').toString().toLowerCase();
       return sId.contains(searchQuery) ||
           name.contains(searchQuery) ||
           spr.contains(searchQuery) ||
-          deptName.contains(searchQuery);
+          sDeptName.contains(searchQuery);
     }).toList();
 
     return Scaffold(
@@ -640,18 +671,7 @@ class _StudentsTabState extends State<StudentsTab> {
         backgroundColor: const Color(0xFF1E293B),
         elevation: 0,
         actions: [
-          if (isCc) ...[
-            IconButton(
-              icon: const Icon(Icons.group_add_outlined, color: Colors.white),
-              tooltip: 'Manage Groups',
-              onPressed: _showManageGroupsDialog,
-            ),
-            IconButton(
-              icon: const Icon(Icons.insights_outlined, color: Colors.white),
-              tooltip: 'Report Monitor',
-              onPressed: _showReportMonitorDialog,
-            ),
-          ],
+
           IconButton(
             icon: const Icon(Icons.refresh, color: Colors.white),
             onPressed: () {
@@ -662,192 +682,207 @@ class _StudentsTabState extends State<StudentsTab> {
         ],
       ),
       body: isLoading
-          ? const Center(child: CircularProgressIndicator(color: Color(0xFF11998e)))
-          : Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                children: [
-                  if (widget.subRoles.contains('HOD')) ...[
-                    Card(
-                      elevation: 2,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      color: Colors.white,
-                      child: Padding(
-                        padding: const EdgeInsets.all(12.0),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              'Filter Students (HOD)',
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                color: Color(0xFF1E293B),
-                              ),
+          ? const Center(child: PragatiXLoader())
+          : RefreshIndicator(
+              color: const Color(0xFF11998e),
+              backgroundColor: Colors.white,
+              onRefresh: () async {
+                await _fetchStudents();
+              },
+              child: CustomScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                slivers: [
+                  SliverPadding(
+                    padding: const EdgeInsets.only(left: 16.0, right: 16.0, top: 16.0, bottom: 8.0),
+                    sliver: SliverList(
+                      delegate: SliverChildListDelegate([
+                        if (widget.subRoles.contains('HOD')) ...[
+                          Card(
+                            elevation: 2,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
                             ),
-                            const SizedBox(height: 8),
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: DropdownButtonFormField<String>(
-                                    initialValue: filterYear,
-                                    decoration: const InputDecoration(
-                                      labelText: 'Select Year *',
-                                      border: OutlineInputBorder(),
-                                      contentPadding: EdgeInsets.symmetric(
-                                        horizontal: 10,
-                                        vertical: 8,
-                                      ),
-                                      filled: true,
-                                      fillColor: Colors.white,
+                            color: Colors.white,
+                            child: Padding(
+                              padding: const EdgeInsets.all(12.0),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text(
+                                    'Filter Students (HOD)',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      color: Color(0xFF1E293B),
                                     ),
-                                    items: const [
-                                      DropdownMenuItem(
-                                        value: 'I',
-                                        child: Text('I Year'),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: DropdownButtonFormField<String>(
+                                          initialValue: filterYear,
+                                          decoration: const InputDecoration(
+                                            labelText: 'Select Year *',
+                                            border: OutlineInputBorder(),
+                                            contentPadding: EdgeInsets.symmetric(
+                                              horizontal: 10,
+                                              vertical: 8,
+                                            ),
+                                            filled: true,
+                                            fillColor: Colors.white,
+                                          ),
+                                          items: const [
+                                            DropdownMenuItem(
+                                              value: 'I',
+                                              child: Text('I Year'),
+                                            ),
+                                            DropdownMenuItem(
+                                              value: 'II',
+                                              child: Text('II Year'),
+                                            ),
+                                            DropdownMenuItem(
+                                              value: 'III',
+                                              child: Text('III Year'),
+                                            ),
+                                            DropdownMenuItem(
+                                              value: 'IV',
+                                              child: Text('IV Year'),
+                                            ),
+                                          ],
+                                          onChanged: (value) {
+                                            setState(() {
+                                              filterYear = value;
+                                              isLoading = true;
+                                            });
+                                            _fetchStudents();
+                                          },
+                                        ),
                                       ),
-                                      DropdownMenuItem(
-                                        value: 'II',
-                                        child: Text('II Year'),
-                                      ),
-                                      DropdownMenuItem(
-                                        value: 'III',
-                                        child: Text('III Year'),
-                                      ),
-                                      DropdownMenuItem(
-                                        value: 'IV',
-                                        child: Text('IV Year'),
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        child: DropdownButtonFormField<String>(
+                                          value: filterSectionName,
+                                          decoration: const InputDecoration(
+                                            labelText: 'Section (Optional)',
+                                            border: OutlineInputBorder(),
+                                            contentPadding: EdgeInsets.symmetric(
+                                              horizontal: 10,
+                                              vertical: 8,
+                                            ),
+                                            filled: true,
+                                            fillColor: Colors.white,
+                                          ),
+                                          items: [
+                                            const DropdownMenuItem(value: null, child: Text('All Sections')),
+                                            ...sections
+                                                .map((s) => s['sectionName']?.toString() ?? '')
+                                                .where((s) => s.isNotEmpty)
+                                                .toSet()
+                                                .toList()
+                                                .map((sName) => DropdownMenuItem(value: sName, child: Text(sName)))
+                                          ],
+                                          onChanged: (value) {
+                                            setState(() {
+                                              filterSectionName = value;
+                                              isLoading = true;
+                                            });
+                                            _fetchStudents();
+                                          },
+                                        ),
                                       ),
                                     ],
-                                    onChanged: (value) {
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                        ],
+                        TextField(
+                          controller: _searchController,
+                          decoration: InputDecoration(
+                            hintText: 'Search by student name or reg no...',
+                            prefixIcon: const Icon(Icons.search, color: Color(0xFF64748B)),
+                            suffixIcon: _searchController.text.isNotEmpty
+                                ? IconButton(
+                                    icon: const Icon(Icons.clear, color: Color(0xFF64748B)),
+                                    onPressed: () {
+                                      _searchController.clear();
                                       setState(() {
-                                        filterYear = value;
-                                        isLoading = true;
+                                        searchQuery = '';
                                       });
                                       _fetchStudents();
                                     },
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: TextField(
-                                    controller: filterSectionController,
-                                    decoration: const InputDecoration(
-                                      labelText: 'Section (Optional)',
-                                      border: OutlineInputBorder(),
-                                      contentPadding: EdgeInsets.symmetric(
-                                        horizontal: 10,
-                                        vertical: 8,
-                                      ),
-                                      filled: true,
-                                      fillColor: Colors.white,
-                                    ),
-                                    onChanged: (value) {
-                                      setState(() => isLoading = true);
-                                      _fetchStudents();
-                                    },
-                                  ),
-                                ),
-                              ],
+                                  )
+                                : null,
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide(color: Colors.grey.shade300),
                             ),
-                          ],
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide(color: Colors.grey.shade300),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: const BorderSide(color: Color(0xFF11998e), width: 1.5),
+                            ),
+                            filled: true,
+                            fillColor: Colors.white,
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                          ),
+                          onChanged: (value) {
+                            setState(() {
+                              searchQuery = value.trim().toLowerCase();
+                            });
+                          },
+                          onSubmitted: (value) {
+                            _searchStudents(value);
+                          },
                         ),
-                      ),
+                        const SizedBox(height: 16),
+                      ]),
                     ),
-                    const SizedBox(height: 16),
-                  ],
-                  TextField(
-                    controller: _searchController,
-                    decoration: InputDecoration(
-                      hintText: 'Search by student name or reg no...',
-                      prefixIcon: const Icon(Icons.search, color: Color(0xFF64748B)),
-                      suffixIcon: _searchController.text.isNotEmpty
-                          ? IconButton(
-                              icon: const Icon(Icons.clear, color: Color(0xFF64748B)),
-                              onPressed: () {
-                                _searchController.clear();
-                                setState(() {
-                                  searchQuery = '';
-                                });
-                                _fetchStudents();
-                              },
-                            )
-                          : null,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: Colors.grey.shade300),
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: Colors.grey.shade300),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: const BorderSide(color: Color(0xFF11998e), width: 1.5),
-                      ),
-                      filled: true,
-                      fillColor: Colors.white,
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                    ),
-                    onChanged: (value) {
-                      setState(() {
-                        searchQuery = value.trim().toLowerCase();
-                      });
-                    },
-                    onSubmitted: (value) {
-                      _searchStudents(value);
-                    },
                   ),
-                  const SizedBox(height: 16),
-                  Expanded(
-                    child: filteredStudents.isEmpty
-                        ? RefreshIndicator(
-                            color: const Color(0xFF11998e),
-                            backgroundColor: Colors.white,
-                            onRefresh: () async {
-                              await _fetchStudents();
-                            },
-                            child: SingleChildScrollView(
-                              physics: const AlwaysScrollableScrollPhysics(),
-                              child: Container(
-                                height: 350,
-                                alignment: Alignment.center,
-                                child: Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Icon(
-                                      Icons.people_outline,
-                                      size: 56,
-                                      color: Colors.grey.shade400,
-                                    ),
-                                    const SizedBox(height: 12),
-                                    Text(
-                                      searchQuery.isNotEmpty
-                                          ? 'No students match "$searchQuery"'
-                                          : 'No students found',
-                                      style: TextStyle(
-                                        fontSize: 16,
-                                        color: Colors.grey.shade600,
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                    ),
-                                  ],
+                  if (filteredStudents.isEmpty)
+                    SliverFillRemaining(
+                      hasScrollBody: false,
+                      child: SingleChildScrollView(
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        child: Container(
+                          height: 350,
+                          alignment: Alignment.center,
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.people_outline,
+                                size: 56,
+                                color: Colors.grey.shade400,
+                              ),
+                              const SizedBox(height: 12),
+                              Text(
+                                searchQuery.isNotEmpty
+                                    ? 'No students match "$searchQuery"'
+                                    : 'No students found',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  color: Colors.grey.shade600,
+                                  fontWeight: FontWeight.w500,
                                 ),
                               ),
-                            ),
-                          )
-                        : RefreshIndicator(
-                            color: const Color(0xFF11998e),
-                            backgroundColor: Colors.white,
-                            onRefresh: () async {
-                              await _fetchStudents();
-                            },
-                            child: ListView.builder(
-                              physics: const AlwaysScrollableScrollPhysics(),
-                              itemCount: filteredStudents.length,
-                              itemBuilder: (context, index) {
-                                final s = filteredStudents[index];
+                            ],
+                          ),
+                        ),
+                      ),
+                    )
+                  else
+                    SliverPadding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                      sliver: SliverList(
+                        delegate: SliverChildBuilderDelegate(
+                          (context, index) {
+                            final s = filteredStudents[index];
                                 final String sId = s['regNo'] ?? '';
                                 final String name = s['fullName'] ?? '';
                                 final String deptName =
@@ -926,32 +961,16 @@ class _StudentsTabState extends State<StudentsTab> {
                                         )
                                       : null,
                                   onTap: () {
-                                    final mappedStudent = {
-                                      'id': s['id'],
-                                      'name': name,
-                                      'regNo': sId,
-                                      'dept': deptName,
-                                      'score': score,
-                                      'teamRole': s['teamRole'] ?? 'MEMBER',
-                                    };
                                     Navigator.push(
                                       context,
                                       MaterialPageRoute(
-                                        builder: (context) =>
-                                            TeacherStudentDetail(
-                                          student: mappedStudent,
-                                        ),
+                                        builder: (context) => CcStudentProfilePage(student: s),
                                       ),
-                                    ).then((_) {
-                                      if (_searchController.text.trim().isNotEmpty) {
-                                        _searchStudents(_searchController.text.trim());
-                                      } else {
-                                        _fetchStudents();
-                                      }
-                                    });
+                                    );
                                   },
                                 );
                               },
+                              childCount: filteredStudents.length,
                             ),
                           ),
                   ),
@@ -1123,7 +1142,7 @@ class _BulkVerificationScreenState extends State<BulkVerificationScreen> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  CircularProgressIndicator(color: Color(0xFF11998e)),
+                  PragatiXLoader(),
                   SizedBox(height: 16),
                   Text(
                     'Saving selected students into database...',
@@ -1369,12 +1388,17 @@ class _EditStudentDialogState extends State<EditStudentDialog> {
 
   @override
   Widget build(BuildContext context) {
-    return AlertDialog(
-      title: const Text(
-        'Edit Student Details',
-        style: TextStyle(fontWeight: FontWeight.bold),
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text(
+          'Edit Student Details',
+          style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
+        ),
+        backgroundColor: const Color(0xFF1E293B),
+        iconTheme: const IconThemeData(color: Colors.white),
       ),
-      content: SingleChildScrollView(
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16.0),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -1382,20 +1406,24 @@ class _EditStudentDialogState extends State<EditStudentDialog> {
               controller: nameCtrl,
               decoration: const InputDecoration(labelText: 'Full Name'),
             ),
+            const SizedBox(height: 12),
             TextField(
               controller: regCtrl,
               decoration: const InputDecoration(
                 labelText: 'Register No (reg_no)',
               ),
             ),
+            const SizedBox(height: 12),
             TextField(
               controller: sprCtrl,
               decoration: const InputDecoration(labelText: 'SPR No (spr_no)'),
             ),
+            const SizedBox(height: 12),
             TextField(
               controller: emailCtrl,
               decoration: const InputDecoration(labelText: 'Email'),
             ),
+            const SizedBox(height: 12),
             TextField(
               controller: phoneCtrl,
               keyboardType: TextInputType.phone,
@@ -1405,10 +1433,12 @@ class _EditStudentDialogState extends State<EditStudentDialog> {
                 counterText: '',
               ),
             ),
+            const SizedBox(height: 12),
             TextField(
               controller: deptCtrl,
               decoration: const InputDecoration(labelText: 'Department'),
             ),
+            const SizedBox(height: 12),
             TextField(
               controller: academicYearCtrl,
               decoration: const InputDecoration(
@@ -1422,7 +1452,7 @@ class _EditStudentDialogState extends State<EditStudentDialog> {
                 Text(
                   dob == null
                       ? 'No DOB Selected'
-                      : "DOB: ${dob!.year}-${dob!.month.toString().padLeft(2, '0')}-${dob!.day.toString().padLeft(2, '0')}",
+                      : "DOB: \${dob!.year}-\${dob!.month.toString().padLeft(2, '0')}-\${dob!.day.toString().padLeft(2, '0')}",
                   style: const TextStyle(fontWeight: FontWeight.bold),
                 ),
                 TextButton.icon(
@@ -1447,33 +1477,43 @@ class _EditStudentDialogState extends State<EditStudentDialog> {
           ],
         ),
       ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context, null),
-          child: const Text('Cancel'),
-        ),
-        ElevatedButton(
-          onPressed: () {
-            final updatedStudent = Map<String, dynamic>.from(widget.student);
-            updatedStudent['fullName'] = nameCtrl.text.trim();
-            updatedStudent['regNo'] = regCtrl.text.trim();
-            updatedStudent['sprNo'] = sprCtrl.text.trim();
-            updatedStudent['email'] = emailCtrl.text.trim();
-            updatedStudent['phone'] = phoneCtrl.text.trim();
-            updatedStudent['departmentName'] = deptCtrl.text.trim();
-            updatedStudent['academicYear'] = academicYearCtrl.text.trim();
-            if (dob != null) {
-              updatedStudent['dateOfBirth'] =
-                  "${dob!.year}-${dob!.month.toString().padLeft(2, '0')}-${dob!.day.toString().padLeft(2, '0')}";
-            }
-            Navigator.pop(context, updatedStudent);
-          },
-          style: ElevatedButton.styleFrom(
-            backgroundColor: const Color(0xFF11998e),
+      bottomNavigationBar: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, null),
+                child: const Text('Cancel', style: TextStyle(color: Colors.red)),
+              ),
+              const SizedBox(width: 16),
+              ElevatedButton(
+                onPressed: () {
+                  final updatedStudent = Map<String, dynamic>.from(widget.student);
+                  updatedStudent['fullName'] = nameCtrl.text.trim();
+                  updatedStudent['regNo'] = regCtrl.text.trim();
+                  updatedStudent['sprNo'] = sprCtrl.text.trim();
+                  updatedStudent['email'] = emailCtrl.text.trim();
+                  updatedStudent['phone'] = phoneCtrl.text.trim();
+                  updatedStudent['departmentName'] = deptCtrl.text.trim();
+                  updatedStudent['academicYear'] = academicYearCtrl.text.trim();
+                  if (dob != null) {
+                    updatedStudent['dateOfBirth'] =
+                        "\${dob!.year}-\${dob!.month.toString().padLeft(2, '0')}-\${dob!.day.toString().padLeft(2, '0')}";
+                  }
+                  Navigator.pop(context, updatedStudent);
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF11998e),
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                ),
+                child: const Text('Apply', style: TextStyle(color: Colors.white)),
+              ),
+            ],
           ),
-          child: const Text('Apply', style: TextStyle(color: Colors.white)),
         ),
-      ],
+      ),
     );
   }
 }

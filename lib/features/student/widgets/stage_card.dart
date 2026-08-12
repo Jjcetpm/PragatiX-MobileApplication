@@ -9,8 +9,9 @@ class StageCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bool isCompleted = stage['isCompleted'] == true;
-    final bool isLocked = stage['isLocked'] == true && !isCompleted;
+    final bool isCompleted = stage['isCompleted'] == true || stage['completed'] == true;
+    final bool isLocked = (stage['isLocked'] == true || stage['locked'] == true) && !isCompleted;
+    final bool isClickable = !isCompleted && !isLocked;
     final String name = stage['name'] ?? 'Stage';
     final int completedCount = stage['overallCompletedSubgroups'] ?? 0;
     final int totalCount = stage['overallTotalSubgroups'] ?? 0;
@@ -36,7 +37,7 @@ class StageCard extends StatelessWidget {
           : Colors.white,
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
-        onTap: isLocked ? null : onTap,
+        onTap: isClickable ? onTap : null,
         child: Padding(
           padding: const EdgeInsets.all(16.0),
           child: Row(
@@ -97,7 +98,7 @@ class StageCard extends StatelessWidget {
                   ],
                 ),
               ),
-              if (!isLocked)
+              if (isClickable)
                 Icon(
                   Icons.chevron_right_rounded,
                   color: Colors.grey.shade400,

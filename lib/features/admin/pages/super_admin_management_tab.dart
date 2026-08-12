@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:pragatix/core/widgets/pragatix_loader.dart';
 import 'package:pragatix/features/admin/repository/admin_repository.dart';
 import 'package:pragatix/core/di/service_locator.dart';
 
@@ -67,14 +68,16 @@ class _SuperAdminManagementTabState extends State<SuperAdminManagementTab> {
 
     try {
       await _repository.deleteYearAdmin(id);
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Year Admin deleted successfully')),
       );
       _fetchYearAdmins();
     } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Error: $e')));
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: $e')),
+      );
     }
   }
 
@@ -84,198 +87,231 @@ class _SuperAdminManagementTabState extends State<SuperAdminManagementTab> {
     final fullNameCtrl = TextEditingController(text: admin?['fullName'] ?? '');
     final emailCtrl = TextEditingController(text: admin?['email'] ?? '');
     final phoneCtrl = TextEditingController(text: admin?['phone'] ?? '');
-    final passwordCtrl = TextEditingController();
     String? selectedYear = admin?['academicYear'];
 
-    showDialog(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text(isEditing ? 'Assign Academic Year' : 'New Year Admin'),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: fullNameCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'Full Name',
-                  border: OutlineInputBorder(),
-                ),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: usernameCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'Username',
-                  border: OutlineInputBorder(),
-                ),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: passwordCtrl,
-                decoration: InputDecoration(
-                  labelText: isEditing ? 'Password (leave blank to keep current)' : 'Password',
-                  border: const OutlineInputBorder(),
-                ),
-                obscureText: true,
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: emailCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'Email',
-                  border: OutlineInputBorder(),
-                ),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: phoneCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'Phone',
-                  border: OutlineInputBorder(),
-                ),
-              ),
-              const SizedBox(height: 16),
-              DropdownButtonFormField<String>(
-                value: selectedYear,
-                decoration: const InputDecoration(
-                  labelText: 'Assigned Year',
-                  border: OutlineInputBorder(),
-                ),
-                items: const [
-                  DropdownMenuItem(value: null, child: Text('Not Assigned')),
-                  DropdownMenuItem(
-                    value: 'FIRST_YEAR',
-                    child: Text('First Year'),
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (pageContext) {
+          return StatefulBuilder(
+            builder: (context, setPageState) {
+              return Scaffold(
+                appBar: AppBar(
+                  title: Text(
+                    isEditing ? 'Assign Academic Year' : 'New Year Admin',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
                   ),
-                  DropdownMenuItem(
-                    value: 'SECOND_YEAR',
-                    child: Text('Second Year'),
-                  ),
-                  DropdownMenuItem(
-                    value: 'THIRD_YEAR',
-                    child: Text('Third Year'),
-                  ),
-                  DropdownMenuItem(
-                    value: 'FOURTH_YEAR',
-                    child: Text('Fourth Year'),
-                  ),
-                ],
-                onChanged: (val) {
-                  selectedYear = val;
-                },
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF1E293B),
-            ),
-            onPressed: () async {
-              print('Save button pressed! Admin ID: ${admin?['id']}');
-              print('Selected Year: $selectedYear');
-              
-              if (usernameCtrl.text.trim().isEmpty || fullNameCtrl.text.trim().isEmpty) {
-                ScaffoldMessenger.of(dialogContext).showSnackBar(const SnackBar(content: Text('Username and Full Name are required')));
-                return;
-              }
-              if (!isEditing && passwordCtrl.text.isEmpty) {
-                ScaffoldMessenger.of(dialogContext).showSnackBar(const SnackBar(content: Text('Password is required for new admin')));
-                return;
-              }
-
-              final data = <String, dynamic>{
-                'fullName': fullNameCtrl.text.trim(),
-                'username': usernameCtrl.text.trim(),
-                'email': emailCtrl.text.trim(),
-                'phone': phoneCtrl.text.trim(),
-                'active': admin?['active'] ?? true,
-              };
-
-              if (selectedYear != null) {
-                data['academicYear'] = selectedYear;
-              } else {
-                data['academicYear'] = null; // Important to send null to clear it
-              }
-
-              if (passwordCtrl.text.isNotEmpty) {
-                data['password'] = passwordCtrl.text;
-              }
-
-              if (selectedYear != null && (!isEditing ? data['active'] == true : true)) {
-                // Find existing admin using where().firstOrNull pattern to avoid TypeError
-                final existingAdmins = _yearAdmins.where(
-                  (a) =>
-                      a['academicYear'] == selectedYear &&
-                      a['id'] != admin?['id'] &&
-                      a['active'] == true,
-                ).toList();
-                
-                final existingAdmin = existingAdmins.isNotEmpty ? existingAdmins.first : null;
-
-                if (existingAdmin != null) {
-                  final confirm = await showDialog<bool>(
-                    context: dialogContext,
-                    builder: (ctx) => AlertDialog(
-                      title: const Text('Replace Assignment?'),
-                      content: Text(
-                        '${existingAdmin['username']} is already assigned to this year. Do you want to replace them?',
-                      ),
-                      actions: [
-                        TextButton(
-                          onPressed: () => Navigator.pop(ctx, false),
-                          child: const Text('Cancel'),
+                  backgroundColor: const Color(0xFF1E293B),
+                  iconTheme: const IconThemeData(color: Colors.white),
+                ),
+                body: SingleChildScrollView(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      TextField(
+                        controller: fullNameCtrl,
+                        decoration: const InputDecoration(
+                          labelText: 'Full Name',
+                          border: OutlineInputBorder(),
                         ),
+                      ),
+                      const SizedBox(height: 16),
+                      TextField(
+                        controller: usernameCtrl,
+                        decoration: const InputDecoration(
+                          labelText: 'Username',
+                          border: OutlineInputBorder(),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      TextField(
+                        controller: emailCtrl,
+                        keyboardType: TextInputType.emailAddress,
+                        decoration: const InputDecoration(
+                          labelText: 'Email',
+                          border: OutlineInputBorder(),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      TextField(
+                        controller: phoneCtrl,
+                        keyboardType: TextInputType.phone,
+                        decoration: const InputDecoration(
+                          labelText: 'Phone',
+                          border: OutlineInputBorder(),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      DropdownButtonFormField<String>(
+                        value: selectedYear,
+                        decoration: const InputDecoration(
+                          labelText: 'Assigned Year',
+                          border: OutlineInputBorder(),
+                        ),
+                        items: const [
+                          DropdownMenuItem(
+                            value: null,
+                            child: Text('Not Assigned'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'FIRST_YEAR',
+                            child: Text('First Year'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'SECOND_YEAR',
+                            child: Text('Second Year'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'THIRD_YEAR',
+                            child: Text('Third Year'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'FOURTH_YEAR',
+                            child: Text('Fourth Year'),
+                          ),
+                        ],
+                        onChanged: (val) {
+                          setPageState(() {
+                            selectedYear = val;
+                          });
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+                bottomNavigationBar: SafeArea(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(context),
+                          child: const Text(
+                            'Cancel',
+                            style: TextStyle(color: Colors.red),
+                          ),
+                        ),
+                        const SizedBox(width: 16),
                         ElevatedButton(
-                          onPressed: () => Navigator.pop(ctx, true),
-                          child: const Text('Replace'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF1E293B),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 24,
+                              vertical: 12,
+                            ),
+                          ),
+                          onPressed: () async {
+                            if (usernameCtrl.text.trim().isEmpty ||
+                                fullNameCtrl.text.trim().isEmpty) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text(
+                                    'Username and Full Name are required',
+                                  ),
+                                ),
+                              );
+                              return;
+                            }
+
+                            final data = <String, dynamic>{
+                              'fullName': fullNameCtrl.text.trim(),
+                              'username': usernameCtrl.text.trim(),
+                              'email': emailCtrl.text.trim(),
+                              'phone': phoneCtrl.text.trim(),
+                              'active': admin?['active'] ?? true,
+                              'password': 'Welcome@123',
+                            };
+
+                            data['academicYear'] = selectedYear;
+
+                            if (selectedYear != null) {
+                              final existingAdmins = _yearAdmins.where(
+                                (a) =>
+                                    a['academicYear'] == selectedYear &&
+                                    a['id'] != admin?['id'] &&
+                                    a['active'] == true,
+                              ).toList();
+
+                              final existingAdmin =
+                                  existingAdmins.isNotEmpty
+                                      ? existingAdmins.first
+                                      : null;
+
+                              if (existingAdmin != null) {
+                                final confirm = await showDialog<bool>(
+                                  context: context,
+                                  builder: (ctx) => AlertDialog(
+                                    title: const Text('Replace Assignment?'),
+                                    content: Text(
+                                      '${existingAdmin['username']} is already assigned to this year. Do you want to replace them?',
+                                    ),
+                                    actions: [
+                                      TextButton(
+                                        onPressed: () =>
+                                            Navigator.pop(ctx, false),
+                                        child: const Text('Cancel'),
+                                      ),
+                                      ElevatedButton(
+                                        onPressed: () =>
+                                            Navigator.pop(ctx, true),
+                                        child: const Text('Replace'),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                                if (confirm != true) return;
+                              }
+                            }
+
+                            Navigator.pop(context);
+
+                            try {
+                              if (isEditing) {
+                                await _repository.updateYearAdmin(
+                                  admin!['id'],
+                                  data,
+                                );
+                              } else {
+                                await _repository.addYearAdmin(data);
+                              }
+                              if (!mounted) return;
+                              ScaffoldMessenger.of(this.context).showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                    isEditing
+                                        ? 'Year Admin updated'
+                                        : 'Year Admin created',
+                                  ),
+                                ),
+                              );
+                              _fetchYearAdmins();
+                            } catch (e) {
+                              if (!mounted) return;
+                              ScaffoldMessenger.of(this.context).showSnackBar(
+                                SnackBar(
+                                  content: Text('Failed to save. Reason: $e'),
+                                ),
+                              );
+                            }
+                          },
+                          child: const Text(
+                            'Save',
+                            style: TextStyle(color: Colors.white),
+                          ),
                         ),
                       ],
                     ),
-                  );
-                  if (confirm != true) return;
-                }
-              }
-
-              Navigator.pop(dialogContext);
-              
-              print('Preparing to call API. URL: /api/v1/superadmin/year-admins/${admin?['id']}');
-              print('Request Body: $data');
-              
-              try {
-                if (isEditing) {
-                  await _repository.updateYearAdmin(admin!['id'], data);
-                  if (!mounted) return;
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Year Admin updated')),
-                  );
-                } else {
-                  await _repository.addYearAdmin(data);
-                  if (!mounted) return;
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Year Admin created')),
-                  );
-                }
-                print('Save successful! Reloading from database...');
-                _fetchYearAdmins();
-              } catch (e) {
-                print('Save failed! Error: $e');
-                if (!mounted) return;
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Failed to assign Academic Year. Reason: $e')),
-                );
-              }
+                  ),
+                ),
+              );
             },
-            child: const Text('Save', style: TextStyle(color: Colors.white)),
-          ),
-        ],
+          );
+        },
       ),
     );
   }
@@ -313,7 +349,7 @@ class _SuperAdminManagementTabState extends State<SuperAdminManagementTab> {
           ),
         ),
         child: _isLoading
-            ? const Center(child: CircularProgressIndicator())
+            ? const Center(child: PragatiXLoader())
             : _error != null
             ? Center(
                 child: Column(

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:pragatix/core/widgets/pragatix_loader.dart';
 import 'package:provider/provider.dart';
 import 'package:pragatix/features/auth/providers/auth_provider.dart';
 import 'package:pragatix/features/badge/providers/badge_provider.dart';
@@ -56,7 +57,7 @@ class _CCBadgeRequestsPageState extends State<CCBadgeRequestsPage> {
         ),
       ),
       body: badgeProvider.isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(child: PragatiXLoader())
           : requests.isEmpty
           ? const Center(child: Text('No requests found.'))
           : ListView.builder(

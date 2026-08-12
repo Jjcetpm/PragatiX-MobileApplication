@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:pragatix/core/widgets/pragatix_loader.dart';
 import 'package:provider/provider.dart';
 import 'dart:convert';
 import 'package:pragatix/core/config/api_config.dart';
@@ -520,7 +521,7 @@ class _TeamDetailsPageState extends State<TeamDetailsPage> {
           backgroundColor: Colors.indigo,
           foregroundColor: Colors.white,
         ),
-        body: const Center(child: CircularProgressIndicator()),
+        body: const Center(child: PragatiXLoader()),
       );
     }
 
@@ -581,90 +582,170 @@ class _TeamDetailsPageState extends State<TeamDetailsPage> {
                 ),
               ),
               const SizedBox(height: 12),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
+              Column(
                 children: [
-                  ElevatedButton.icon(
-                    onPressed: _showAddMemberDialog,
-                    icon: const Icon(Icons.person_add, size: 18),
-                    label: const Text('Add Member'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.green.shade50,
-                      foregroundColor: Colors.green.shade700,
-                    ),
-                  ),
-                  ElevatedButton.icon(
-                    onPressed: _showEditTeamDialog,
-                    icon: const Icon(Icons.edit, size: 18),
-                    label: const Text('Edit Team'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.indigo.shade50,
-                      foregroundColor: Colors.indigo,
-                    ),
-                  ),
-                  ElevatedButton.icon(
-                    onPressed: _showChangeCaptainDialog,
-                    icon: const Icon(Icons.star, size: 18),
-                    label: const Text('Change Captain'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.amber.shade50,
-                      foregroundColor: Colors.amber.shade800,
-                    ),
-                  ),
-                  ElevatedButton.icon(
-                    onPressed: _showChangeViceCaptainDialog,
-                    icon: const Icon(Icons.shield, size: 18),
-                    label: const Text('Change Vice Captain'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.blueGrey.shade50,
-                      foregroundColor: Colors.blueGrey,
-                    ),
-                  ),
-                  if (_team!.viceCaptainId != null)
-                    ElevatedButton.icon(
-                      onPressed: () {
-                        showDialog(
-                          context: context,
-                          builder: (ctx) => AlertDialog(
-                            title: const Text('Remove Vice Captain'),
-                            content: const Text(
-                              'Are you sure you want to remove the vice captain?',
-                            ),
-                            actions: [
-                              TextButton(
-                                onPressed: () => Navigator.pop(ctx),
-                                child: const Text('Cancel'),
-                              ),
-                              ElevatedButton(
-                                onPressed: () {
-                                  Navigator.pop(ctx);
-                                  _removeViceCaptain();
-                                },
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.red,
-                                ),
-                                child: const Text('Remove'),
-                              ),
-                            ],
+                  Row(
+                    children: [
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          onPressed: _showAddMemberDialog,
+                          icon: const Icon(Icons.person_add, size: 16),
+                          label: const Text(
+                            'Add Member',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
                           ),
-                        );
-                      },
-                      icon: const Icon(Icons.remove_moderator, size: 18),
-                      label: const Text('Remove Vice Captain'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.red.shade50,
-                        foregroundColor: Colors.red,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.green.shade50,
+                            foregroundColor: Colors.green.shade700,
+                            minimumSize: const Size(double.infinity, 48),
+                            padding: const EdgeInsets.symmetric(horizontal: 4),
+                            elevation: 0,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          ),
+                        ),
                       ),
-                    ),
-                  ElevatedButton.icon(
-                    onPressed: _showDeleteTeamDialog,
-                    icon: const Icon(Icons.delete, size: 18),
-                    label: const Text('Delete Team'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.red.shade50,
-                      foregroundColor: Colors.red,
-                    ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          onPressed: _showEditTeamDialog,
+                          icon: const Icon(Icons.edit, size: 16),
+                          label: const Text(
+                            'Edit Team',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.indigo.shade50,
+                            foregroundColor: Colors.indigo,
+                            minimumSize: const Size(double.infinity, 48),
+                            padding: const EdgeInsets.symmetric(horizontal: 4),
+                            elevation: 0,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          onPressed: _showChangeCaptainDialog,
+                          icon: const Icon(Icons.star, size: 16),
+                          label: const Text(
+                            'Change Captain',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.amber.shade50,
+                            foregroundColor: Colors.amber.shade800,
+                            minimumSize: const Size(double.infinity, 48),
+                            padding: const EdgeInsets.symmetric(horizontal: 4),
+                            elevation: 0,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          onPressed: _showChangeViceCaptainDialog,
+                          icon: const Icon(Icons.shield, size: 16),
+                          label: const Text(
+                            'Change Vice Captain',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.blueGrey.shade50,
+                            foregroundColor: Colors.blueGrey,
+                            minimumSize: const Size(double.infinity, 48),
+                            padding: const EdgeInsets.symmetric(horizontal: 4),
+                            elevation: 0,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      if (_team!.viceCaptainId != null) ...[
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            onPressed: () {
+                              showDialog(
+                                context: context,
+                                builder: (ctx) => AlertDialog(
+                                  title: const Text('Remove Vice Captain'),
+                                  content: const Text(
+                                    'Are you sure you want to remove the vice captain?',
+                                  ),
+                                  actions: [
+                                    TextButton(
+                                      onPressed: () => Navigator.pop(ctx),
+                                      child: const Text('Cancel'),
+                                    ),
+                                    ElevatedButton(
+                                      onPressed: () {
+                                        Navigator.pop(ctx);
+                                        _removeViceCaptain();
+                                      },
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: Colors.red,
+                                      ),
+                                      child: const Text('Remove'),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            },
+                            icon: const Icon(Icons.remove_moderator, size: 16),
+                            label: const Text(
+                              'Remove Vice Captain',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+                            ),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.red.shade50,
+                              foregroundColor: Colors.red,
+                              minimumSize: const Size(double.infinity, 48),
+                              padding: const EdgeInsets.symmetric(horizontal: 4),
+                              elevation: 0,
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                      ],
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          onPressed: _showDeleteTeamDialog,
+                          icon: const Icon(Icons.delete, size: 16),
+                          label: const Text(
+                            'Delete Team',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.red.shade50,
+                            foregroundColor: Colors.red,
+                            minimumSize: const Size(double.infinity, 48),
+                            padding: const EdgeInsets.symmetric(horizontal: 4),
+                            elevation: 0,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          ),
+                        ),
+                      ),
+                      if (_team!.viceCaptainId == null) ...[
+                        const SizedBox(width: 10),
+                        const Expanded(child: SizedBox.shrink()),
+                      ],
+                    ],
                   ),
                 ],
               ),

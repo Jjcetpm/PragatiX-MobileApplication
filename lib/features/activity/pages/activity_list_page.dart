@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:pragatix/core/widgets/pragatix_loader.dart';
 import 'package:pragatix/features/activity/models/activity_model.dart';
 import 'package:pragatix/features/activity/models/grouped_activity_model.dart';
 import 'package:pragatix/features/activity/providers/activity_provider.dart';
@@ -188,7 +189,7 @@ class _ActivityListPageState extends State<ActivityListPage> {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (ctx) => const Center(child: CircularProgressIndicator()),
+      builder: (ctx) => const Center(child: PragatiXLoader()),
     );
 
     try {
@@ -375,7 +376,7 @@ class _ActivityListPageState extends State<ActivityListPage> {
         listenable: _provider,
         builder: (context, _) {
           if (_provider.isLoadingActivities) {
-            return const Center(child: CircularProgressIndicator());
+            return const Center(child: PragatiXLoader());
           }
 
           final baseList = widget.isMyActivitiesOnly 

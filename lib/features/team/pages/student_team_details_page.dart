@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:pragatix/core/widgets/pragatix_loader.dart';
 import 'package:provider/provider.dart';
 import 'dart:convert';
 import 'package:pragatix/core/config/api_config.dart';
@@ -359,11 +360,15 @@ class _StudentTeamDetailsPageState extends State<StudentTeamDetailsPage> {
                         ),
                       ),
                       const SizedBox(width: 8),
-                      Text(
-                        '${member['currentStage'] ?? 'Stage 1'} - ${member['currentLevel'] ?? 'Explorer'}',
-                        style: TextStyle(
-                          color: Colors.grey.shade600,
-                          fontSize: 12,
+                      Expanded(
+                        child: Text(
+                          '${member['currentStage'] ?? 'Stage 1'} - ${member['currentLevel'] ?? 'Explorer'}',
+                          style: TextStyle(
+                            color: Colors.grey.shade600,
+                            fontSize: 12,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
                     ],
@@ -403,7 +408,7 @@ class _StudentTeamDetailsPageState extends State<StudentTeamDetailsPage> {
         centerTitle: true,
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(child: PragatiXLoader())
           : _errorMessage != null
           ? Center(
               child: Text(

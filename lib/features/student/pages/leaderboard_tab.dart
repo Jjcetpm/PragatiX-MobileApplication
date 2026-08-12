@@ -11,6 +11,7 @@ class LeaderboardTab extends StatelessWidget {
     return SharedLeaderboardPage(
       title: 'Leaderboard',
       showFilters: true,
+      showYearFilter: false,
       showCurrentUserRank: true,
       fetchCurrentUser: () async {
         return getIt<StudentRepository>().getCurrentUser();

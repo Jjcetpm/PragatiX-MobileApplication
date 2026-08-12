@@ -29,7 +29,6 @@ class _AdminDashboardState extends State<AdminDashboard> {
       const AdminAttendanceTab(),
       const TeamGroupManagementTab(),
       const AdminBadgeRequestsPage(),
-      const AnalyticsTab(),
       const ProfilePage(),
     ];
   }
@@ -64,10 +63,6 @@ class _AdminDashboardState extends State<AdminDashboard> {
           BottomNavigationBarItem(
             icon: Icon(Icons.workspace_premium),
             label: 'Requests',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.insights_rounded),
-            label: 'Analytics',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.admin_panel_settings_rounded),

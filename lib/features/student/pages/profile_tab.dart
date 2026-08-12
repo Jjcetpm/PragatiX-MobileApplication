@@ -11,6 +11,7 @@ import 'package:pragatix/core/di/service_locator.dart';
 import 'package:provider/provider.dart';
 import 'package:pragatix/features/attendance/providers/attendance_provider.dart';
 import 'package:pragatix/features/attendance/widgets/fire_streak_icon.dart';
+import 'package:pragatix/core/widgets/pragatix_loader.dart';
 
 class ProfileTab extends StatefulWidget {
   const ProfileTab({super.key});
@@ -99,9 +100,7 @@ class _ProfileTabState extends State<ProfileTab> {
       return const Scaffold(
         backgroundColor: Colors.transparent,
         body: Center(
-          child: CircularProgressIndicator(
-            valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF4F46E5)),
-          ),
+          child: PragatiXLoader(fullScreen: false, message: 'Loading Profile...'),
         ),
       );
     }

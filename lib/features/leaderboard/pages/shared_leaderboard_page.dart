@@ -7,6 +7,7 @@ import 'package:pragatix/features/leaderboard/widgets/leaderboard_podium.dart';
 class SharedLeaderboardPage extends StatefulWidget {
   final String title;
   final bool showFilters;
+  final bool showYearFilter;
   final bool showCurrentUserRank;
 
   /// Returns a map with keys 'id' and 'name' representing the current user
@@ -16,6 +17,7 @@ class SharedLeaderboardPage extends StatefulWidget {
     super.key,
     required this.title,
     this.showFilters = false,
+    this.showYearFilter = true,
     this.showCurrentUserRank = false,
     this.fetchCurrentUser,
   });
@@ -179,7 +181,7 @@ class _SharedLeaderboardPageState extends State<SharedLeaderboardPage> {
         : -1;
 
     return Scaffold(
-      backgroundColor: Colors.transparent,
+      backgroundColor: const Color(0xFFF8FAFC),
       appBar: AppBar(
         title: Text(
           widget.title,
@@ -200,15 +202,17 @@ class _SharedLeaderboardPageState extends State<SharedLeaderboardPage> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Expanded(
-                    child: _buildDynamicFilterDropdown(
-                      label: 'Year',
-                      value: selectedYear,
-                      items: yearOptions,
-                      onChanged: _onYearChanged,
+                  if (widget.showYearFilter) ...[
+                    Expanded(
+                      child: _buildDynamicFilterDropdown(
+                        label: 'Year',
+                        value: selectedYear,
+                        items: yearOptions,
+                        onChanged: _onYearChanged,
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 8),
+                    const SizedBox(width: 8),
+                  ],
                   Expanded(
                     child: _buildDynamicFilterDropdown(
                       label: 'Department',

@@ -1,4 +1,5 @@
 import 'package:pragatix/features/auth/providers/auth_provider.dart';
+import 'package:pragatix/core/widgets/pragatix_loader.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter/material.dart';
 import 'package:pragatix/features/activity/models/execution_student_model.dart';
@@ -324,7 +325,7 @@ class _ActivityExecutionPageState extends State<ActivityExecutionPage> {
         ),
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(child: PragatiXLoader())
           : _errorMessage != null
           ? _buildErrorView()
           : Column(

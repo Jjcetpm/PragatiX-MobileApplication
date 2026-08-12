@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:pragatix/core/widgets/pragatix_loader.dart';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -229,7 +230,7 @@ class _StudentSearchDialogState extends State<StudentSearchDialog> {
               ),
             Expanded(
               child: _isLoading
-                  ? const Center(child: CircularProgressIndicator())
+                  ? const Center(child: PragatiXLoader())
                   : _errorMsg.isNotEmpty
                   ? Center(
                       child: Text(

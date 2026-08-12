@@ -31,7 +31,6 @@ class _CaptainDashboardPageState extends State<CaptainDashboardPage> {
       const LeaderboardTab(),
       const ActivitiesTab(),
       const StudentAttendanceTab(),
-      const StudentGroupTab(),
       const LevelsBadgesTab(),
       const ProfilePage(),
     ];
@@ -66,10 +65,6 @@ class _CaptainDashboardPageState extends State<CaptainDashboardPage> {
       const BottomNavigationBarItem(
         icon: Icon(Icons.co_present_rounded),
         label: 'Attendance',
-      ),
-      const BottomNavigationBarItem(
-        icon: Icon(Icons.groups_rounded),
-        label: 'My Group',
       ),
       const BottomNavigationBarItem(
         icon: Icon(Icons.military_tech_rounded),

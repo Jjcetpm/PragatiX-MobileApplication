@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:pragatix/core/widgets/pragatix_loader.dart';
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:intl/intl.dart';
@@ -275,7 +276,7 @@ class _HodPerformanceTabState extends State<HodPerformanceTab> with SingleTicker
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              CircularProgressIndicator(color: Color(0xFF38BDF8)),
+              PragatiXLoader(),
               SizedBox(height: 16),
               Text(
                 'Loading Department Analytics...',
@@ -1329,7 +1330,7 @@ class _HodPerformanceTabState extends State<HodPerformanceTab> with SingleTicker
           if (_isLoadingMatrix)
             const Padding(
               padding: EdgeInsets.all(32),
-              child: Center(child: CircularProgressIndicator(color: Color(0xFF38BDF8))),
+              child: Center(child: PragatiXLoader()),
             )
           else if (_isMatrixHoliday)
             Container(

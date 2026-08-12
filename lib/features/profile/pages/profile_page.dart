@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import 'package:pragatix/core/config/api_config.dart';
 
 import 'package:pragatix/features/profile/models/profile_response.dart';
 import 'package:pragatix/features/profile/repository/profile_repository.dart';
@@ -121,11 +124,9 @@ class _ProfilePageState extends State<ProfilePage> {
               _buildSuperAdminCard(),
               const SizedBox(height: 16),
             ],
-            if (_profile!.adminDetails != null) ...[
-              _buildAdminCard(),
-              const SizedBox(height: 16),
-            ],
-            if (_profile!.teacherDetails != null) ...[
+            if (_profile!.teacherDetails != null &&
+                _profile!.ccDetails == null &&
+                _profile!.hodDetails == null) ...[
               _buildTeacherCard(),
               const SizedBox(height: 16),
             ],
@@ -150,7 +151,62 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
+  Future<void> _refreshDbCache() async {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(
+        child: CircularProgressIndicator(),
+      ),
+    );
+
+    try {
+      final auth = context.read<AuthProvider>();
+      final response = await http.post(
+        Uri.parse('${ApiConfig.baseUrl}/api/v1/superadmin/cache/refresh'),
+        headers: {
+          'Authorization': 'Bearer ${auth.token!}',
+          'Content-Type': 'application/json',
+        },
+      );
+
+      if (mounted) Navigator.pop(context);
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(data['message'] ?? 'Database cache refreshed successfully'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Failed to refresh cache: ${response.statusCode}'),
+              backgroundColor: Colors.redAccent,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+      }
+    }
+  }
+
   Widget _buildCommonInfoCard() {
+    final isAdmin = _profile!.adminDetails != null;
     return SharedProfileCard(
       children: [
         const Text('Personal Information', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
@@ -161,7 +217,11 @@ class _ProfilePageState extends State<ProfilePage> {
         const SizedBox(height: 8),
         SharedProfileRow(label: 'Phone', value: _profile!.phone ?? 'Not Available'),
         const SizedBox(height: 8),
-        SharedProfileRow(label: 'Department', value: _profile!.department ?? 'Not Available'),
+        if (isAdmin) ...[
+          SharedProfileRow(label: 'Assigned Year', value: _profile!.adminDetails!.academicYear ?? 'Not Available'),
+        ] else ...[
+          SharedProfileRow(label: 'Department', value: _profile!.department ?? 'Not Available'),
+        ],
         const SizedBox(height: 8),
         SharedProfileRow(label: 'Status', value: _profile!.accountStatus ?? 'Not Available'),
       ],
@@ -183,20 +243,7 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
-  Widget _buildAdminCard() {
-    final stats = _profile!.adminDetails!;
-    return SharedProfileCard(
-      children: [
-        const Text('Academic Statistics', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-        const Divider(),
-        SharedProfileRow(label: 'Assigned Year', value: stats.academicYear ?? 'Not Available'),
-        const SizedBox(height: 8),
-        SharedProfileRow(label: 'Total Students', value: stats.totalStudentsInYear.toString()),
-        const SizedBox(height: 8),
-        SharedProfileRow(label: 'Total Groups', value: stats.totalGroups.toString()),
-      ],
-    );
-  }
+
 
   Widget _buildTeacherCard() {
     final stats = _profile!.teacherDetails!;
@@ -270,9 +317,24 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   Widget _buildQuickActions() {
+    final isSuperAdmin = _profile!.superAdminDetails != null;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        if (isSuperAdmin) ...[
+          ElevatedButton.icon(
+            onPressed: _refreshDbCache,
+            icon: const Icon(Icons.cached_rounded),
+            label: const Text('Refresh DB Cache'),
+            style: ElevatedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              backgroundColor: Colors.indigo,
+              foregroundColor: Colors.white,
+            ),
+          ),
+          const SizedBox(height: 12),
+        ],
         ElevatedButton.icon(
           onPressed: _handleLogout,
           icon: const Icon(Icons.logout),

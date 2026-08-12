@@ -34,9 +34,13 @@ void _handleSessionExpired() {
 
 Future<http.Response> processResponse(http.Response response) async {
   if (response.statusCode == 401) {
-    // Token expired — auto-logout
-    _handleSessionExpired();
-    throw ApiException(401, 'Session expired. Please login again.');
+    // Check if the request is an auth endpoint (like verify-otp), in which case it's not a session expiry
+    final path = response.request?.url.path ?? '';
+    if (!path.contains('/auth/')) {
+      // Token expired — auto-logout
+      _handleSessionExpired();
+      throw ApiException(401, 'Session expired. Please login again.');
+    }
   }
 
   if (response.statusCode >= 400 || (response.body.isNotEmpty && response.body.trim().startsWith('<'))) {
