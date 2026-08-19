@@ -477,7 +477,7 @@ class _TeamGroupManagementTabState extends State<TeamGroupManagementTab> {
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                         children: [
-                          if (isSuperAdmin)
+                          if (isSuperAdmin || isHOD)
                             _buildDropdown<String>(
                               'Year',
                               _academicYears.map((y) => y['yearName'].toString()).toList(),
@@ -891,6 +891,7 @@ class _TeamGroupManagementTabState extends State<TeamGroupManagementTab> {
                     const SizedBox(height: 12),
                     StudentSearchField(
                       selectedStudent: selectedCaptain,
+                      unassignedOnly: true,
                       onStudentSelected: (student) {
                         setState(() {
                           selectedCaptain = student;

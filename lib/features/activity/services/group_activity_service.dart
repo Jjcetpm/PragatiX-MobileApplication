@@ -108,7 +108,7 @@ class GroupActivityService {
   ) async {
     return http.get(
       Uri.parse(
-        '${ApiConfig.baseUrl}/api/v1/students/search?keyword=${Uri.encodeComponent(keyword)}&page=$page&size=$size',
+        '${ApiConfig.baseUrl}/api/v1/students/search?keyword=${Uri.encodeComponent(keyword)}&page=$page&size=$size&unassignedOnly=true',
       ),
       headers: {'Authorization': 'Bearer $token'},
     );

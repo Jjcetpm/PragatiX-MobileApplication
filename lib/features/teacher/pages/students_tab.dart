@@ -13,6 +13,10 @@ import 'package:pragatix/features/teacher/pages/teacher_student_detail.dart';
 import 'package:pragatix/features/teacher/pages/cc_student_profile_page.dart';
 import 'package:pragatix/core/di/service_locator.dart';
 import 'package:pragatix/core/utils/string_utils.dart';
+import 'package:path_provider/path_provider.dart';
+import 'dart:io';
+import 'package:open_filex/open_filex.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 part 'students_tab_dialogs.dart';
 

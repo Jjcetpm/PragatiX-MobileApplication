@@ -6,7 +6,8 @@ import 'package:pragatix/shared/providers/student_search_provider.dart';
 import 'package:pragatix/shared/widgets/student_search/student_tile.dart';
 
 class StudentSearchDialog extends StatefulWidget {
-  const StudentSearchDialog({Key? key}) : super(key: key);
+  final bool unassignedOnly;
+  const StudentSearchDialog({Key? key, this.unassignedOnly = false}) : super(key: key);
 
   @override
   State<StudentSearchDialog> createState() => _StudentSearchDialogState();
@@ -18,11 +19,14 @@ class _StudentSearchDialogState extends State<StudentSearchDialog> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
       final token = context.read<AuthProvider>().token;
       if (token != null) {
-        context.read<StudentSearchProvider>().fetchStudents(token);
-        context.read<StudentSearchProvider>().searchStudents('');
+        final provider = context.read<StudentSearchProvider>();
+        await provider.fetchStudents(token, forceRefresh: true);
+        if (mounted) {
+          provider.searchStudents('', unassignedOnly: widget.unassignedOnly);
+        }
       }
     });
   }
@@ -117,7 +121,7 @@ class _StudentSearchDialogState extends State<StudentSearchDialog> {
       child: TextField(
         controller: _searchCtrl,
         onChanged: (value) {
-          context.read<StudentSearchProvider>().searchStudents(value);
+          context.read<StudentSearchProvider>().searchStudents(value, unassignedOnly: widget.unassignedOnly);
         },
         decoration: InputDecoration(
           hintText: 'Search by Name, Reg No, SPR No, Email...',
@@ -127,7 +131,7 @@ class _StudentSearchDialogState extends State<StudentSearchDialog> {
                   icon: const Icon(Icons.clear),
                   onPressed: () {
                     _searchCtrl.clear();
-                    context.read<StudentSearchProvider>().searchStudents('');
+                    context.read<StudentSearchProvider>().searchStudents('', unassignedOnly: widget.unassignedOnly);
                   },
                 )
               : null,

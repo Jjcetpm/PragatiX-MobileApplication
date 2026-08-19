@@ -94,9 +94,7 @@ class FullScreenImageViewer extends StatelessWidget {
 
   Widget _buildFileImage() {
     final file = File(imageUrl);
-    if (!file.existsSync()) {
-      return _buildErrorState('Proof file not found.');
-    }
+
     return Image.file(
       file,
       fit: BoxFit.contain,

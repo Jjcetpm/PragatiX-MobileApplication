@@ -39,8 +39,187 @@ extension StudentsTabDialogs on _StudentsTabState {
                 ),
                 onTap: () {
                   Navigator.pop(context);
-                  _uploadBulkExcel();
+                  _showBulkUploadDialog();
                 },
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showBulkUploadDialog() {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text(
+            'Bulk Student Upload',
+            style: TextStyle(fontWeight: FontWeight.bold),
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('First, download the Excel template.'),
+              const SizedBox(height: 12),
+              Center(
+                child: ElevatedButton.icon(
+                  onPressed: () async {
+                    try {
+                      final response = await http.get(
+                        Uri.parse('${ApiConfig.baseUrl}/api/v1/students/bulk-upload/template'),
+                        headers: {
+                          'Authorization': 'Bearer ${context.read<AuthProvider>().token!}',
+                        },
+                      );
+                      if (response.statusCode == 200) {
+                        if (Platform.isAndroid) {
+                          int sdkVersion = 0;
+                          try {
+                            final numbers = RegExp(r'\d+')
+                                .allMatches(Platform.operatingSystemVersion)
+                                .map((m) => int.parse(m.group(0)!))
+                                .toList();
+                            if (numbers.isNotEmpty) {
+                              sdkVersion = numbers.firstWhere(
+                                (n) => n >= 19 && n <= 100,
+                                orElse: () => numbers.first,
+                              );
+                            }
+                          } catch (_) {}
+
+                          PermissionStatus status;
+                          if (sdkVersion >= 33) {
+                            status = await Permission.manageExternalStorage.status;
+                            if (!status.isGranted) {
+                              status = await Permission.manageExternalStorage.request();
+                            }
+                          } else {
+                            status = await Permission.storage.status;
+                            if (!status.isGranted) {
+                              status = await Permission.storage.request();
+                            }
+                          }
+
+                          if (!status.isGranted) {
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Storage permission is required to save the template.'),
+                                  backgroundColor: Colors.redAccent,
+                                ),
+                              );
+                            }
+                            return;
+                          }
+                        }
+
+                        Directory? dir;
+                        if (Platform.isAndroid) {
+                          dir = Directory('/storage/emulated/0/Download');
+                          if (!await dir.exists()) {
+                            try {
+                              await dir.create(recursive: true);
+                            } catch (_) {
+                              dir = Directory('/storage/emulated/0/Downloads');
+                              if (!await dir.exists()) {
+                                try {
+                                  await dir.create(recursive: true);
+                                } catch (_) {
+                                  dir = await getExternalStorageDirectory();
+                                  dir ??= await getApplicationDocumentsDirectory();
+                                }
+                              }
+                            }
+                          }
+                        } else if (Platform.isIOS) {
+                          dir = await getApplicationDocumentsDirectory();
+                        } else {
+                          dir = await getDownloadsDirectory();
+                        }
+                        
+                        if (dir != null) {
+                          String filename = 'SPDMS_Student_Bulk_Upload_Template.xlsx';
+                          String filePath = '${dir.path}/$filename';
+                          File file = File(filePath);
+                          
+                          int counter = 1;
+                          while (await file.exists()) {
+                            filename = 'SPDMS_Student_Bulk_Upload_Template_($counter).xlsx';
+                            filePath = '${dir.path}/$filename';
+                            file = File(filePath);
+                            counter++;
+                          }
+
+                          await file.writeAsBytes(response.bodyBytes);
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('Template downloaded to Downloads folder: $filename'),
+                                backgroundColor: Colors.green,
+                                action: SnackBarAction(
+                                  label: 'Open',
+                                  textColor: Colors.white,
+                                  onPressed: () => OpenFilex.open(
+                                    file.path,
+                                    type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                                  ),
+                                ),
+                              ),
+                            );
+                          }
+                        }
+                      } else {
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Unable to download student upload template.'),
+                              backgroundColor: Colors.redAccent,
+                            ),
+                          );
+                        }
+                      }
+                    } catch (e) {
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('Unable to download template: $e'),
+                            backgroundColor: Colors.redAccent,
+                          ),
+                        );
+                      }
+                    }
+                  },
+                  icon: const Icon(Icons.download_rounded, color: Colors.white),
+                  label: const Text('Download Excel Template', style: TextStyle(color: Colors.white)),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF11998e),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 24),
+              const Text('Fill the template and upload it.'),
+              const SizedBox(height: 12),
+              Center(
+                child: ElevatedButton.icon(
+                  onPressed: () {
+                    Navigator.pop(context);
+                    _uploadBulkExcel();
+                  },
+                  icon: const Icon(Icons.upload_file_rounded, color: Colors.white),
+                  label: const Text('Choose Excel File', style: TextStyle(color: Colors.white)),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.green,
+                  ),
+                ),
               ),
             ],
           ),

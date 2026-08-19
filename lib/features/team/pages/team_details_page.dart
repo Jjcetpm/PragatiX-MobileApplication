@@ -492,7 +492,7 @@ class _TeamDetailsPageState extends State<TeamDetailsPage> {
       builder: (ctx) => AlertDialog(
         title: const Text('Delete Team'),
         content: Text(
-          'Are you sure you want to delete the team "${_team!.name}"? This action cannot be undone.',
+          'Are you sure you want to move the team "${_team!.name}" to the Recycle Bin?',
         ),
         actions: [
           TextButton(

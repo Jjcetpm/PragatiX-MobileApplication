@@ -13,8 +13,8 @@ class DeleteStudentDialog extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: const Text('Delete Student'),
-      content: Text('Are you sure you want to delete student $studentName?'),
+      title: const Text('Confirm Deletion'),
+      content: Text('Are you sure you want to move student $studentName to the Recycle Bin?'),
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),

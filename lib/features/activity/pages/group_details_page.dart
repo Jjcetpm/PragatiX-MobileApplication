@@ -7,18 +7,17 @@ import 'dart:convert';
 import 'package:pragatix/core/config/api_config.dart';
 import 'package:pragatix/features/team/models/team.dart';
 import 'package:pragatix/core/di/service_locator.dart';
-
+import 'package:pragatix/features/activity/models/execution_student_model.dart';
 import 'package:pragatix/features/team/widgets/team_member_card.dart';
 
 class GroupDetailsPage extends StatefulWidget {
   final Team team;
-  final int xpPerMember;
+  final ActivityExecutionDetailModel activity;
 
   const GroupDetailsPage({
     super.key,
-
     required this.team,
-    required this.xpPerMember,
+    required this.activity,
   });
 
   @override
@@ -127,7 +126,18 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
     }
   }
 
-  Future<void> _awardXp(String remarks) async {
+  Future<void> _awardXp(String remarks, bool isPenalty) async {
+    final xp = isPenalty ? widget.activity.penaltyXp : widget.activity.awardXp;
+    print('GROUP XP API METHOD CALLED\nAction: ${isPenalty ? "PENALTY" : "AWARD"}\nTeam ID: ${_team.id}\nXP: $xp');
+    final requestBody = jsonEncode({
+      'assignmentId': _team.assignmentId ?? widget.activity.id,
+      'equalDistribution': true,
+      'xp': xp,
+      'remarks': remarks,
+      'isPenalty': isPenalty,
+    });
+    
+    print('GROUP XP HTTP REQUEST\nURL: ${ApiConfig.baseUrl}/api/v1/group-activities/teams/${_team.id}/award-xp\nMethod: POST\nBody: $requestBody');
     try {
       final response = await getIt<ActivityProxyService>().post(
         Uri.parse(
@@ -137,13 +147,9 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
           'Authorization': 'Bearer ${context.read<AuthProvider>().token!}',
           'Content-Type': 'application/json',
         },
-        body: jsonEncode({
-          'assignmentId': _team.assignmentId,
-          'equalDistribution': true,
-          'xp': widget.xpPerMember,
-          'remarks': remarks,
-        }),
+        body: requestBody,
       );
+      print('GROUP XP HTTP RESPONSE\nStatus: ${response.statusCode}\nBody: ${response.body}');
       final data = jsonDecode(response.body);
       if (response.statusCode == 200 && data['success'] == true) {
         if (!mounted) return;
@@ -196,18 +202,21 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
     );
   }
 
-  void _showAwardXpDialog() {
+  void _showAwardXpDialog(bool isPenalty) {
+    print('GROUP ${isPenalty ? "PENALTY" : "AWARD"} BUTTON CLICKED');
     final ctrl = TextEditingController();
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Award XP to Group'),
+        title: Text(isPenalty ? 'Penalty for Group' : 'Award XP to Group'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Award ${widget.xpPerMember} XP to every member of this group?',
+              isPenalty 
+                ? 'Deduct ${widget.activity.penaltyXp} XP from every member of this group?'
+                : 'Award ${widget.activity.awardXp} XP to every member of this group?',
               style: const TextStyle(fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 16),
@@ -227,14 +236,15 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.green,
+              backgroundColor: isPenalty ? Colors.red : Colors.green,
               foregroundColor: Colors.white,
             ),
             onPressed: () {
               Navigator.pop(ctx);
-              _awardXp(ctrl.text.trim());
+              print('GROUP ACTION VALIDATION\nAction: ${isPenalty ? "PENALTY" : "AWARD"}\nTeam ID: ${_team.id}\nValidation Result: PASS');
+              _awardXp(ctrl.text.trim(), isPenalty);
             },
-            child: const Text('Confirm Award'),
+            child: Text(isPenalty ? 'Confirm Penalty' : 'Confirm Award'),
           ),
         ],
       ),
@@ -371,33 +381,96 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
                         ),
 
                   const SizedBox(height: 32),
-                  SizedBox(
-                    width: double.infinity,
-                    height: 50,
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: _team.isAwarded == true
-                            ? Colors.grey
-                            : Colors.green,
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
+                  if (widget.activity.awardEnabled && widget.activity.penaltyEnabled)
+                    Row(
+                      children: [
+                        Expanded(
+                          child: SizedBox(
+                            height: 50,
+                            child: ElevatedButton(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: _team.isAwarded == true
+                                    ? Colors.grey
+                                    : Colors.green,
+                                foregroundColor: Colors.white,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                              ),
+                              onPressed: _team.isAwarded == true
+                                  ? null
+                                  : () => _showAwardXpDialog(false),
+                              child: Text(
+                                _team.isAwarded == true
+                                    ? 'Completed'
+                                    : 'Award XP',
+                                style: const TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ),
                         ),
-                      ),
-                      onPressed: _team.isAwarded == true
-                          ? null
-                          : _showAwardXpDialog,
-                      child: Text(
-                        _team.isAwarded == true
-                            ? 'XP Already Awarded'
-                            : 'Award XP to Group',
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: SizedBox(
+                            height: 50,
+                            child: ElevatedButton(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: _team.isAwarded == true
+                                    ? Colors.grey
+                                    : Colors.red,
+                                foregroundColor: Colors.white,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                              ),
+                              onPressed: _team.isAwarded == true
+                                  ? null
+                                  : () => _showAwardXpDialog(true),
+                              child: Text(
+                                _team.isAwarded == true
+                                    ? 'Completed'
+                                    : 'Penalty',
+                                style: const TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    )
+                  else
+                    SizedBox(
+                      width: double.infinity,
+                      height: 50,
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: _team.isAwarded == true
+                              ? Colors.grey
+                              : (widget.activity.penaltyEnabled ? Colors.red : Colors.green),
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        onPressed: _team.isAwarded == true
+                            ? null
+                            : () => _showAwardXpDialog(widget.activity.penaltyEnabled),
+                        child: Text(
+                          _team.isAwarded == true
+                              ? 'XP Already Awarded'
+                              : (widget.activity.penaltyEnabled ? 'Deduct XP from Group' : 'Award XP to Group'),
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ),
                     ),
-                  ),
                 ],
               ),
             ),

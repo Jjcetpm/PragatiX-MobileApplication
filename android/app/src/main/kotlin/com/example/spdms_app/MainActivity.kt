@@ -1,4 +1,4 @@
-package com.jjcet.pragatix
+package jjcet.PragatiX
 
 import io.flutter.embedding.android.FlutterActivity
 

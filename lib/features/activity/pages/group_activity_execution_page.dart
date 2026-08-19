@@ -194,12 +194,12 @@ class _GroupActivityExecutionPageState
     if (_data == null) return;
 
     final result = await Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) =>
-            GroupDetailsPage(team: team, xpPerMember: _data!.activity.awardXp),
-      ),
-    );
+        context,
+        MaterialPageRoute(
+          builder: (_) =>
+            GroupDetailsPage(team: team, activity: _data!.activity),
+        ),
+      );
 
     if (result == true) {
       _loadGroupsForScope();

@@ -278,6 +278,8 @@ class _TeacherActivityWorkflowPageState
   }
 
   Future<void> _submitAward({bool isPenaltySubmit = false}) async {
+    print('GROUP AWARD BUTTON CLICKED');
+    print('GROUP ACTION VALIDATION\nAction: ${isPenaltySubmit ? "PENALTY" : "AWARD"}\nValidation Result: PASS');
     if (_selectedStudentIds.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -291,6 +293,7 @@ class _TeacherActivityWorkflowPageState
     setState(() => _isAwarding = true);
 
     try {
+      print('GROUP XP API METHOD CALLED\nAction: ${isPenaltySubmit ? "PENALTY" : "AWARD"}');
       final body = {
         'studentIds': _selectedStudentIds.toList(),
         'activityId': widget.activity.id,
@@ -299,6 +302,7 @@ class _TeacherActivityWorkflowPageState
         'result': isPenaltySubmit ? 'FAIL' : 'PASS',
       };
 
+      print('GROUP XP HTTP REQUEST\nURL: ${ApiConfig.baseUrl}/api/v1/student-xp/award/batch\nMethod: POST\nBody: ${jsonEncode(body)}');
       final response = await getIt<TeacherProxyService>().post(
         Uri.parse('${ApiConfig.baseUrl}/api/v1/student-xp/award/batch'),
         headers: {
@@ -307,6 +311,7 @@ class _TeacherActivityWorkflowPageState
         },
         body: jsonEncode(body),
       );
+      print('GROUP XP HTTP RESPONSE\nStatus: ${response.statusCode}\nBody: ${response.body}');
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);

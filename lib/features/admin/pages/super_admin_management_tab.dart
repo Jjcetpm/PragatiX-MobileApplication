@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:pragatix/core/widgets/pragatix_loader.dart';
 import 'package:pragatix/features/admin/repository/admin_repository.dart';
 import 'package:pragatix/core/di/service_locator.dart';
+import 'package:pragatix/core/utils/string_utils.dart';
 
 class SuperAdminManagementTab extends StatefulWidget {
   const SuperAdminManagementTab({super.key});
@@ -14,13 +15,37 @@ class SuperAdminManagementTab extends StatefulWidget {
 class _SuperAdminManagementTabState extends State<SuperAdminManagementTab> {
   final AdminRepository _repository = getIt<AdminRepository>();
   List<dynamic> _yearAdmins = [];
+  List<dynamic> _yearsList = [];
   bool _isLoading = true;
   String? _error;
 
   @override
   void initState() {
     super.initState();
-    _fetchYearAdmins();
+    _fetchInitialData();
+  }
+
+  Future<void> _fetchInitialData() async {
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
+    try {
+      final years = await _repository.getYears();
+      final admins = await _repository.getYearAdmins();
+      if (!mounted) return;
+      setState(() {
+        _yearsList = years;
+        _yearAdmins = admins;
+        _isLoading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _error = e.toString();
+        _isLoading = false;
+      });
+    }
   }
 
   Future<void> _fetchYearAdmins() async {
@@ -87,7 +112,7 @@ class _SuperAdminManagementTabState extends State<SuperAdminManagementTab> {
     final fullNameCtrl = TextEditingController(text: admin?['fullName'] ?? '');
     final emailCtrl = TextEditingController(text: admin?['email'] ?? '');
     final phoneCtrl = TextEditingController(text: admin?['phone'] ?? '');
-    String? selectedYear = admin?['academicYear'];
+    int? selectedYearId = admin?['assignedYearId'];
 
     Navigator.push(
       context,
@@ -146,37 +171,27 @@ class _SuperAdminManagementTabState extends State<SuperAdminManagementTab> {
                         ),
                       ),
                       const SizedBox(height: 16),
-                      DropdownButtonFormField<String>(
-                        value: selectedYear,
+                      DropdownButtonFormField<int>(
+                        value: selectedYearId,
                         decoration: const InputDecoration(
                           labelText: 'Assigned Year',
                           border: OutlineInputBorder(),
                         ),
-                        items: const [
-                          DropdownMenuItem(
+                        items: [
+                          const DropdownMenuItem<int>(
                             value: null,
                             child: Text('Not Assigned'),
                           ),
-                          DropdownMenuItem(
-                            value: 'FIRST_YEAR',
-                            child: Text('First Year'),
-                          ),
-                          DropdownMenuItem(
-                            value: 'SECOND_YEAR',
-                            child: Text('Second Year'),
-                          ),
-                          DropdownMenuItem(
-                            value: 'THIRD_YEAR',
-                            child: Text('Third Year'),
-                          ),
-                          DropdownMenuItem(
-                            value: 'FOURTH_YEAR',
-                            child: Text('Fourth Year'),
-                          ),
+                          ..._yearsList.map((year) {
+                            return DropdownMenuItem<int>(
+                              value: year['id'],
+                              child: Text(year['yearName'] ?? 'Unknown Year'),
+                            );
+                          }),
                         ],
                         onChanged: (val) {
                           setPageState(() {
-                            selectedYear = val;
+                            selectedYearId = val;
                           });
                         },
                       ),
@@ -224,15 +239,15 @@ class _SuperAdminManagementTabState extends State<SuperAdminManagementTab> {
                               'email': emailCtrl.text.trim(),
                               'phone': phoneCtrl.text.trim(),
                               'active': admin?['active'] ?? true,
-                              'password': 'Welcome@123',
+                              'password': StringUtils.generateSecurePassword(),
                             };
 
-                            data['academicYear'] = selectedYear;
+                            data['assignedYearId'] = selectedYearId;
 
-                            if (selectedYear != null) {
+                            if (selectedYearId != null) {
                               final existingAdmins = _yearAdmins.where(
                                 (a) =>
-                                    a['academicYear'] == selectedYear &&
+                                    a['assignedYearId'] == selectedYearId &&
                                     a['id'] != admin?['id'] &&
                                     a['active'] == true,
                               ).toList();
@@ -374,15 +389,10 @@ class _SuperAdminManagementTabState extends State<SuperAdminManagementTab> {
                 itemBuilder: (context, index) {
                   final admin = _yearAdmins[index];
                   String cleanYear;
-                  if (admin['academicYear'] == null) {
+                  if (admin['assignedYearName'] == null) {
                     cleanYear = 'Not Assigned';
                   } else {
-                    String yearStr = admin['academicYear'];
-                    cleanYear = yearStr.replaceAll('_', ' ').toLowerCase();
-                    cleanYear = cleanYear
-                        .split(' ')
-                        .map((str) => str[0].toUpperCase() + str.substring(1))
-                        .join(' ');
+                    cleanYear = admin['assignedYearName'];
                   }
 
                   return Card(
@@ -419,7 +429,7 @@ class _SuperAdminManagementTabState extends State<SuperAdminManagementTab> {
                       trailing: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          if (admin['academicYear'] == null)
+                          if (admin['assignedYearId'] == null)
                             TextButton(
                               onPressed: () => _showAdminDialog(admin: admin),
                               child: const Text('Assign Year'),

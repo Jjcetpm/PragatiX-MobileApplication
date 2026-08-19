@@ -8,7 +8,7 @@ class AppCopyrightFooter extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 24.0),
       child: Text(
-        '© JJCET 2026',
+        '©2026 All Rights Reserved ',
         textAlign: TextAlign.center,
         style: TextStyle(
           fontSize: 12,

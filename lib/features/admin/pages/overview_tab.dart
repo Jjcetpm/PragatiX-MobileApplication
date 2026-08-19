@@ -10,6 +10,7 @@ import 'package:provider/provider.dart';
 import 'package:pragatix/features/auth/providers/auth_provider.dart';
 
 import '../../leaderboard/pages/shared_leaderboard_page.dart';
+import '../../recycle_bin/screens/recycle_bin_screen.dart';
 
 class OverviewTab extends StatefulWidget {
   const OverviewTab({super.key});
@@ -102,6 +103,16 @@ class _OverviewTabState extends State<OverviewTab> {
         backgroundColor: const Color(0xFF1E293B),
         elevation: 0,
         actions: [
+          IconButton(
+            icon: const Icon(Icons.delete_outline, color: Colors.white),
+            tooltip: 'Recycle Bin',
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => RecycleBinScreen()),
+              );
+            },
+          ),
           IconButton(
             icon: const Icon(Icons.refresh, color: Colors.white),
             onPressed: () {

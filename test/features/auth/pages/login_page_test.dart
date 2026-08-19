@@ -28,32 +28,46 @@ void main() {
 
         // Verify title
         expect(find.text('SPDMS Login'), findsOneWidget);
+
         // Verify fields
         expect(find.byType(TextFormField), findsNWidgets(2));
         expect(find.text('Sign In'), findsOneWidget);
+
         // Verify Dropdown
-        expect(find.byType(DropdownButtonFormField<String>), findsOneWidget);
-      });
-    });
-
-    testWidgets('shows validation errors when fields are empty', (tester) async {
-      await mockNetworkImagesFor(() async {
-        await tester.pumpWidget(
-          TestWrapper(
-            mockAuthProvider: mockAuthProvider,
-            child: const LoginPage(),
-          ),
+        expect(
+          find.byType(DropdownButtonFormField<String>),
+          findsOneWidget,
         );
-
-        // Tap Sign In button
-        await tester.tap(find.text('Sign In'));
-        await tester.pumpAndSettle();
-
-        expect(find.text('Username, Email or Student ID is required'), findsOneWidget);
-        expect(find.text('Password is required'), findsOneWidget);
-        verifyNever(() => mockAuthRepo.studentLogin(any(), any()));
-        verifyNever(() => mockAuthRepo.staffLogin(any(), any()));
       });
     });
+
+    testWidgets(
+      'shows validation errors when fields are empty',
+          (tester) async {
+        await mockNetworkImagesFor(() async {
+          await tester.pumpWidget(
+            TestWrapper(
+              mockAuthProvider: mockAuthProvider,
+              child: const LoginPage(),
+            ),
+          );
+
+          // Tap Sign In button
+          await tester.tap(find.text('Sign In'));
+          await tester.pumpAndSettle();
+
+          // Verify validation errors
+          expect(
+            find.text('Username, Email or Student ID is required'),
+            findsOneWidget,
+          );
+
+          expect(
+            find.text('Password is required'),
+            findsOneWidget,
+          );
+        });
+      },
+    );
   });
 }

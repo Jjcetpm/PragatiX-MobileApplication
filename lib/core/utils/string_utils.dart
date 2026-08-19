@@ -1,3 +1,5 @@
+import 'dart:math';
+
 class StringUtils {
   static String toTitleCase(String text) {
     if (text.isEmpty) return text;
@@ -9,5 +11,11 @@ class StringUtils {
           return word[0].toUpperCase() + word.substring(1).toLowerCase();
         })
         .join(' ');
+  }
+
+  static String generateSecurePassword() {
+    const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#\$%^&*()';
+    final rnd = Random.secure();
+    return List.generate(16, (index) => chars[rnd.nextInt(chars.length)]).join();
   }
 }

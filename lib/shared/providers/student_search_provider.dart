@@ -14,8 +14,8 @@ class StudentSearchProvider extends ChangeNotifier {
   bool get isLoading => _isLoading;
   String get error => _error;
 
-  Future<void> fetchStudents(String token) async {
-    if (_allStudents.isNotEmpty) return; // Cache the students
+  Future<void> fetchStudents(String token, {bool forceRefresh = false}) async {
+    if (!forceRefresh && _allStudents.isNotEmpty) return; // Cache the students
     _isLoading = true;
     _error = '';
     notifyListeners();
@@ -59,13 +59,18 @@ class StudentSearchProvider extends ChangeNotifier {
     }
   }
 
-  void searchStudents(String query) {
+  void searchStudents(String query, {bool unassignedOnly = false}) {
     _searchQuery = query.toLowerCase();
 
     if (_searchQuery.isEmpty) {
-      _filteredStudents = _allStudents;
+      _filteredStudents = unassignedOnly
+          ? _allStudents.where((s) => s['teamId'] == null).toList()
+          : List.from(_allStudents);
     } else {
       _filteredStudents = _allStudents.where((student) {
+        if (unassignedOnly && student['teamId'] != null) {
+          return false;
+        }
         final name = (student['fullName'] ?? '').toString().toLowerCase();
         final regNo = (student['regNo'] ?? '').toString().toLowerCase();
         final sprNo = (student['sprNo'] ?? '').toString().toLowerCase();

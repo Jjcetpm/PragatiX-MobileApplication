@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:pragatix/core/utils/error_handler.dart';
 import 'package:pragatix/features/admin/repository/admin_repository.dart';
 import 'package:pragatix/core/di/service_locator.dart';
+import 'package:pragatix/core/utils/string_utils.dart';
 
 Future<List<dynamic>> _apiGetDepartments(String token) async {
   try {
@@ -169,7 +170,7 @@ class _TeachersTabState extends State<TeachersTab> {
     try {
       await getIt<AdminRepository>().addUser({
         'username': usernameController.text.trim(),
-        'password': 'Welcome@123',
+        'password': StringUtils.generateSecurePassword(),
         'fullName': nameController.text.trim(),
         'email': emailController.text.trim(),
         'departmentId': selectedDeptId,
@@ -1209,7 +1210,7 @@ class _TeachersTabState extends State<TeachersTab> {
                                       builder: (context) => AlertDialog(
                                         title: const Text('Delete Teacher'),
                                         content: Text(
-                                          'Are you sure you want to delete teacher $name?',
+                                          'Are you sure you want to move teacher $name to the Recycle Bin?',
                                         ),
                                         actions: [
                                           TextButton(

@@ -5,12 +5,14 @@ class StudentSearchField extends StatelessWidget {
   final Map<String, dynamic>? selectedStudent;
   final ValueChanged<Map<String, dynamic>> onStudentSelected;
   final String labelText;
+  final bool unassignedOnly;
 
   const StudentSearchField({
     Key? key,
     required this.selectedStudent,
     required this.onStudentSelected,
     this.labelText = 'Search Captain',
+    this.unassignedOnly = false,
   }) : super(key: key);
 
   @override
@@ -24,7 +26,7 @@ class StudentSearchField extends StatelessWidget {
       onTap: () async {
         final result = await showDialog<Map<String, dynamic>>(
           context: context,
-          builder: (context) => const StudentSearchDialog(),
+          builder: (context) => StudentSearchDialog(unassignedOnly: unassignedOnly),
         );
 
         if (result != null) {

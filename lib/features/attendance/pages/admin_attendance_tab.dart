@@ -281,38 +281,43 @@ class _AdminAttendanceTabState extends State<AdminAttendanceTab> {
       ),
       body: _isLoadingLookups
           ? const Center(child: PragatiXLoader())
-          : Column(
-              children: [
-                _buildFilters(),
-                const Divider(),
-                if (_isLoading)
-                  const Expanded(
-                    child: Center(child: PragatiXLoader()),
-                  )
-                else if (_isHoliday)
-                  Expanded(
-                    child: Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.event_busy, size: 64, color: Colors.grey),
-                          SizedBox(height: 16),
-                          Text('Holiday', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.grey[700])),
-                          SizedBox(height: 8),
-                          Text('This date is configured as a Holiday.\nAttendance cannot be taken.', textAlign: TextAlign.center, style: TextStyle(fontSize: 16, color: Colors.grey[600])),
-                        ],
+          : SingleChildScrollView(
+              child: Column(
+                children: [
+                  _buildFilters(),
+                  const Divider(),
+                  if (_isLoading)
+                    const Padding(
+                      padding: EdgeInsets.only(top: 50.0),
+                      child: Center(child: PragatiXLoader()),
+                    )
+                  else if (_isHoliday)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 50.0),
+                      child: Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(Icons.event_busy, size: 64, color: Colors.grey),
+                            const SizedBox(height: 16),
+                            Text('Holiday', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.grey[700])),
+                            const SizedBox(height: 8),
+                            Text('This date is configured as a Holiday.\nAttendance cannot be taken.', textAlign: TextAlign.center, style: TextStyle(fontSize: 16, color: Colors.grey[600])),
+                          ],
+                        ),
+                      ),
+                    )
+                  else if (_summary != null)
+                    _buildDashboardContent()
+                  else
+                    const Padding(
+                      padding: EdgeInsets.only(top: 50.0),
+                      child: Center(
+                        child: Text('Select filters and load dashboard'),
                       ),
                     ),
-                  )
-                else if (_summary != null)
-                  Expanded(child: _buildDashboardContent())
-                else
-                  const Expanded(
-                    child: Center(
-                      child: Text('Select filters and load dashboard'),
-                    ),
-                  ),
-              ],
+                ],
+              ),
             ),
     );
   }
@@ -488,49 +493,49 @@ class _AdminAttendanceTabState extends State<AdminAttendanceTab> {
           ),
         ),
         // Period Matrix Table
-        Expanded(
-          child: students.isEmpty
-              ? const Center(
+        students.isEmpty
+            ? const Padding(
+                padding: EdgeInsets.all(32.0),
+                child: Center(
                   child: Text(
                     'No students found for the selected filters.',
                     style: TextStyle(color: Colors.grey, fontSize: 16),
                   ),
-                )
-              : SingleChildScrollView(
-                  scrollDirection: Axis.vertical,
-                  child: SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4),
-                      child: DataTable(
-                        headingRowColor: WidgetStateProperty.all(
-                          const Color(0xFF1E293B),
-                        ),
-                        headingTextStyle: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 13,
-                        ),
-                        columnSpacing: 16,
-                        dataRowMinHeight: 44,
-                        dataRowMaxHeight: 44,
-                        border: TableBorder.all(
-                          color: Colors.grey.shade300,
-                          width: 0.5,
-                        ),
-                        columns: const [
-                          DataColumn(label: Text('#')),
-                          DataColumn(label: Text('Reg. No')),
-                          DataColumn(label: Text('Student Name')),
-                          DataColumn(label: Text('P1')),
-                          DataColumn(label: Text('P2')),
-                          DataColumn(label: Text('P3')),
-                          DataColumn(label: Text('P4')),
-                          DataColumn(label: Text('P5')),
-                          DataColumn(label: Text('P6')),
-                          DataColumn(label: Text('P7')),
-                          DataColumn(label: Text('P8')),
-                        ],
+                ),
+              )
+            : SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4),
+                  child: DataTable(
+                    headingRowColor: WidgetStateProperty.all(
+                      const Color(0xFF1E293B),
+                    ),
+                    headingTextStyle: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13,
+                    ),
+                    columnSpacing: 16,
+                    dataRowMinHeight: 44,
+                    dataRowMaxHeight: 44,
+                    border: TableBorder.all(
+                      color: Colors.grey.shade300,
+                      width: 0.5,
+                    ),
+                    columns: const [
+                      DataColumn(label: Text('#')),
+                      DataColumn(label: Text('Reg. No')),
+                      DataColumn(label: Text('Student Name')),
+                      DataColumn(label: Text('P1')),
+                      DataColumn(label: Text('P2')),
+                      DataColumn(label: Text('P3')),
+                      DataColumn(label: Text('P4')),
+                      DataColumn(label: Text('P5')),
+                      DataColumn(label: Text('P6')),
+                      DataColumn(label: Text('P7')),
+                      DataColumn(label: Text('P8')),
+                    ],
                         rows: students.asMap().entries.map((entry) {
                           final idx = entry.key;
                           final student = entry.value;
@@ -561,13 +566,11 @@ class _AdminAttendanceTabState extends State<AdminAttendanceTab> {
                                 return DataCell(_buildPeriodCell(status));
                               }),
                             ],
-                          );
-                        }).toList(),
-                      ),
-                    ),
+                      );
+                    }).toList(),
                   ),
                 ),
-        ),
+              ),
       ],
     );
   }

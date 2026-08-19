@@ -1,3 +1,3 @@
 class ApiConfig {
-  static const String baseUrl = 'http://10.0.20.153:8080';
+  static const String baseUrl = 'https://api.pragatix.in';
 }

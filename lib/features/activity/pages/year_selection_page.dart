@@ -3,9 +3,64 @@ import 'package:pragatix/core/theme/app_colors.dart';
 import 'package:pragatix/features/admin/pages/activity_tab.dart'; // We will use this or the global_activity_page
 import 'package:provider/provider.dart';
 import 'package:pragatix/features/auth/providers/auth_provider.dart';
+import 'package:pragatix/features/admin/repository/admin_repository.dart';
+import 'package:pragatix/core/di/service_locator.dart';
+import 'package:pragatix/core/widgets/pragatix_loader.dart';
 
-class YearSelectionPage extends StatelessWidget {
+class YearSelectionPage extends StatefulWidget {
   const YearSelectionPage({Key? key}) : super(key: key);
+
+  @override
+  State<YearSelectionPage> createState() => _YearSelectionPageState();
+}
+
+class _YearSelectionPageState extends State<YearSelectionPage> {
+  final AdminRepository _repository = getIt<AdminRepository>();
+  List<dynamic> _yearsList = [];
+  bool _isLoading = true;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchYears();
+  }
+
+  Future<void> _fetchYears() async {
+    try {
+      final years = await _repository.getYears();
+      if (!mounted) return;
+      setState(() {
+        _yearsList = years;
+        _isLoading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _error = e.toString();
+        _isLoading = false;
+      });
+    }
+  }
+
+  IconData _getIconForYear(int index) {
+    switch (index) {
+      case 0:
+        return Icons.looks_one;
+      case 1:
+        return Icons.looks_two;
+      case 2:
+        return Icons.looks_3;
+      case 3:
+        return Icons.looks_4;
+      case 4:
+        return Icons.looks_5;
+      case 5:
+        return Icons.looks_6;
+      default:
+        return Icons.school;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -38,37 +93,64 @@ class YearSelectionPage extends StatelessWidget {
             ),
             const SizedBox(height: 32),
             Expanded(
-              child: ListView(
-                children: [
-                  _buildYearCard(
-                    context,
-                    '🎓 First Year',
-                    'FIRST_YEAR',
-                    Icons.looks_one,
-                  ),
-                  const SizedBox(height: 16),
-                  _buildYearCard(
-                    context,
-                    '🎓 Second Year',
-                    'SECOND_YEAR',
-                    Icons.looks_two,
-                  ),
-                  const SizedBox(height: 16),
-                  _buildYearCard(
-                    context,
-                    '🎓 Third Year',
-                    'THIRD_YEAR',
-                    Icons.looks_3,
-                  ),
-                  const SizedBox(height: 16),
-                  _buildYearCard(
-                    context,
-                    '🎓 Fourth Year',
-                    'FOURTH_YEAR',
-                    Icons.looks_4,
-                  ),
-                ],
-              ),
+              child: _isLoading
+                  ? const Center(child: PragatiXLoader())
+                  : _error != null
+                      ? Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const Icon(
+                                Icons.error_outline,
+                                color: Colors.red,
+                                size: 48,
+                              ),
+                              const SizedBox(height: 16),
+                              Text(
+                                _error!,
+                                style: const TextStyle(
+                                  color: AppColors.textPrimary,
+                                  fontSize: 16,
+                                ),
+                              ),
+                              const SizedBox(height: 16),
+                              ElevatedButton(
+                                onPressed: _fetchYears,
+                                child: const Text('Retry'),
+                              ),
+                            ],
+                          ),
+                        )
+                      : _yearsList.isEmpty
+                          ? const Center(
+                              child: Text(
+                                'No configured years found.',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  color: AppColors.textSecondary,
+                                ),
+                              ),
+                            )
+                          : ListView.separated(
+                              itemCount: _yearsList.length,
+                              separatorBuilder: (context, index) =>
+                                  const SizedBox(height: 16),
+                              itemBuilder: (context, index) {
+                                final year = _yearsList[index];
+                                final String yearName =
+                                    year['yearName'] ?? 'Unknown Year';
+                                // Convert to enum format, e.g., "First Year" -> "FIRST_YEAR"
+                                final String enumValue = yearName
+                                    .toUpperCase()
+                                    .replaceAll(' ', '_');
+                                return _buildYearCard(
+                                  context,
+                                  '🎓 $yearName',
+                                  enumValue,
+                                  _getIconForYear(index),
+                                );
+                              },
+                            ),
             ),
           ],
         ),
