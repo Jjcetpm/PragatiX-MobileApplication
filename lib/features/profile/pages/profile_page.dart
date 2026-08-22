@@ -207,6 +207,8 @@ class _ProfilePageState extends State<ProfilePage> {
 
   Widget _buildCommonInfoCard() {
     final isAdmin = _profile!.adminDetails != null;
+    final isSuperAdmin = _profile!.superAdminDetails != null;
+    
     return SharedProfileCard(
       children: [
         const Text('Personal Information', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
@@ -219,7 +221,7 @@ class _ProfilePageState extends State<ProfilePage> {
         const SizedBox(height: 8),
         if (isAdmin) ...[
           SharedProfileRow(label: 'Assigned Year', value: _profile!.adminDetails!.academicYear ?? 'Not Available'),
-        ] else ...[
+        ] else if (!isSuperAdmin) ...[
           SharedProfileRow(label: 'Department', value: _profile!.department ?? 'Not Available'),
         ],
         const SizedBox(height: 8),

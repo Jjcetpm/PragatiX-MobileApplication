@@ -1,4 +1,13 @@
 import 'package:flutter/material.dart';
+import 'dart:convert';
+import 'dart:io';
+import 'package:http/http.dart' as http;
+import 'package:path_provider/path_provider.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:open_filex/open_filex.dart';
+import 'package:pragatix/core/config/api_config.dart';
+
 import 'package:pragatix/core/widgets/pragatix_loader.dart';
 import 'package:pragatix/core/utils/error_handler.dart';
 
@@ -604,6 +613,13 @@ class _StudentsTabState extends State<StudentsTab> {
 
   @override
   Widget build(BuildContext context) {
+      final roles = context.read<AuthProvider>().currentUser?['roles'] ?? [];
+      final subRoles = context.read<AuthProvider>().currentUser?['subRoles'] ?? [];
+      final canAddStudent = roles.contains('ROLE_SUPER_ADMIN') || 
+                            roles.contains('ROLE_ADMIN') || 
+                            subRoles.contains('CC') ||
+                            roles.contains('ROLE_CLASS_COORDINATOR');
+
     return Scaffold(
       appBar: AppBar(
         title: Column(
@@ -622,7 +638,15 @@ class _StudentsTabState extends State<StudentsTab> {
         ),
         backgroundColor: const Color(0xFF1E293B),
         elevation: 0,
-        actions: [
+        
+          actions: [
+            if (context.read<AuthProvider>().currentUser?['roles']?.contains('ROLE_SUPER_ADMIN') ?? false)
+              IconButton(
+                icon: const Icon(Icons.file_download, color: Colors.white),
+                tooltip: 'Export Excel',
+                onPressed: _exportStudentsExcel,
+              ),
+
           IconButton(
             icon: Badge(
               isLabelVisible: _pendingBadgeRequests > 0,
@@ -749,7 +773,428 @@ class _StudentsTabState extends State<StudentsTab> {
                 ),
               ),
             ),
-      floatingActionButton: StudentFab(onPressed: _showAddStudentDialog),
+      floatingActionButton: canAddStudent ? StudentFab(onPressed: _showAddStudentSelection) : null,
     );
   }
+
+  void _showAddStudentSelection() {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Add Student'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.person),
+                title: const Text('Single Student'),
+                subtitle: const Text('Add a student manually.'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _showAddStudentDialog();
+                },
+              ),
+              const Divider(),
+              ListTile(
+                leading: const Icon(Icons.file_upload),
+                title: const Text('Bulk Upload'),
+                subtitle: const Text('Upload an Excel file with multiple students.'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _showBulkUploadDialog();
+                },
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showBulkUploadDialog() {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Bulk Upload Students'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text('First, download the Excel template.'),
+              const SizedBox(height: 12),
+              Center(
+                child: ElevatedButton.icon(
+                  onPressed: () async {
+                    try {
+                      final response = await http.get(
+                        Uri.parse('${ApiConfig.baseUrl}/api/v1/students/bulk-upload/template'),
+                        headers: {
+                          'Authorization': 'Bearer ${context.read<AuthProvider>().token!}',
+                        },
+                      );
+
+                      if (response.statusCode == 200) {
+                        bool hasPermission = true;
+                        if (Platform.isAndroid && (await Permission.storage.request().isDenied)) {
+                          if (await Permission.manageExternalStorage.request().isDenied) {
+                            hasPermission = false;
+                          }
+                        }
+
+                        Directory? dir;
+                        if (Platform.isAndroid) {
+                          dir = Directory('/storage/emulated/0/Download');
+                          if (!await dir.exists()) {
+                            try {
+                              await dir.create(recursive: true);
+                            } catch (_) {
+                              dir = Directory('/storage/emulated/0/Downloads');
+                              if (!await dir.exists()) {
+                                try {
+                                  await dir.create(recursive: true);
+                                } catch (_) {
+                                  dir = await getExternalStorageDirectory();
+                                  dir ??= await getApplicationDocumentsDirectory();
+                                }
+                              }
+                            }
+                          }
+                        } else if (Platform.isIOS) {
+                          dir = await getApplicationDocumentsDirectory();
+                        } else {
+                          dir = await getDownloadsDirectory();
+                        }
+                        
+                        if (dir != null) {
+                          String filename = 'SPDMS_Student_Bulk_Upload_Template.xlsx';
+                          String filePath = '${dir.path}/$filename';
+                          File file = File(filePath);
+                          
+                          int counter = 1;
+                          while (await file.exists()) {
+                            filename = 'SPDMS_Student_Bulk_Upload_Template_($counter).xlsx';
+                            filePath = '${dir.path}/$filename';
+                            file = File(filePath);
+                            counter++;
+                          }
+
+                          await file.writeAsBytes(response.bodyBytes);
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('Template downloaded to Downloads folder: $filename'),
+                                backgroundColor: Colors.green,
+                                action: SnackBarAction(
+                                  label: 'Open',
+                                  textColor: Colors.white,
+                                  onPressed: () => OpenFilex.open(
+                                    file.path,
+                                    type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                                  ),
+                                ),
+                              ),
+                            );
+                          }
+                        }
+                      } else {
+                        if (context.mounted) {
+                          String errorMsg = 'Unable to download student upload template.';
+                          switch (response.statusCode) {
+                            case 400:
+                              errorMsg = 'Unable to generate the student upload template.';
+                              break;
+                            case 401:
+                              errorMsg = 'Your session has expired. Please login again.';
+                              break;
+                            case 403:
+                              errorMsg = 'You do not have permission to download this template.';
+                              break;
+                            case 404:
+                              errorMsg = 'Student upload template endpoint was not found.';
+                              break;
+                            case 408:
+                              errorMsg = 'Request timed out. Please try again.';
+                              break;
+                            case 500:
+                              errorMsg = 'Server error. Please try again later.';
+                              break;
+                          }
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(errorMsg),
+                              backgroundColor: Colors.red,
+                            ),
+                          );
+                        }
+                      }
+                    } catch (e) {
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('Error downloading template: $e'),
+                            backgroundColor: Colors.red,
+                          ),
+                        );
+                      }
+                    }
+                  },
+                  icon: const Icon(Icons.download_rounded, color: Colors.white),
+                  label: const Text('Download Excel Template', style: TextStyle(color: Colors.white)),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF11998e),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 24),
+              const Text('Fill the template and upload it.'),
+              const SizedBox(height: 12),
+              Center(
+                child: ElevatedButton.icon(
+                  onPressed: () {
+                    Navigator.pop(context);
+                    _uploadBulkExcel();
+                  },
+                  icon: const Icon(Icons.upload_file, color: Colors.white),
+                  label: const Text('Upload Filled Excel', style: TextStyle(color: Colors.white)),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF38ef7d),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _uploadBulkExcel() async {
+    try {
+      FilePickerResult? result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['xlsx', 'xls'],
+      );
+
+      if (result != null) {
+        File file = File(result.files.single.path!);
+        
+        setState(() => isLoading = true);
+        
+        var request = http.MultipartRequest(
+          'POST',
+          Uri.parse('${ApiConfig.baseUrl}/api/v1/students/bulk-parse'),
+        );
+        
+        request.headers.addAll({
+          'Authorization': 'Bearer ${context.read<AuthProvider>().token!}',
+        });
+        
+        request.files.add(await http.MultipartFile.fromPath('file', file.path));
+        
+        var response = await request.send();
+        var responseBody = await response.stream.bytesToString();
+        var parsedResponse = jsonDecode(responseBody);
+        
+        if (response.statusCode == 200 && parsedResponse['success'] == true) {
+          List<dynamic> parsedData = parsedResponse['data'] ?? [];
+          
+          if (parsedData.isEmpty) {
+            throw Exception('No valid student data found in the Excel file');
+          }
+          
+          if (!mounted) return;
+          _showPreviewDialog(parsedData, file.path);
+        } else {
+          throw Exception(parsedResponse['message'] ?? 'Failed to parse Excel file');
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => isLoading = false);
+        ErrorHandler.showSnackBar(context, e);
+      }
+    }
+  }
+
+  void _showPreviewDialog(List<dynamic> parsedData, String filePath) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) {
+        return AlertDialog(
+          title: Text('Preview - ${parsedData.length} Students found'),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: ListView.builder(
+              shrinkWrap: true,
+              itemCount: parsedData.length,
+              itemBuilder: (context, index) {
+                var student = parsedData[index];
+                return ListTile(
+                  title: Text(student['fullName'] ?? 'Unknown'),
+                  subtitle: Text('${student['regNo']} | ${student['email']}'),
+                );
+              },
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context);
+                setState(() => isLoading = false);
+              },
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                Navigator.pop(context);
+                await _confirmBulkUpload(parsedData);
+              },
+              child: const Text('Confirm Import'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _confirmBulkUpload(List<dynamic> parsedData) async {
+    setState(() => isLoading = true);
+    try {
+      final response = await http.post(
+        Uri.parse('${ApiConfig.baseUrl}/api/v1/students/bulk-import'),
+        headers: {
+          'Authorization': 'Bearer ${context.read<AuthProvider>().token!}',
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode(parsedData),
+      );
+
+      var parsedResponse = jsonDecode(response.body);
+
+      if (response.statusCode == 200 && parsedResponse['success'] == true) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(parsedResponse['data'] ?? 'Students imported successfully'),
+              backgroundColor: Colors.green,
+            ),
+          );
+          _fetchStudents();
+        }
+      } else {
+        throw Exception(parsedResponse['message'] ?? 'Failed to import students');
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => isLoading = false);
+        ErrorHandler.showSnackBar(context, e);
+      }
+    }
+  }
+
+  Future<void> _exportStudentsExcel() async {
+    setState(() => isLoading = true);
+    try {
+      String url = '${ApiConfig.baseUrl}/api/v1/students/export?';
+      if (searchQuery.isNotEmpty) url += 'keyword=$searchQuery&';
+      if (filterYear != null) url += 'year=$filterYear&';
+      if (filterDeptId != null) url += 'departmentId=$filterDeptId&';
+      if (filterSectionId != null) url += 'sectionId=$filterSectionId&';
+
+      final response = await http.get(
+        Uri.parse(url),
+        headers: {
+          'Authorization': 'Bearer ${context.read<AuthProvider>().token!}',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        bool hasPermission = true;
+        if (Platform.isAndroid && (await Permission.storage.request().isDenied)) {
+          if (await Permission.manageExternalStorage.request().isDenied) {
+            hasPermission = false;
+          }
+        }
+
+        Directory? dir;
+        if (Platform.isAndroid) {
+          dir = Directory('/storage/emulated/0/Download');
+          if (!await dir.exists()) {
+            try {
+              await dir.create(recursive: true);
+            } catch (_) {
+              dir = Directory('/storage/emulated/0/Downloads');
+              if (!await dir.exists()) {
+                try {
+                  await dir.create(recursive: true);
+                } catch (_) {
+                  dir = await getExternalStorageDirectory();
+                  dir ??= await getApplicationDocumentsDirectory();
+                }
+              }
+            }
+          }
+        } else if (Platform.isIOS) {
+          dir = await getApplicationDocumentsDirectory();
+        } else {
+          dir = await getDownloadsDirectory();
+        }
+        
+        if (dir != null) {
+          String filename = 'Students_Export.xlsx';
+          String filePath = '${dir.path}/$filename';
+          File file = File(filePath);
+          
+          int counter = 1;
+          while (await file.exists()) {
+            filename = 'Students_Export_($counter).xlsx';
+            filePath = '${dir.path}/$filename';
+            file = File(filePath);
+            counter++;
+          }
+
+          await file.writeAsBytes(response.bodyBytes);
+          if (context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Student list exported successfully.'),
+                backgroundColor: Colors.green,
+                action: SnackBarAction(
+                  label: 'Open',
+                  textColor: Colors.white,
+                  onPressed: () => OpenFilex.open(
+                    file.path,
+                    type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                  ),
+                ),
+              ),
+            );
+          }
+        }
+      } else {
+        throw Exception('Export failed. Please try again.');
+      }
+    } catch (e) {
+      if (mounted) {
+        ErrorHandler.showSnackBar(context, e);
+      }
+    } finally {
+      if (mounted) setState(() => isLoading = false);
+    }
+  }
+
 }

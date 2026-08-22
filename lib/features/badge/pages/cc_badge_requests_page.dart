@@ -210,10 +210,14 @@ class _CCBadgeRequestsPageState extends State<CCBadgeRequestsPage> {
       id,
       'CC',
     );
-    if (mounted)
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(res['message'])));
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(res['message']),
+          backgroundColor: res['success'] == true ? Colors.green : Colors.red,
+        ),
+      );
+    }
   }
 
   void _handleReject(int id) async {
@@ -223,10 +227,14 @@ class _CCBadgeRequestsPageState extends State<CCBadgeRequestsPage> {
       id,
       'CC',
     );
-    if (mounted)
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(res['message'])));
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(res['message']),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
   String _formatDate(String dateStr) {

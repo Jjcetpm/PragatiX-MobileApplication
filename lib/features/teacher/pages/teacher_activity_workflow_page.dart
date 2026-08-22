@@ -240,17 +240,26 @@ class _TeacherActivityWorkflowPageState
         url += '&sectionId=$secId';
       }
 
+      debugPrint('=== FETCH STUDENTS DEBUG ===');
+      debugPrint('URL: $url');
+      debugPrint('Year: $yearParam, DeptId: $deptId, Section: ${section != null ? section["id"] : "null"}');
+
       final response = await getIt<TeacherProxyService>().get(
         Uri.parse(url),
         headers: {
           'Authorization': 'Bearer ${context.read<AuthProvider>().token!}',
         },
       );
+
+      debugPrint('Response Status: ${response.statusCode}');
+      debugPrint('Response Body (first 500): ${response.body.length > 500 ? response.body.substring(0, 500) : response.body}');
+
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         if (data['success'] == true) {
           setState(() {
             final List<dynamic> list = List.from(data['data']['students'] ?? []);
+            debugPrint('Students found: ${list.length}');
             list.sort((a, b) {
               final nameA = (a['fullName'] as String? ?? '').trim().toLowerCase();
               final nameB = (b['fullName'] as String? ?? '').trim().toLowerCase();
@@ -266,10 +275,36 @@ class _TeacherActivityWorkflowPageState
                 ? (assignData['id'] as num?)?.toInt()
                 : null;
           });
+        } else {
+          debugPrint('API success=false: ${data["message"]}');
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text(data['message'] ?? 'Failed to load students'), backgroundColor: Colors.redAccent),
+            );
+          }
+        }
+      } else {
+        debugPrint('Non-200: ${response.statusCode} - ${response.body}');
+        if (mounted) {
+          try {
+            final errorData = jsonDecode(response.body);
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text(errorData['message'] ?? 'Error ${response.statusCode}'), backgroundColor: Colors.redAccent),
+            );
+          } catch (_) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Error ${response.statusCode}: Failed to load students'), backgroundColor: Colors.redAccent),
+            );
+          }
         }
       }
     } catch (e) {
       debugPrint('Error fetching students: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Network error: $e'), backgroundColor: Colors.redAccent),
+        );
+      }
     } finally {
       if (mounted) {
         setState(() => _isLoading = false);
@@ -317,10 +352,12 @@ class _TeacherActivityWorkflowPageState
         final data = jsonDecode(response.body);
         if (data['success'] == true) {
           if (!mounted) return;
+          final msg = data['message'] ?? 'XP processed successfully!';
+          final isPenaltyResponse = msg.toLowerCase().contains('penal');
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text(data['message'] ?? 'XP processed successfully!'),
-              backgroundColor: Colors.green,
+              content: Text(msg),
+              backgroundColor: isPenaltyResponse ? Colors.red : Colors.green,
             ),
           );
           _remarksController.clear();

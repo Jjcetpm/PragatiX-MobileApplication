@@ -2,6 +2,8 @@ import 'dart:io';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:pragatix/core/exceptions/api_exception.dart';
+import 'package:pragatix/core/error/error_type.dart';
+import 'package:pragatix/core/error/error_mapper.dart';
 
 class ErrorHandler {
   static void showSnackBar(BuildContext context, dynamic error) {
@@ -39,5 +41,29 @@ class ErrorHandler {
         ),
       );
     }
+  }
+
+  /// Builds a full-screen error widget using the centralized error mapper.
+  /// Use this for critical page-load failures (e.g., inside FutureBuilder).
+  static Widget buildErrorWidget(
+    dynamic error, {
+    VoidCallback? onRetry,
+    VoidCallback? onHome,
+    VoidCallback? onBack,
+  }) {
+    final errorType = AppErrorMapper.fromException(error);
+    String? customMessage;
+
+    if (error is ApiException && errorType == AppErrorType.unexpected) {
+      customMessage = error.message;
+    }
+
+    return AppErrorMapper.getErrorPage(
+      errorType,
+      onRetry: onRetry,
+      onHome: onHome,
+      onBack: onBack,
+      customMessage: customMessage,
+    );
   }
 }

@@ -9,8 +9,9 @@ class AdminRepository {
   AdminRepository(this._adminService);
 
   // DEPARTMENTS
-  Future<List<dynamic>> getDepartments() async {
-    final response = await _adminService.get('/api/v1/admin/departments');
+  Future<List<dynamic>> getDepartments({bool all = false}) async {
+    final String endpoint = all ? '/api/v1/admin/departments?all=true' : '/api/v1/admin/departments';
+    final response = await _adminService.get(endpoint);
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body);
       if (data['success'] == true) {
@@ -65,10 +66,11 @@ class AdminRepository {
     throw Exception('Failed to load teams');
   }
 
-  Future<Map<String, dynamic>> addDepartment(String name, String code) async {
+  Future<Map<String, dynamic>> addDepartment(String name, String code, bool supportsSections) async {
     final response = await _adminService.post('/api/v1/admin/departments', {
       'name': name,
       'code': code,
+      'supportsSections': supportsSections,
     });
     return _handleResponse(response);
   }
@@ -77,10 +79,12 @@ class AdminRepository {
     int id,
     String name,
     String code,
+    bool supportsSections,
   ) async {
     final response = await _adminService.put('/api/v1/admin/departments/$id', {
       'name': name,
       'code': code,
+      'supportsSections': supportsSections,
     });
     return _handleResponse(response);
   }
@@ -201,10 +205,17 @@ class AdminRepository {
   }
 
   // GET ALL TEACHERS / USERS
-  Future<List<dynamic>> getTeachers({int? departmentId}) async {
+  Future<List<dynamic>> getTeachers({int? departmentId, String? keyword}) async {
     String url = '/api/v1/admin/users';
+    List<String> queryParams = [];
     if (departmentId != null) {
-      url += '?departmentId=$departmentId';
+      queryParams.add('departmentId=$departmentId');
+    }
+    if (keyword != null && keyword.trim().isNotEmpty) {
+      queryParams.add('keyword=${Uri.encodeComponent(keyword.trim())}');
+    }
+    if (queryParams.isNotEmpty) {
+      url += '?${queryParams.join('&')}';
     }
     final response = await _adminService.get(url);
     if (response.statusCode == 200) {

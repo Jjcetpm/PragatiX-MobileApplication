@@ -154,9 +154,9 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
       if (response.statusCode == 200 && data['success'] == true) {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('XP awarded to group successfully!'),
-            backgroundColor: Colors.green,
+          SnackBar(
+            content: Text(isPenalty ? 'XP deducted from group successfully!' : 'XP awarded to group successfully!'),
+            backgroundColor: isPenalty ? Colors.red : Colors.green,
           ),
         );
         await _refreshTeam();
@@ -462,7 +462,7 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
                             : () => _showAwardXpDialog(widget.activity.penaltyEnabled),
                         child: Text(
                           _team.isAwarded == true
-                              ? 'XP Already Awarded'
+                              ? (widget.activity.penaltyEnabled ? 'XP Already Deducted' : 'XP Already Awarded')
                               : (widget.activity.penaltyEnabled ? 'Deduct XP from Group' : 'Award XP to Group'),
                           style: const TextStyle(
                             fontSize: 16,

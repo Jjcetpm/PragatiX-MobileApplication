@@ -48,11 +48,11 @@ void main() {
       when(() => mockAdminService.post(any(), any()))
           .thenAnswer((_) async => http.Response(jsonResponse, 201));
 
-      final result = await adminRepository.addDepartment('IT', 'IT');
+      final result = await adminRepository.addDepartment('IT', 'IT', false);
 
       expect(result['success'], true);
       expect(result['data']['name'], 'IT');
-      verify(() => mockAdminService.post('/api/v1/admin/departments', {'name': 'IT', 'code': 'IT'})).called(1);
+      verify(() => mockAdminService.post('/api/v1/admin/departments', {'name': 'IT', 'code': 'IT', 'supportsSections': false})).called(1);
     });
   });
 }

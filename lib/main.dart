@@ -17,6 +17,7 @@ import 'package:pragatix/shared/providers/student_search_provider.dart';
 import 'package:pragatix/features/attendance/providers/attendance_provider.dart';
 import 'package:pragatix/features/analytics/providers/xp_analytics_provider.dart';
 import 'package:pragatix/features/penalty/providers/penalty_provider.dart';
+import 'package:pragatix/features/admin/providers/department_provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -38,6 +39,7 @@ void main() async {
           create: (_) => getIt<ActivityCompletionProvider>(),
         ),
         ChangeNotifierProvider(create: (_) => getIt<XpAnalyticsProvider>()),
+        ChangeNotifierProvider(create: (_) => DepartmentProvider()),
       ],
       child: const MyApp(),
     ),

@@ -511,10 +511,12 @@ class _PerformanceActivitiesTabState extends State<PerformanceActivitiesTab> {
         final data = jsonDecode(response.body);
         if (data['success'] == true) {
           if (!mounted) return;
+          final msg = data['message'] ?? 'XP Awarded successfully!';
+          final isPenaltyResponse = msg.toLowerCase().contains('penal');
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text(data['message'] ?? 'XP Awarded successfully!'),
-              backgroundColor: Colors.green,
+              content: Text(msg),
+              backgroundColor: isPenaltyResponse ? Colors.red : Colors.green,
             ),
           );
           _remarksController.clear();

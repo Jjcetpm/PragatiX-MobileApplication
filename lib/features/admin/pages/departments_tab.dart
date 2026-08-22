@@ -5,10 +5,11 @@ import 'package:flutter/material.dart';
 import 'package:pragatix/core/utils/error_handler.dart';
 import 'package:pragatix/features/admin/repository/admin_repository.dart';
 import 'package:pragatix/core/di/service_locator.dart';
+import 'package:pragatix/features/admin/providers/department_provider.dart' as import_provider;
 
 Future<List<dynamic>> _apiGetDepartments(String token) async {
   try {
-    return await getIt<AdminRepository>().getDepartments();
+    return await getIt<AdminRepository>().getDepartments(all: true);
   } catch (e) {
     return [];
   }
@@ -22,10 +23,9 @@ class DepartmentsTab extends StatefulWidget {
 }
 
 class _DepartmentsTabState extends State<DepartmentsTab> {
-  List<dynamic> departments = [];
-  List<dynamic> filteredDepartments = [];
-  bool isLoading = true;
   String searchQuery = '';
+  
+  bool _supportsSections = false;
 
   final TextEditingController nameController = TextEditingController();
   final TextEditingController codeController = TextEditingController();
@@ -34,40 +34,19 @@ class _DepartmentsTabState extends State<DepartmentsTab> {
   @override
   void initState() {
     super.initState();
-    _fetchDepartments();
-  }
-
-  Future<void> _fetchDepartments() async {
-    try {
-      final list = await _apiGetDepartments(
-        context.read<AuthProvider>().token!,
-      );
-      if (!context.mounted) return;
-      setState(() {
-        departments = list;
-        _filterDepartments(searchQuery);
-        isLoading = false;
-      });
-    } catch (e) {
-      if (!context.mounted) return;
-      setState(() => isLoading = false);
-    }
-  }
-
-  void _filterDepartments(String query) {
-    setState(() {
-      searchQuery = query;
-      if (query.isEmpty) {
-        filteredDepartments = List.from(departments);
-      } else {
-        filteredDepartments = departments.where((dept) {
-          final name = (dept['name'] ?? '').toString().toLowerCase();
-          final code = (dept['code'] ?? '').toString().toLowerCase();
-          return name.contains(query.toLowerCase()) ||
-              code.contains(query.toLowerCase());
-        }).toList();
-      }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<import_provider.DepartmentProvider>().fetchDepartments();
     });
+  }
+
+  List<dynamic> _getFilteredDepartments(List<dynamic> departments) {
+    if (searchQuery.isEmpty) return departments;
+    return departments.where((dept) {
+      final name = (dept['name'] ?? '').toString().toLowerCase();
+      final code = (dept['code'] ?? '').toString().toLowerCase();
+      return name.contains(searchQuery.toLowerCase()) ||
+          code.contains(searchQuery.toLowerCase());
+    }).toList();
   }
 
   Future<void> _addDepartment() async {
@@ -85,7 +64,7 @@ class _DepartmentsTabState extends State<DepartmentsTab> {
     }
 
     try {
-      await getIt<AdminRepository>().addDepartment(name, code);
+      await getIt<AdminRepository>().addDepartment(name, code, _supportsSections);
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -95,28 +74,12 @@ class _DepartmentsTabState extends State<DepartmentsTab> {
       );
       nameController.clear();
       codeController.clear();
+      _supportsSections = false;
       Navigator.pop(context);
-      setState(() => isLoading = true);
-      _fetchDepartments();
+      context.read<import_provider.DepartmentProvider>().fetchDepartments();
     } catch (e) {
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Department added locally (Offline mode)'),
-          backgroundColor: Colors.orange,
-        ),
-      );
-      setState(() {
-        departments.add({
-          'id': DateTime.now().millisecondsSinceEpoch,
-          'name': name,
-          'code': code,
-        });
-        _filterDepartments(searchQuery);
-      });
-      nameController.clear();
-      codeController.clear();
-      Navigator.pop(context);
+      ErrorHandler.showSnackBar(context, e);
     }
   }
 
@@ -135,7 +98,7 @@ class _DepartmentsTabState extends State<DepartmentsTab> {
     }
 
     try {
-      await getIt<AdminRepository>().editDepartment(id, name, code);
+      await getIt<AdminRepository>().editDepartment(id, name, code, _supportsSections);
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -145,28 +108,12 @@ class _DepartmentsTabState extends State<DepartmentsTab> {
       );
       nameController.clear();
       codeController.clear();
+      _supportsSections = false;
       Navigator.pop(context);
-      setState(() => isLoading = true);
-      _fetchDepartments();
+      context.read<import_provider.DepartmentProvider>().fetchDepartments();
     } catch (e) {
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Updated locally (Offline mode)'),
-          backgroundColor: Colors.orange,
-        ),
-      );
-      setState(() {
-        final idx = departments.indexWhere((d) => d['id'] == id);
-        if (idx != -1) {
-          departments[idx]['name'] = name;
-          departments[idx]['code'] = code;
-        }
-        _filterDepartments(searchQuery);
-      });
-      nameController.clear();
-      codeController.clear();
-      Navigator.pop(context);
+      ErrorHandler.showSnackBar(context, e);
     }
   }
 
@@ -180,8 +127,7 @@ class _DepartmentsTabState extends State<DepartmentsTab> {
           backgroundColor: Colors.green,
         ),
       );
-      setState(() => isLoading = true);
-      _fetchDepartments();
+      context.read<import_provider.DepartmentProvider>().fetchDepartments();
     } catch (e) {
       if (!context.mounted) return;
       ErrorHandler.showSnackBar(context, e);
@@ -191,6 +137,7 @@ class _DepartmentsTabState extends State<DepartmentsTab> {
   void _showAddDeptDialog() {
     nameController.clear();
     codeController.clear();
+    _supportsSections = true;
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -227,6 +174,25 @@ class _DepartmentsTabState extends State<DepartmentsTab> {
                     border: OutlineInputBorder(),
                     prefixIcon: Icon(Icons.code),
                   ),
+                ),
+                const SizedBox(height: 16),
+                StatefulBuilder(
+                  builder: (context, setDialogState) {
+                    return SwitchListTile(
+                      title: const Text('Supports Sections?'),
+                      subtitle: const Text(
+                        'Enable if this department will have sections (A, B, C, etc.)',
+                        style: TextStyle(fontSize: 12),
+                      ),
+                      value: _supportsSections,
+                      onChanged: (val) {
+                        setDialogState(() => _supportsSections = val);
+                        setState(() => _supportsSections = val);
+                      },
+                      contentPadding: EdgeInsets.zero,
+                      activeColor: const Color(0xFF1E293B),
+                    );
+                  }
                 ),
               ],
             ),
@@ -271,6 +237,7 @@ class _DepartmentsTabState extends State<DepartmentsTab> {
   void _showEditDeptDialog(Map<String, dynamic> dept) {
     nameController.text = dept['name'] ?? '';
     codeController.text = dept['code'] ?? '';
+    _supportsSections = dept['supportsSections'] == true;
     final sectionNameController = TextEditingController();
     List<dynamic> deptSections = [];
     bool loadingSections = true;
@@ -385,80 +352,108 @@ class _DepartmentsTabState extends State<DepartmentsTab> {
                           prefixIcon: Icon(Icons.code),
                         ),
                       ),
-                      const SizedBox(height: 24),
-                      const Divider(),
-                      const SizedBox(height: 8),
-                      const Text(
-                        'SECTIONS MANAGEMENT',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.blueGrey,
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: TextField(
-                              controller: sectionNameController,
-                              decoration: const InputDecoration(
-                                labelText: 'Add Section (e.g. A, B)',
-                                border: OutlineInputBorder(),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          ElevatedButton(
-                            onPressed: addSection,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF1E293B),
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 16,
-                                vertical: 16,
-                              ),
-                            ),
-                            child: const Icon(Icons.add, color: Colors.white),
-                          ),
-                        ],
-                      ),
                       const SizedBox(height: 16),
-                      loadingSections
-                          ? const Center(child: PragatiXLoader())
-                          : deptSections.isEmpty
-                          ? const Padding(
-                              padding: EdgeInsets.symmetric(vertical: 8.0),
-                              child: Text(
-                                'No sections created yet.',
-                                style: TextStyle(
-                                  color: Colors.grey,
-                                  fontStyle: FontStyle.italic,
+                      if (dept['supportsSections'] == true) ...[
+                        StatefulBuilder(
+                          builder: (context, setDialogState) {
+                            return Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                SwitchListTile(
+                                  title: const Text('Supports Sections?'),
+                                  subtitle: const Text(
+                                    'Enable if this department will have sections (A, B, C, etc.)',
+                                    style: TextStyle(fontSize: 12),
+                                  ),
+                                  value: _supportsSections,
+                                  onChanged: (val) {
+                                    setDialogState(() => _supportsSections = val);
+                                    setState(() => _supportsSections = val);
+                                  },
+                                  contentPadding: EdgeInsets.zero,
+                                  activeColor: const Color(0xFF1E293B),
                                 ),
-                              ),
-                            )
-                          : ListView.builder(
-                              shrinkWrap: true,
-                              physics: const NeverScrollableScrollPhysics(),
-                              itemCount: deptSections.length,
-                              itemBuilder: (context, idx) {
-                                final sec = deptSections[idx];
-                                return ListTile(
-                                  title: Text(
-                                    'Section ${sec["sectionName"] ?? sec["name"] ?? ""}',
-                                    style: const TextStyle(
+                                if (_supportsSections) ...[
+                                  const SizedBox(height: 24),
+                                  const Divider(),
+                                  const SizedBox(height: 8),
+                                  const Text(
+                                    'SECTIONS MANAGEMENT',
+                                    style: TextStyle(
+                                      fontSize: 12,
                                       fontWeight: FontWeight.bold,
+                                      color: Colors.blueGrey,
                                     ),
                                   ),
-                                  trailing: IconButton(
-                                    icon: const Icon(
-                                      Icons.delete_outline,
-                                      color: Colors.red,
-                                    ),
-                                    onPressed: () => deleteSection(sec['id']),
+                                  const SizedBox(height: 12),
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: TextField(
+                                          controller: sectionNameController,
+                                          decoration: const InputDecoration(
+                                            labelText: 'Add Section (e.g. A, B)',
+                                            border: OutlineInputBorder(),
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      ElevatedButton(
+                                        onPressed: addSection,
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor: const Color(0xFF1E293B),
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 16,
+                                            vertical: 16,
+                                          ),
+                                        ),
+                                        child: const Icon(Icons.add, color: Colors.white),
+                                      ),
+                                    ],
                                   ),
-                                );
-                              },
-                            ),
+                                  const SizedBox(height: 16),
+                                  loadingSections
+                                      ? const Center(child: PragatiXLoader())
+                                      : deptSections.isEmpty
+                                      ? const Padding(
+                                          padding: EdgeInsets.symmetric(vertical: 8.0),
+                                          child: Text(
+                                            'No sections created yet.',
+                                            style: TextStyle(
+                                              color: Colors.grey,
+                                              fontStyle: FontStyle.italic,
+                                            ),
+                                          ),
+                                        )
+                                      : ListView.builder(
+                                          shrinkWrap: true,
+                                          physics: const NeverScrollableScrollPhysics(),
+                                          itemCount: deptSections.length,
+                                          itemBuilder: (context, idx) {
+                                            final sec = deptSections[idx];
+                                            return ListTile(
+                                              title: Text(
+                                                'Section ${sec["sectionName"] ?? sec["name"] ?? ""}',
+                                                style: const TextStyle(
+                                                  fontWeight: FontWeight.bold,
+                                                ),
+                                              ),
+                                              trailing: IconButton(
+                                                icon: const Icon(
+                                                  Icons.delete_outline,
+                                                  color: Colors.red,
+                                                ),
+                                                onPressed: () => deleteSection(sec['id']),
+                                              ),
+                                            );
+                                          },
+                                        ),
+                                ],
+                              ],
+                            );
+                          }
+                        ),
+                      ],
                     ],
                   ),
                 ),
@@ -504,6 +499,11 @@ class _DepartmentsTabState extends State<DepartmentsTab> {
 
   @override
   Widget build(BuildContext context) {
+    final departmentProvider = context.watch<import_provider.DepartmentProvider>();
+    final departments = departmentProvider.departments;
+    final filteredDepartments = _getFilteredDepartments(departments);
+    final isLoading = departmentProvider.isLoading;
+
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
       appBar: AppBar(
@@ -514,16 +514,27 @@ class _DepartmentsTabState extends State<DepartmentsTab> {
         backgroundColor: const Color(0xFF1E293B),
         elevation: 0,
       ),
-      body: isLoading
+      body: isLoading && departments.isEmpty
           ? const Center(child: PragatiXLoader())
           : Column(
               children: [
+                if (departmentProvider.error != null)
+                  Container(
+                    width: double.infinity,
+                    color: Colors.red.shade100,
+                    padding: const EdgeInsets.all(8),
+                    child: Text(
+                      departmentProvider.error!,
+                      style: const TextStyle(color: Colors.red),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
                 if (departments.isNotEmpty)
                   Padding(
                     padding: const EdgeInsets.all(16.0),
                     child: TextField(
                       controller: searchController,
-                      onChanged: _filterDepartments,
+                      onChanged: (val) => setState(() => searchQuery = val),
                       decoration: InputDecoration(
                         hintText: 'Search departments...',
                         prefixIcon: const Icon(
@@ -538,7 +549,7 @@ class _DepartmentsTabState extends State<DepartmentsTab> {
                                 ),
                                 onPressed: () {
                                   searchController.clear();
-                                  _filterDepartments('');
+                                  setState(() => searchQuery = '');
                                 },
                               )
                             : null,
@@ -557,7 +568,7 @@ class _DepartmentsTabState extends State<DepartmentsTab> {
                   ),
                 Expanded(
                   child: RefreshIndicator(
-                    onRefresh: _fetchDepartments,
+                    onRefresh: () => context.read<import_provider.DepartmentProvider>().fetchDepartments(),
                     color: const Color(0xFF1E293B),
                     child: filteredDepartments.isEmpty
                         ? ListView(
