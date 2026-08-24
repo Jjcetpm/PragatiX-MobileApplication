@@ -153,7 +153,11 @@ class BadgeProvider extends ChangeNotifier {
       role,
     );
     if (response['success'] == true) {
-      await fetchAdminCCBadgeRequests(token, role);
+      final index = _adminCCBadgeRequests.indexWhere((r) => r['id'] == requestId);
+      if (index != -1) {
+        _adminCCBadgeRequests[index]['status'] = 'APPROVED';
+        notifyListeners();
+      }
     }
     return response;
   }
@@ -171,7 +175,11 @@ class BadgeProvider extends ChangeNotifier {
       remarks: remarks,
     );
     if (response['success'] == true) {
-      await fetchAdminCCBadgeRequests(token, role);
+      final index = _adminCCBadgeRequests.indexWhere((r) => r['id'] == requestId);
+      if (index != -1) {
+        _adminCCBadgeRequests[index]['status'] = 'REJECTED';
+        notifyListeners();
+      }
     }
     return response;
   }

@@ -14,6 +14,9 @@ class BadgeRequest {
   final String? reviewedBy;
   final String? remarks;
   final String? proofLink;
+  final int? departmentId;
+  final int? sectionId;
+  final String? academicYear;
 
   BadgeRequest({
     required this.id,
@@ -31,6 +34,9 @@ class BadgeRequest {
     this.reviewedBy,
     this.remarks,
     this.proofLink,
+    this.departmentId,
+    this.sectionId,
+    this.academicYear,
   });
 
   factory BadgeRequest.fromJson(Map<String, dynamic> json) {
@@ -53,6 +59,9 @@ class BadgeRequest {
           json['proofUrl']?.toString() ??
           json['proofFile']?.toString() ??
           json['attachmentUrl']?.toString(),
+      departmentId: json['departmentId'] is int ? json['departmentId'] : int.tryParse(json['departmentId']?.toString() ?? ''),
+      sectionId: json['sectionId'] is int ? json['sectionId'] : int.tryParse(json['sectionId']?.toString() ?? ''),
+      academicYear: json['academicYear']?.toString(),
     );
   }
 }

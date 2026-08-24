@@ -215,29 +215,62 @@ class _TeacherAttendanceTabState extends State<TeacherAttendanceTab> {
         _departmentId!,
         sectionId: _sectionId,
       );
+      
+      if (!mounted) return;
       setState(() {
-        _students = students;
         _isHoliday = false;
+        _isLoading = false;
       });
+      
+      if (students.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No students found for this class.')),
+        );
+      } else {
+        _showAttendancePopup(students);
+      }
     } catch (e) {
+      if (!mounted) return;
       if (e.toString().contains('Holiday')) {
         setState(() {
-          _students = [];
           _isHoliday = true;
+          _isLoading = false;
         });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Attendance cannot be marked. Today is configured as a Holiday.'),
+            backgroundColor: Colors.red,
+          ),
+        );
       } else {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Error loading students: $e')));
+        setState(() => _isLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error loading students: $e')),
+        );
       }
-    } finally {
-      setState(() => _isLoading = false);
     }
   }
 
-  Future<void> _saveAttendance() async {
-    if (_students == null ||
-        (!isYearAdmin && _yearId == null) ||
+  void _showAttendancePopup(List<StudentAttendanceListItem> initialStudents) {
+    showDialog(
+      context: context,
+      useSafeArea: true,
+      builder: (context) {
+        return Dialog(
+          insetPadding: EdgeInsets.zero,
+          child: _AttendancePopupContent(
+            initialStudents: initialStudents,
+            onSave: (updatedStudents) {
+              _saveAttendance(updatedStudents);
+            },
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _saveAttendance(List<StudentAttendanceListItem> updatedStudents) async {
+    if ((!isYearAdmin && _yearId == null) ||
         _departmentId == null ||
         _academicYearId == null)
       return;
@@ -252,27 +285,24 @@ class _TeacherAttendanceTabState extends State<TeacherAttendanceTab> {
         isYearAdmin ? -1 : _yearId!,
         _departmentId!,
         _sectionId,
-        _students!,
+        updatedStudents,
       );
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Attendance Saved Successfully')),
       );
       // Automatically unlock the next period after saving
       _fetchNextAvailablePeriod();
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text('Error saving attendance: $e')));
     } finally {
-      setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
-  }
-
-  void _markAll(String status) {
-    if (_students == null) return;
-    setState(() {
-      _students = _students!.map((s) => s.copyWith(status: status)).toList();
-    });
   }
 
   @override
@@ -289,21 +319,29 @@ class _TeacherAttendanceTabState extends State<TeacherAttendanceTab> {
       ),
       body: _isLoadingLookups
           ? const Center(child: PragatiXLoader())
-          : Column(
+          : Stack(
               children: [
-                _buildFilters(),
-                const Divider(),
-                Expanded(child: _buildStudentList()),
+                Column(
+                  children: [
+                    _buildFilters(),
+                    const Divider(),
+                    const Expanded(
+                      child: Center(
+                        child: Text(
+                          'Select filters and click "Load Students" to mark attendance.',
+                          style: TextStyle(color: Colors.grey, fontSize: 16),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                if (_isLoading)
+                  Container(
+                    color: Colors.black12,
+                    child: const Center(child: PragatiXLoader()),
+                  ),
               ],
             ),
-      floatingActionButton: _students != null && _students!.isNotEmpty && !_isHoliday
-          ? FloatingActionButton.extended(
-              onPressed: _isLoading ? null : _saveAttendance,
-              label: const Text('Save Attendance'),
-              icon: const Icon(Icons.save),
-              backgroundColor: const Color(0xFF4F46E5),
-            )
-          : null,
     );
   }
 
@@ -503,96 +541,114 @@ class _TeacherAttendanceTabState extends State<TeacherAttendanceTab> {
       ),
     );
   }
+}
 
-  Widget _buildStudentList() {
-    if (_isLoading) {
-      return const Center(child: PragatiXLoader());
-    }
+class _AttendancePopupContent extends StatefulWidget {
+  final List<StudentAttendanceListItem> initialStudents;
+  final Function(List<StudentAttendanceListItem>) onSave;
 
-    if (_isHoliday) {
-      return const Center(
-        child: Padding(
-          padding: EdgeInsets.all(32.0),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.event_busy, color: Colors.red, size: 64),
-              SizedBox(height: 16),
-              Text(
-                'Attendance cannot be marked.\nToday is configured as a Holiday.',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: Colors.red,
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
+  const _AttendancePopupContent({
+    Key? key,
+    required this.initialStudents,
+    required this.onSave,
+  }) : super(key: key);
+
+  @override
+  State<_AttendancePopupContent> createState() => _AttendancePopupContentState();
+}
+
+class _AttendancePopupContentState extends State<_AttendancePopupContent> {
+  late List<StudentAttendanceListItem> _students;
+
+  @override
+  void initState() {
+    super.initState();
+    _students = List.from(widget.initialStudents);
+  }
+
+  void _markAll(String status) {
+    setState(() {
+      _students = _students.map((s) => s.copyWith(status: status)).toList();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Mark Attendance', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        backgroundColor: const Color(0xFF1E293B),
+        iconTheme: const IconThemeData(color: Colors.white),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.close),
+            onPressed: () => Navigator.pop(context),
+          ),
+        ],
+        automaticallyImplyLeading: false,
+      ),
+      body: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                TextButton(
+                  onPressed: () => _markAll('PRESENT'),
+                  child: const Text('Mark All Present'),
                 ),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
-
-    if (_students == null) {
-      return const Center(child: Text('Select filters and load students'));
-    }
-
-    if (_students!.isEmpty) {
-      return const Center(child: Text('No students found for this class.'));
-    }
-
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16.0),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.end,
-            children: [
-              TextButton(
-                onPressed: () => _markAll('PRESENT'),
-                child: const Text('Mark All Present'),
-              ),
-              TextButton(
-                onPressed: () => _markAll('ABSENT'),
-                child: const Text('Mark All Absent'),
-              ),
-            ],
-          ),
-        ),
-        Expanded(
-          child: ListView.builder(
-            padding: const EdgeInsets.only(bottom: 100.0),
-            itemCount: _students!.length,
-            itemBuilder: (context, index) {
-              final s = _students![index];
-              return Card(
-                margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                child: ListTile(
-                  title: Text(
-                    s.studentName,
-                    style: const TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                  subtitle: Text(s.registerNumber),
-                  trailing: SegmentedButton<String>(
-                    segments: const [
-                      ButtonSegment(value: 'PRESENT', label: Text('P')),
-                      ButtonSegment(value: 'ABSENT', label: Text('A')),
-                    ],
-                    selected: {s.status},
-                    onSelectionChanged: (Set<String> newSelection) {
-                      setState(() {
-                        _students![index] = s.copyWith(
-                          status: newSelection.first,
-                        );
-                      });
-                    },
-                  ),
+                TextButton(
+                  onPressed: () => _markAll('ABSENT'),
+                  child: const Text('Mark All Absent'),
                 ),
-              );
-            },
+              ],
+            ),
           ),
-        ),
-      ],
+          Expanded(
+            child: ListView.builder(
+              padding: const EdgeInsets.only(bottom: 100.0),
+              itemCount: _students.length,
+              itemBuilder: (context, index) {
+                final s = _students[index];
+                return Card(
+                  margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                  child: ListTile(
+                    title: Text(
+                      s.studentName,
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    subtitle: Text(s.registerNumber),
+                    trailing: SegmentedButton<String>(
+                      segments: const [
+                        ButtonSegment(value: 'PRESENT', label: Text('P')),
+                        ButtonSegment(value: 'ABSENT', label: Text('A')),
+                      ],
+                      selected: {s.status},
+                      onSelectionChanged: (Set<String> newSelection) {
+                        setState(() {
+                          _students[index] = s.copyWith(
+                            status: newSelection.first,
+                          );
+                        });
+                      },
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () {
+          Navigator.pop(context);
+          widget.onSave(_students);
+        },
+        label: const Text('Save Attendance'),
+        icon: const Icon(Icons.save),
+        backgroundColor: const Color(0xFF4F46E5),
+      ),
     );
   }
 }

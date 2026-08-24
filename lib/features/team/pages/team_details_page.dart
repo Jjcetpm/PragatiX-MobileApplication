@@ -340,11 +340,38 @@ class _TeamDetailsPageState extends State<TeamDetailsPage> {
   }
 
   void _showAddMemberDialog() async {
+    if (_team == null) return;
+
+    final members = _team!.members ?? [];
+    final bool captainInMembers = _team!.captainId != null &&
+        members.any((m) =>
+            m['regNo'] == _team!.captainId ||
+            (m['id'] != null && m['id'].toString() == _team!.captainId.toString()));
+    final int currentMemberCount =
+        members.length + (_team!.captainId != null && !captainInMembers ? 1 : 0);
+    final int maxTeamSize = _team!.size;
+    final int remainingSlots = (maxTeamSize - currentMemberCount).clamp(0, maxTeamSize);
+
+    if (remainingSlots <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Team is already full ($currentMemberCount/$maxTeamSize members including captain).',
+          ),
+          backgroundColor: Colors.orange.shade800,
+        ),
+      );
+      return;
+    }
+
     final regNos = await showDialog<List<String>>(
       context: context,
       builder: (ctx) => StudentSearchDialog(
         currentTeamId: widget.teamId,
         currentStage: _team?.currentStage ?? 1,
+        maxSelectable: remainingSlots,
+        totalTeamSize: maxTeamSize,
+        currentMemberCount: currentMemberCount,
       ),
     );
     if (regNos != null && regNos.isNotEmpty) {
@@ -551,6 +578,13 @@ class _TeamDetailsPageState extends State<TeamDetailsPage> {
 
     final members = _team!.members ?? [];
     final currentStage = _team!.currentStage;
+    final bool captainInMembers = _team!.captainId != null &&
+        members.any((m) =>
+            m['regNo'] == _team!.captainId ||
+            (m['id'] != null && m['id'].toString() == _team!.captainId.toString()));
+    final int currentMemberCount =
+        members.length + (_team!.captainId != null && !captainInMembers ? 1 : 0);
+    final bool isTeamFull = _team!.size > 0 && currentMemberCount >= _team!.size;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
@@ -570,7 +604,7 @@ class _TeamDetailsPageState extends State<TeamDetailsPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildHeaderCard(currentStage, members.length),
+            _buildHeaderCard(currentStage, currentMemberCount),
             if (widget.canManage) ...[
               const SizedBox(height: 24),
               const Text(
@@ -588,16 +622,27 @@ class _TeamDetailsPageState extends State<TeamDetailsPage> {
                     children: [
                       Expanded(
                         child: ElevatedButton.icon(
-                          onPressed: _showAddMemberDialog,
-                          icon: const Icon(Icons.person_add, size: 16),
-                          label: const Text(
-                            'Add Member',
+                          onPressed: isTeamFull
+                              ? () {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(
+                                        'Team is already full ($currentMemberCount/${_team!.size} members including captain).',
+                                      ),
+                                      backgroundColor: Colors.orange.shade800,
+                                    ),
+                                  );
+                                }
+                              : _showAddMemberDialog,
+                          icon: Icon(isTeamFull ? Icons.group : Icons.person_add, size: 16),
+                          label: Text(
+                            isTeamFull ? 'Team Full ($currentMemberCount/${_team!.size})' : 'Add Member',
                             textAlign: TextAlign.center,
-                            style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
                           ),
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.green.shade50,
-                            foregroundColor: Colors.green.shade700,
+                            backgroundColor: isTeamFull ? Colors.grey.shade100 : Colors.green.shade50,
+                            foregroundColor: isTeamFull ? Colors.grey.shade600 : Colors.green.shade700,
                             minimumSize: const Size(double.infinity, 48),
                             padding: const EdgeInsets.symmetric(horizontal: 4),
                             elevation: 0,

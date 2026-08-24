@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'package:pragatix/core/widgets/pragatix_loader.dart';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -7,6 +6,7 @@ import 'package:pragatix/features/auth/providers/auth_provider.dart';
 import 'package:pragatix/core/config/api_config.dart';
 import 'package:pragatix/features/team/services/team_proxy_service.dart';
 import 'package:pragatix/core/di/service_locator.dart';
+import 'package:pragatix/core/widgets/pragatix_loader.dart';
 
 class StudentSearchDTO {
   final int id;
@@ -52,12 +52,18 @@ class StudentSearchDTO {
 class StudentSearchDialog extends StatefulWidget {
   final int currentTeamId;
   final int currentStage;
+  final int? maxSelectable;
+  final int? totalTeamSize;
+  final int? currentMemberCount;
 
   const StudentSearchDialog({
-    Key? key,
+    super.key,
     required this.currentTeamId,
     required this.currentStage,
-  }) : super(key: key);
+    this.maxSelectable,
+    this.totalTeamSize,
+    this.currentMemberCount,
+  });
 
   @override
   State<StudentSearchDialog> createState() => _StudentSearchDialogState();
@@ -69,7 +75,12 @@ class _StudentSearchDialogState extends State<StudentSearchDialog> {
   List<StudentSearchDTO> _results = [];
   bool _isLoading = false;
   String _errorMsg = '';
-  List<StudentSearchDTO> _selectedStudents = [];
+  final List<StudentSearchDTO> _selectedStudents = [];
+
+  bool get _canSelectMore {
+    if (widget.maxSelectable == null) return true;
+    return _selectedStudents.length < widget.maxSelectable!;
+  }
 
   @override
   void dispose() {
@@ -133,6 +144,19 @@ class _StudentSearchDialogState extends State<StudentSearchDialog> {
     _performSearch('');
   }
 
+  void _showLimitReachedSnackBar() {
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          'Team size limit of ${widget.totalTeamSize ?? widget.maxSelectable} reached (including captain). Unselect a student first.',
+        ),
+        backgroundColor: Colors.orange.shade800,
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+
   void _toggleStudent(StudentSearchDTO student) {
     if (student.teamId == widget.currentTeamId) return; // Already in this team
 
@@ -144,28 +168,74 @@ class _StudentSearchDialogState extends State<StudentSearchDialog> {
       if (isAlreadySelected) {
         _selectedStudents.removeWhere((s) => s.id == student.id);
       } else {
+        if (!_canSelectMore) {
+          _showLimitReachedSnackBar();
+          return;
+        }
         _selectedStudents.add(student);
       }
     });
   }
 
   void _toggleSelectAll() {
+    FocusScope.of(context).unfocus();
     setState(() {
       final selectableResults = _results.where((s) => s.teamId != widget.currentTeamId).toList();
-      final allSelected = selectableResults.every((s) => _selectedStudents.any((selected) => selected.id == s.id));
-      
-      if (allSelected) {
-        // Deselect all from current results
-        _selectedStudents.removeWhere((selected) => selectableResults.any((s) => s.id == selected.id));
+      if (selectableResults.isEmpty) return;
+
+      final allCurrentlySelected = selectableResults.every((s) => _selectedStudents.any((selected) => selected.id == s.id));
+      final maxReached = widget.maxSelectable != null && _selectedStudents.length >= widget.maxSelectable!;
+
+      if (allCurrentlySelected || (_selectedStudents.isNotEmpty && maxReached)) {
+        // Deselect all
+        _selectedStudents.clear();
       } else {
-        // Select all selectable results that are not yet selected
+        final limit = widget.maxSelectable ?? selectableResults.length;
+        _selectedStudents.clear();
         for (var s in selectableResults) {
-          if (!_selectedStudents.any((selected) => selected.id == s.id)) {
+          if (_selectedStudents.length < limit) {
             _selectedStudents.add(s);
+          } else {
+            break;
           }
+        }
+        if (widget.maxSelectable != null && selectableResults.length > limit) {
+          ScaffoldMessenger.of(context).hideCurrentSnackBar();
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'Selected maximum of $limit member${limit == 1 ? '' : 's'} (team capacity reached).',
+              ),
+              backgroundColor: Colors.indigo,
+              duration: const Duration(seconds: 2),
+            ),
+          );
         }
       }
     });
+  }
+
+  bool? _getSelectAllValue() {
+    final selectableResults = _results.where((s) => s.teamId != widget.currentTeamId).toList();
+    if (selectableResults.isEmpty) return false;
+
+    if (widget.maxSelectable != null) {
+      if (_selectedStudents.length == widget.maxSelectable && widget.maxSelectable! > 0) {
+        return true;
+      } else if (_selectedStudents.isNotEmpty) {
+        return null;
+      } else {
+        return false;
+      }
+    } else {
+      if (selectableResults.every((s) => _selectedStudents.any((selected) => selected.id == s.id))) {
+        return true;
+      } else if (_selectedStudents.isNotEmpty) {
+        return null;
+      } else {
+        return false;
+      }
+    }
   }
 
   @override
@@ -194,7 +264,50 @@ class _StudentSearchDialogState extends State<StudentSearchDialog> {
                 ),
               ],
             ),
-            const SizedBox(height: 16),
+            if (widget.totalTeamSize != null && widget.maxSelectable != null) ...[
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: _selectedStudents.length >= widget.maxSelectable!
+                      ? Colors.amber.shade50
+                      : Colors.indigo.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: _selectedStudents.length >= widget.maxSelectable!
+                        ? Colors.amber.shade300
+                        : Colors.indigo.shade100,
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      _selectedStudents.length >= widget.maxSelectable!
+                          ? Icons.info_outline
+                          : Icons.group_outlined,
+                      size: 18,
+                      color: _selectedStudents.length >= widget.maxSelectable!
+                          ? Colors.amber.shade900
+                          : Colors.indigo,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Team Size: ${widget.totalTeamSize} (incl. Captain)  •  Available slots: ${widget.maxSelectable}',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: _selectedStudents.length >= widget.maxSelectable!
+                              ? Colors.amber.shade900
+                              : Colors.indigo.shade900,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+            const SizedBox(height: 12),
             TextField(
               controller: _searchController,
               onChanged: _onSearchChanged,
@@ -209,7 +322,7 @@ class _StudentSearchDialogState extends State<StudentSearchDialog> {
               ),
               autofocus: true,
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 12),
             if (!_isLoading && _results.isNotEmpty)
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -217,12 +330,17 @@ class _StudentSearchDialogState extends State<StudentSearchDialog> {
                   Row(
                     children: [
                       Checkbox(
-                        value: _results.where((s) => s.teamId != widget.currentTeamId).isNotEmpty && 
-                               _results.where((s) => s.teamId != widget.currentTeamId).every((s) => _selectedStudents.any((selected) => selected.id == s.id)),
+                        tristate: true,
+                        value: _getSelectAllValue(),
                         onChanged: (val) => _toggleSelectAll(),
                         activeColor: Colors.indigo,
                       ),
-                      const Text('Select All', style: TextStyle(fontWeight: FontWeight.bold)),
+                      Text(
+                        widget.maxSelectable != null && widget.maxSelectable! < _results.length
+                            ? 'Select Max (${widget.maxSelectable})'
+                            : 'Select All',
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
                     ],
                   ),
                   Text('${_results.length} eligible students', style: const TextStyle(color: Colors.grey)),
@@ -252,84 +370,115 @@ class _StudentSearchDialogState extends State<StudentSearchDialog> {
                       itemBuilder: (ctx, index) {
                         final s = _results[index];
                         final isSelected = _selectedStudents.any((selected) => selected.id == s.id);
-                        final isAlreadyInThisTeam =
-                            s.teamId == widget.currentTeamId;
+                        final isAlreadyInThisTeam = s.teamId == widget.currentTeamId;
+                        final isSelectionDisabled = !isSelected && !isAlreadyInThisTeam && !_canSelectMore;
 
-                        return Card(
-                          elevation: isSelected ? 4 : 1,
-                          margin: const EdgeInsets.only(bottom: 12),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            side: isSelected
-                                ? const BorderSide(
-                                    color: Colors.indigo,
-                                    width: 2,
-                                  )
-                                : BorderSide.none,
-                          ),
-                          child: ListTile(
+                        return Opacity(
+                          opacity: (isAlreadyInThisTeam || isSelectionDisabled) ? 0.55 : 1.0,
+                          child: Card(
+                            elevation: isSelected ? 4 : 1,
+                            margin: const EdgeInsets.only(bottom: 12),
+                            color: isSelectionDisabled ? Colors.grey.shade50 : Colors.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              side: isSelected
+                                  ? const BorderSide(
+                                      color: Colors.indigo,
+                                      width: 2,
+                                    )
+                                  : BorderSide(
+                                      color: isSelectionDisabled ? Colors.grey.shade300 : Colors.grey.shade200,
+                                      width: 1,
+                                    ),
+                            ),
+                            child: ListTile(
                               onTap: isAlreadyInThisTeam
                                   ? null
-                                  : () => _toggleStudent(s),
+                                  : (isSelectionDisabled
+                                      ? () => _showLimitReachedSnackBar()
+                                      : () => _toggleStudent(s)),
                               leading: Checkbox(
                                 value: isSelected,
-                                onChanged: isAlreadyInThisTeam 
+                                onChanged: (isAlreadyInThisTeam || isSelectionDisabled) 
                                     ? null 
                                     : (val) => _toggleStudent(s),
                                 activeColor: Colors.indigo,
                               ),
                               title: Text(
-                              s.fullName,
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
+                                s.fullName,
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: isSelectionDisabled ? Colors.grey.shade700 : Colors.black87,
+                                ),
                               ),
-                            ),
-                            subtitle: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const SizedBox(height: 4),
-                                Text(
-                                  'Reg: ${s.regNo}  •  SPR: ${s.sprNo ?? 'N/A'}',
-                                ),
-                                Text(
-                                  '${s.departmentName ?? ''} • Year ${s.year ?? ''} • Sec ${s.section ?? ''}',
-                                ),
-                                if (s.teamName != null)
+                              subtitle: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const SizedBox(height: 4),
                                   Text(
-                                    'Current Team: ${s.teamName}',
-                                    style: TextStyle(
-                                      color: isAlreadyInThisTeam
-                                          ? Colors.green
-                                          : Colors.orange,
-                                    ),
+                                    'Reg: ${s.regNo}  •  SPR: ${s.sprNo ?? 'N/A'}',
+                                    style: TextStyle(color: isSelectionDisabled ? Colors.grey.shade600 : null),
                                   ),
-                                Text('Current Stage: Stage ${s.currentStage}'),
-                              ],
-                            ),
-                            trailing: isAlreadyInThisTeam
-                                ? const Column(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      Icon(
-                                        Icons.check_circle,
-                                        color: Colors.green,
+                                  Text(
+                                    '${s.departmentName ?? ''} • Year ${s.year ?? ''} • Sec ${s.section ?? ''}',
+                                    style: TextStyle(color: isSelectionDisabled ? Colors.grey.shade600 : null),
+                                  ),
+                                  if (s.teamName != null)
+                                    Text(
+                                      'Current Team: ${s.teamName}',
+                                      style: TextStyle(
+                                        color: isAlreadyInThisTeam
+                                            ? Colors.green
+                                            : Colors.orange,
                                       ),
-                                      Text(
-                                        'Added',
-                                        style: TextStyle(
+                                    ),
+                                  Text(
+                                    'Current Stage: Stage ${s.currentStage}',
+                                    style: TextStyle(color: isSelectionDisabled ? Colors.grey.shade600 : null),
+                                  ),
+                                ],
+                              ),
+                              trailing: isAlreadyInThisTeam
+                                  ? const Column(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        Icon(
+                                          Icons.check_circle,
                                           color: Colors.green,
-                                          fontSize: 10,
                                         ),
-                                      ),
-                                    ],
-                                  )
-                                : isSelected
-                                ? const Icon(
-                                    Icons.check_circle,
-                                    color: Colors.indigo,
-                                    size: 32,
-                                  )
-                                : null,
+                                        Text(
+                                          'Added',
+                                          style: TextStyle(
+                                            color: Colors.green,
+                                            fontSize: 10,
+                                          ),
+                                        ),
+                                      ],
+                                    )
+                                  : isSelected
+                                  ? const Icon(
+                                      Icons.check_circle,
+                                      color: Colors.indigo,
+                                      size: 32,
+                                    )
+                                  : (isSelectionDisabled
+                                      ? Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                          decoration: BoxDecoration(
+                                            color: Colors.grey.shade200,
+                                            borderRadius: BorderRadius.circular(6),
+                                          ),
+                                          child: Text(
+                                            'Limit reached',
+                                            style: TextStyle(
+                                              fontSize: 10,
+                                              color: Colors.grey.shade700,
+                                              fontWeight: FontWeight.w500,
+                                            ),
+                                          ),
+                                        )
+                                      : null),
+                            ),
                           ),
                         );
                       },
@@ -341,8 +490,15 @@ class _StudentSearchDialogState extends State<StudentSearchDialog> {
               children: [
                 Expanded(
                   child: Text(
-                    '${_selectedStudents.length} Selected',
-                    style: const TextStyle(fontWeight: FontWeight.bold),
+                    widget.maxSelectable != null
+                        ? '${_selectedStudents.length} / ${widget.maxSelectable} Selected${_selectedStudents.length >= widget.maxSelectable! && widget.maxSelectable! > 0 ? ' (Limit Reached)' : ''}'
+                        : '${_selectedStudents.length} Selected',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: (widget.maxSelectable != null && _selectedStudents.length >= widget.maxSelectable! && widget.maxSelectable! > 0)
+                          ? Colors.indigo
+                          : Colors.black87,
+                    ),
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
@@ -352,7 +508,8 @@ class _StudentSearchDialogState extends State<StudentSearchDialog> {
                 ),
                 const SizedBox(width: 8),
                 ElevatedButton(
-                  onPressed: _selectedStudents.isEmpty
+                  onPressed: (_selectedStudents.isEmpty ||
+                          (widget.maxSelectable != null && _selectedStudents.length > widget.maxSelectable!))
                       ? null
                       : () {
                           Navigator.pop(

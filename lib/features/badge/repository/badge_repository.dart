@@ -7,7 +7,7 @@ class BadgeRepository {
   Future<Map<String, dynamic>> fetchMyBadges(String token) async {
     try {
       final response = await http.get(
-        Uri.parse('${ApiConfig.baseUrl}/api/v1/badges/student/me'),
+        Uri.parse('${ApiConfig.baseUrl}/api/v1/badges/student/me?_t=${DateTime.now().millisecondsSinceEpoch}'),
         headers: {'Authorization': 'Bearer $token'},
       );
       if (response.statusCode == 200) {
@@ -204,7 +204,7 @@ class BadgeRepository {
   Future<Map<String, dynamic>> getMyRequests(String token) async {
     try {
       final response = await http.get(
-        Uri.parse('${ApiConfig.baseUrl}/api/badge-requests/my'),
+        Uri.parse('${ApiConfig.baseUrl}/api/badge-requests/my?_t=\${DateTime.now().millisecondsSinceEpoch}'),
         headers: {'Authorization': 'Bearer $token'},
       );
       if (response.statusCode == 200) {
@@ -229,7 +229,7 @@ class BadgeRepository {
   Future<Map<String, dynamic>> getAdminRequests(String token) async {
     try {
       final response = await http.get(
-        Uri.parse('${ApiConfig.baseUrl}/api/admin/badge-requests'),
+        Uri.parse('${ApiConfig.baseUrl}/api/admin/badge-requests?_t=\${DateTime.now().millisecondsSinceEpoch}'),
         headers: {'Authorization': 'Bearer $token'},
       );
       if (response.statusCode == 200) {
@@ -254,7 +254,7 @@ class BadgeRepository {
   Future<Map<String, dynamic>> getCCRequests(String token) async {
     try {
       final response = await http.get(
-        Uri.parse('${ApiConfig.baseUrl}/api/cc/badge-requests'),
+        Uri.parse('${ApiConfig.baseUrl}/api/cc/badge-requests?_t=\${DateTime.now().millisecondsSinceEpoch}'),
         headers: {'Authorization': 'Bearer $token'},
       );
       if (response.statusCode == 200) {

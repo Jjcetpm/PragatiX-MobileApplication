@@ -265,7 +265,8 @@ class _TeamGroupManagementTabState extends State<TeamGroupManagementTab> {
 
     List<String> queryParams = [];
     if (selectedYear != null && selectedYear != 'All') {
-      queryParams.add('academicYear=$selectedYear');
+      final mappedYear = _mapYearToEnumName(selectedYear);
+      queryParams.add('academicYear=${mappedYear ?? selectedYear}');
     }
     if (selectedDeptId != null) {
       queryParams.add('departmentId=$selectedDeptId');
@@ -574,10 +575,14 @@ class _TeamGroupManagementTabState extends State<TeamGroupManagementTab> {
                         builder: (context) {
                           final displayGroups = _groups.where((g) {
                             if (selectedStage != null) {
+                              final stageMatches = _stages.where((s) => s['id'] == selectedStage).toList();
+                              final targetOrder = stageMatches.isNotEmpty
+                                  ? (stageMatches.first['displayOrder'] ?? stageMatches.first['id'])
+                                  : selectedStage;
                               final currentStage = (g['teamMembers'] as List?)?.isNotEmpty == true
                                   ? (g['teamMembers'][0]['currentStage'] ?? 1)
                                   : 1;
-                              return currentStage == selectedStage;
+                              return currentStage == targetOrder;
                             }
                             return true;
                           }).toList();

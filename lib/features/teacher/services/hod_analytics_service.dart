@@ -9,7 +9,9 @@ class HodAnalyticsService {
   }) async {
     String url = '${ApiConfig.baseUrl}/api/v1/hod/analytics/dashboard';
     if (year != null && year.isNotEmpty && year != 'All Years') {
-      url += '?year=${Uri.encodeComponent(year)}';
+      url += '?year=${Uri.encodeComponent(year)}&_t=${DateTime.now().millisecondsSinceEpoch}';
+    } else {
+      url += '?_t=${DateTime.now().millisecondsSinceEpoch}';
     }
 
     final response = await http.get(

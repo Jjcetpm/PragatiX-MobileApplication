@@ -346,7 +346,7 @@ class _StudentsTabState extends State<StudentsTab> {
 
   Future<void> _addSingleStudent({
     required int? departmentId,
-    required int? academicYearId,
+    required String? academicYear,
     required int? yearId,
     required int? semesterId,
     required int? genderId,
@@ -390,7 +390,7 @@ class _StudentsTabState extends State<StudentsTab> {
           'dob': formattedDob,
           'address': address,
           'departmentId': departmentId,
-          'academicYearId': academicYearId,
+          'academicYear': academicYear,
           'yearId': yearId,
           'semesterId': semesterId,
           'genderId': genderId,

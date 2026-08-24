@@ -241,7 +241,7 @@ extension StudentsTabDialogs on _StudentsTabState {
     int? selectedDeptId;
     int? selectedYearId;
     int? selectedSectionId;
-    int? selectedAcademicYearId;
+    final TextEditingController academicYearController = TextEditingController();
     int? selectedSemesterId;
     int? selectedGenderId;
     int? selectedGroupId;
@@ -276,12 +276,8 @@ extension StudentsTabDialogs on _StudentsTabState {
                 if (yMatch != null) selectedYearId = yMatch['id'];
               }
 
-              if (selectedAcademicYearId == null && ccAcademicYear != null) {
-                final ayMatch = academicYears.firstWhere(
-                  (ay) => ay['academicYear'] == ccAcademicYear,
-                  orElse: () => null,
-                );
-                if (ayMatch != null) selectedAcademicYearId = ayMatch['id'];
+              if (academicYearController.text.isEmpty && ccAcademicYear != null) {
+                academicYearController.text = ccAcademicYear!;
               }
             } else {
               if (selectedDeptId == null && departments.isNotEmpty) {
@@ -289,9 +285,6 @@ extension StudentsTabDialogs on _StudentsTabState {
               }
             }
 
-            if (selectedAcademicYearId == null && academicYears.isNotEmpty) {
-              selectedAcademicYearId = academicYears.first['id'];
-            }
             if (selectedSemesterId == null && semesters.isNotEmpty) {
               selectedSemesterId = semesters.first['id'];
             }
@@ -605,22 +598,11 @@ extension StudentsTabDialogs on _StudentsTabState {
                       ),
                     ],
 
-                    DropdownButtonFormField<int>(
-                      initialValue: selectedAcademicYearId,
+                    TextField(
+                      controller: academicYearController,
                       decoration: const InputDecoration(
-                        labelText: 'Academic Year *',
+                        labelText: 'Academic Year * (e.g. 2024-2025)',
                       ),
-                      items: academicYears.map((ay) {
-                        return DropdownMenuItem<int>(
-                          value: ay['id'],
-                          child: Text(ay['academicYear'] ?? ''),
-                        );
-                      }).toList(),
-                      onChanged: (value) {
-                        setDialogState(() {
-                          selectedAcademicYearId = value;
-                        });
-                      },
                     ),
                     DropdownButtonFormField<int>(
                       initialValue: selectedSemesterId,
@@ -723,10 +705,6 @@ extension StudentsTabDialogs on _StudentsTabState {
                                   value: 'Guardian',
                                   child: Text('Guardian'),
                                 ),
-                                DropdownMenuItem(
-                                  value: 'Parent',
-                                  child: Text('Parent'),
-                                ),
                               ],
                               onChanged: (value) {
                                 setDialogState(() {
@@ -768,7 +746,7 @@ extension StudentsTabDialogs on _StudentsTabState {
                   onPressed: () {
                     _addSingleStudent(
                       departmentId: selectedDeptId,
-                      academicYearId: selectedAcademicYearId,
+                      academicYear: academicYearController.text.trim(),
                       yearId: selectedYearId,
                       semesterId: selectedSemesterId,
                       genderId: selectedGenderId,

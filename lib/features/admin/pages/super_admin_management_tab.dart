@@ -258,28 +258,13 @@ class _SuperAdminManagementTabState extends State<SuperAdminManagementTab> {
                                       : null;
 
                               if (existingAdmin != null) {
-                                final confirm = await showDialog<bool>(
-                                  context: context,
-                                  builder: (ctx) => AlertDialog(
-                                    title: const Text('Replace Assignment?'),
-                                    content: Text(
-                                      '${existingAdmin['username']} is already assigned to this year. Do you want to replace them?',
-                                    ),
-                                    actions: [
-                                      TextButton(
-                                        onPressed: () =>
-                                            Navigator.pop(ctx, false),
-                                        child: const Text('Cancel'),
-                                      ),
-                                      ElevatedButton(
-                                        onPressed: () =>
-                                            Navigator.pop(ctx, true),
-                                        child: const Text('Replace'),
-                                      ),
-                                    ],
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('This year is already assigned.'),
+                                    backgroundColor: Colors.red,
                                   ),
                                 );
-                                if (confirm != true) return;
+                                return;
                               }
                             }
 

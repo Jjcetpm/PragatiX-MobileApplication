@@ -10,6 +10,7 @@ import 'package:pragatix/shared/widgets/profile_header.dart';
 import 'package:pragatix/shared/widgets/shared_profile_card.dart';
 import 'package:pragatix/features/auth/pages/login_page.dart';
 import 'package:pragatix/features/auth/providers/auth_provider.dart';
+import 'package:pragatix/features/attendance/providers/attendance_provider.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -269,6 +270,14 @@ class _ProfilePageState extends State<ProfilePage> {
     if (stats.isCaptain) leadershipRole = 'Captain';
     else if (stats.isViceCaptain) leadershipRole = 'Vice Captain';
 
+    String attendanceDisplay = '${stats.attendancePercentage}%';
+    try {
+      final attendanceProv = context.read<AttendanceProvider>();
+      if (attendanceProv.summary != null) {
+        attendanceDisplay = '${attendanceProv.summary!.attendancePercentage}%';
+      }
+    } catch (_) {}
+
     return SharedProfileCard(
       children: [
         const Text('Academic Details', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
@@ -285,7 +294,7 @@ class _ProfilePageState extends State<ProfilePage> {
         const Divider(),
         SharedProfileRow(label: 'Current XP', value: stats.currentXp.toString()),
         const SizedBox(height: 8),
-        SharedProfileRow(label: 'Attendance', value: '${stats.attendancePercentage}%'),
+        SharedProfileRow(label: 'Attendance', value: attendanceDisplay),
         const SizedBox(height: 8),
         SharedProfileRow(label: 'Rank', value: stats.rank.toString()),
       ],
