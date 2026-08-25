@@ -367,10 +367,16 @@ class _SharedLeaderboardPageState extends State<SharedLeaderboardPage> {
 
     menuItems.addAll(
       items.map((item) {
+        final displayText = (item['deptCode'] ??
+                item['dept_code'] ??
+                item['code'] ??
+                item['name'] ??
+                '')
+            .toString();
         return DropdownMenuItem<String>(
           value: item['id'].toString(),
           child: Text(
-            item['name'].toString(),
+            displayText.isNotEmpty ? displayText : (item['name']?.toString() ?? ''),
             style: const TextStyle(color: Colors.white),
             overflow: TextOverflow.ellipsis,
           ),

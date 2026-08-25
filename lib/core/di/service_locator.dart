@@ -38,6 +38,8 @@ import 'package:pragatix/features/captain/repository/captain_repository.dart';
 import 'package:pragatix/features/student/repository/student_repository.dart';
 import 'package:pragatix/features/teacher/repository/teacher_repository.dart';
 
+import 'package:pragatix/features/enrollment/repository/enrollment_repository.dart';
+
 final getIt = GetIt.instance;
 
 void setupLocator() {
@@ -88,4 +90,5 @@ void setupLocator() {
   getIt.registerLazySingleton(() => CaptainRepository(getIt<CaptainService>()));
   getIt.registerLazySingleton(() => StudentRepository(getIt<StudentService>()));
   getIt.registerLazySingleton(() => TeacherRepository(getIt<TeacherService>()));
+  getIt.registerLazySingleton(() => EnrollmentRepository(getIt<AdminService>()));
 }

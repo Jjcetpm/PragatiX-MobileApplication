@@ -15,6 +15,9 @@ import 'package:pragatix/core/services/loading_service.dart';
 import 'package:flutter/gestures.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import 'package:pragatix/features/enrollment/repository/enrollment_repository.dart';
+import 'package:pragatix/features/enrollment/widgets/student_enrollment_dialog.dart';
+
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
 
@@ -30,6 +33,7 @@ class _LoginPageState extends State<LoginPage> {
   bool _isLoading = false;
   bool _isOtpStep = false;
   bool _agreedToTerms = false;
+  bool _enrollmentEnabled = false;
   
   Timer? _timer;
   int _secondsRemaining = 0;
@@ -40,6 +44,18 @@ class _LoginPageState extends State<LoginPage> {
   void initState() {
     super.initState();
     _policyTapRecognizer = TapGestureRecognizer()..onTap = _showPolicyDialog;
+    _checkEnrollmentStatus();
+  }
+
+  Future<void> _checkEnrollmentStatus() async {
+    try {
+      final enabled = await getIt<EnrollmentRepository>().getPublicStatus();
+      if (mounted) {
+        setState(() {
+          _enrollmentEnabled = enabled;
+        });
+      }
+    } catch (_) {}
   }
 
   void _startTimer() {
@@ -644,6 +660,49 @@ class _LoginPageState extends State<LoginPage> {
                                           ),
                                   ),
                                 ),
+                                if (_enrollmentEnabled) ...[
+                                  const SizedBox(height: 16),
+                                  Row(
+                                    children: [
+                                      Expanded(child: Divider(color: Colors.grey.shade300)),
+                                      Padding(
+                                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                                        child: Text(
+                                          'OR',
+                                          style: TextStyle(
+                                            color: Colors.grey.shade500,
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      ),
+                                      Expanded(child: Divider(color: Colors.grey.shade300)),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 16),
+                                  SizedBox(
+                                    width: double.infinity,
+                                    height: 52,
+                                    child: OutlinedButton.icon(
+                                      onPressed: () => StudentEnrollmentDialog.show(context),
+                                      icon: const Icon(Icons.how_to_reg_rounded, color: primaryColor),
+                                      label: const Text(
+                                        'Enroll Now',
+                                        style: TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.bold,
+                                          color: primaryColor,
+                                        ),
+                                      ),
+                                      style: OutlinedButton.styleFrom(
+                                        side: const BorderSide(color: primaryColor, width: 1.5),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(16),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
                               ] else ...[
                                 Pinput(
                                   controller: _otpController,

@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:pragatix/core/widgets/pragatix_loader.dart';
-import 'package:intl/intl.dart';
 import 'package:pragatix/features/admin/repository/admin_repository.dart';
 import 'package:pragatix/features/admin/pages/students_tab.dart';
 import 'package:pragatix/features/admin/pages/teachers_tab.dart';
 import 'package:pragatix/features/admin/pages/departments_tab.dart';
+import 'package:pragatix/features/enrollment/pages/enrollment_admin_page.dart';
 import 'package:pragatix/core/di/service_locator.dart';
 import 'package:provider/provider.dart';
 import 'package:pragatix/features/auth/providers/auth_provider.dart';
@@ -204,6 +204,18 @@ class _OverviewTabState extends State<OverviewTab> {
                               color: const Color(0xFFFBBC05),
                               onTap: () => Navigator.push(context,
                                   MaterialPageRoute(builder: (_) => const DepartmentsTab())),
+                            ),
+                            _buildStatCard(
+                              title: 'Enrollment',
+                              count: 'Manage',
+                              icon: Icons.how_to_reg_rounded,
+                              color: const Color(0xFF673AB7),
+                              onTap: () => Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => const EnrollmentAdminPage(),
+                                ),
+                              ),
                             ),
                             _buildStatCard(
                               title: 'Leaderboard',

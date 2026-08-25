@@ -406,9 +406,10 @@ class _TeacherAttendanceTabState extends State<TeacherAttendanceTab> {
                         return DropdownMenuItem<int>(
                           value: d['id'] as int,
                           child: Text(
-                            d['name']?.toString() ??
-                                d['deptName']?.toString() ??
+                            d['deptCode']?.toString() ??
                                 d['code']?.toString() ??
+                                d['deptName']?.toString() ??
+                                d['name']?.toString() ??
                                 'Unknown',
                             overflow: TextOverflow.ellipsis,
                           ),

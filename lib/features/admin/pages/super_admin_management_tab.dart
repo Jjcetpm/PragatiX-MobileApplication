@@ -3,6 +3,7 @@ import 'package:pragatix/core/widgets/pragatix_loader.dart';
 import 'package:pragatix/features/admin/repository/admin_repository.dart';
 import 'package:pragatix/core/di/service_locator.dart';
 import 'package:pragatix/core/utils/string_utils.dart';
+import 'package:pragatix/features/enrollment/pages/enrollment_admin_page.dart';
 
 class SuperAdminManagementTab extends StatefulWidget {
   const SuperAdminManagementTab({super.key});
@@ -271,9 +272,9 @@ class _SuperAdminManagementTabState extends State<SuperAdminManagementTab> {
                             Navigator.pop(context);
 
                             try {
-                              if (isEditing) {
+                              if (isEditing && admin != null) {
                                 await _repository.updateYearAdmin(
-                                  admin!['id'],
+                                  admin['id'],
                                   data,
                                 );
                               } else {
@@ -327,6 +328,16 @@ class _SuperAdminManagementTabState extends State<SuperAdminManagementTab> {
         backgroundColor: const Color(0xFF1E293B),
         elevation: 0,
         actions: [
+          IconButton(
+            icon: const Icon(Icons.how_to_reg_rounded, color: Colors.white),
+            tooltip: 'Student Enrollment',
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => const EnrollmentAdminPage(),
+              ),
+            ),
+          ),
           IconButton(
             icon: const Icon(Icons.refresh, color: Colors.white),
             onPressed: _fetchYearAdmins,

@@ -499,7 +499,12 @@ class _TeamGroupManagementTabState extends State<TeamGroupManagementTab> {
                             _buildDropdown<int>(
                               'Dept',
                               _departments,
-                              (d) => d['name'] ?? d['deptName'],
+                              (d) =>
+                                  d['deptCode'] ??
+                                  d['dept_code'] ??
+                                  d['code'] ??
+                                  d['name'] ??
+                                  d['deptName'],
                               selectedDeptId,
                               (val) async {
                                 setState(() {
