@@ -90,16 +90,69 @@ class _RecycleBinScreenState extends State<RecycleBinScreen> {
     }
   }
 
+  Future<void> _clearRecycleBin() async {
+    if (_items.isEmpty) return;
+
+    final bool? confirm = await showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.warning_amber_rounded, color: Colors.red),
+            SizedBox(width: 8),
+            Text('Empty Recycle Bin?'),
+          ],
+        ),
+        content: Text(
+          'Are you sure you want to permanently delete all ${_items.length} items in the Recycle Bin?\n\nThis action cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Empty Recycle Bin'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      setState(() => _isLoading = true);
+      try {
+        await _service.clearAllItems();
+        _showSnackBar('Recycle Bin emptied successfully!');
+        _fetchItems();
+      } catch (e) {
+        _showSnackBar('Failed to empty recycle bin: $e', isError: true);
+        _fetchItems();
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Recycle Bin'),
         actions: [
+          if (_items.isNotEmpty)
+            IconButton(
+              icon: const Icon(Icons.delete_sweep_rounded, color: Colors.redAccent),
+              tooltip: 'Empty Recycle Bin',
+              onPressed: _clearRecycleBin,
+            ),
           IconButton(
             icon: const Icon(Icons.refresh),
+            tooltip: 'Refresh',
             onPressed: _fetchItems,
-          )
+          ),
         ],
       ),
       body: _isLoading

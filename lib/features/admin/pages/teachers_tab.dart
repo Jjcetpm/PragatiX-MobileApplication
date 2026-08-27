@@ -17,7 +17,14 @@ import 'package:pragatix/core/utils/string_utils.dart';
 
 Future<List<dynamic>> _apiGetDepartments(String token) async {
   try {
-    return await getIt<AdminRepository>().getDepartments(all: true);
+    final list = await getIt<AdminRepository>().getDepartments(type: 'MAIN');
+    return list.where((d) {
+      final type = (d['departmentType'] ?? d['type'] ?? '').toString().toUpperCase();
+      final name = (d['name'] ?? d['deptName'] ?? '').toString();
+      if (type == 'SUB') return false;
+      if (name.toLowerCase().startsWith('department of')) return false;
+      return true;
+    }).toList();
   } catch (e) {
     return [];
   }
@@ -113,15 +120,22 @@ class _TeachersTabState extends State<TeachersTab> {
   }
 
   Future<void> _loadMetadata() async {
-    final depts = await getIt<AdminRepository>().getDepartments(all: true);
+    final depts = await getIt<AdminRepository>().getDepartments(type: 'MAIN');
     if (!mounted) return;
+    final mainDepts = depts.where((d) {
+      final type = (d['departmentType'] ?? d['type'] ?? '').toString().toUpperCase();
+      final name = (d['name'] ?? d['deptName'] ?? '').toString();
+      if (type == 'SUB') return false;
+      if (name.toLowerCase().startsWith('department of')) return false;
+      return true;
+    }).toList();
     final roles = await getIt<AdminRepository>().getRoles();
     if (!mounted) return;
     final subjects = await getIt<AdminRepository>().getSubjects();
     if (!mounted) return;
     final secs = await getIt<AdminRepository>().getSections();
     setState(() {
-      departments = depts;
+      departments = mainDepts;
       departments.sort((a, b) {
         String nameA = (a['name'] ?? a['deptName'] ?? a['code'] ?? '').toString().toLowerCase();
         String nameB = (b['name'] ?? b['deptName'] ?? b['code'] ?? '').toString().toLowerCase();
@@ -185,7 +199,7 @@ class _TeachersTabState extends State<TeachersTab> {
     try {
       await getIt<AdminRepository>().addUser({
         'password': StringUtils.generateSecurePassword(),
-        'fullName': nameController.text.trim(),
+        'fullName': nameController.text.trim().toUpperCase(),
         'email': emailController.text.trim(),
         'departmentId': selectedDeptId,
         'roles': [selectedMainRole],
@@ -230,7 +244,7 @@ class _TeachersTabState extends State<TeachersTab> {
     }
     try {
       await getIt<AdminRepository>().updateUser(id, {
-        'fullName': nameController.text.trim(),
+        'fullName': nameController.text.trim().toUpperCase(),
         'email': emailController.text.trim(),
         'departmentId': selectedDeptId,
         'roles': [selectedMainRole],
@@ -718,101 +732,367 @@ class _TeachersTabState extends State<TeachersTab> {
   }
 
   Future<void> _uploadBulkExcel() async {
-    final messenger = ScaffoldMessenger.of(context);
-    
     try {
-      final result = await FilePicker.platform.pickFiles(
+      FilePickerResult? result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
         allowedExtensions: ['xlsx', 'xls'],
       );
 
       if (result == null || result.files.single.path == null) return;
-      final filePath = result.files.single.path!;
+      File file = File(result.files.single.path!);
 
-      if (!mounted) return;
-      setState(() => isLoading = true);
+      final parseResult = await showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (ctx) => _TeacherBulkProgressDialog(
+          title: 'Uploading & Validating File',
+          action: (updateProgress) async {
+            updateProgress(0.15, 'Reading Excel file...');
+            await Future.delayed(const Duration(milliseconds: 150));
+            updateProgress(0.40, 'Sending file to server for parsing...');
 
-      final request = http.MultipartRequest(
-        'POST',
-        Uri.parse('${ApiConfig.baseUrl}/api/v1/admin/users/bulk-upload'),
-      );
-      request.headers['Authorization'] = 'Bearer ${context.read<AuthProvider>().token!}';
-      request.files.add(await http.MultipartFile.fromPath('file', filePath));
-
-      final response = await request.send();
-      final responseBody = await response.stream.bytesToString();
-      
-      setState(() => isLoading = false);
-
-      if (response.statusCode == 200 || response.statusCode == 400) {
-        final data = jsonDecode(responseBody);
-        
-        List<dynamic> results = data['data'] ?? [];
-        String message = data['message'] ?? (response.statusCode == 200 ? 'Upload processed' : 'Upload failed');
-        
-        showDialog(
-          context: context,
-          builder: (context) {
-            return AlertDialog(
-              title: Text(response.statusCode == 200 ? 'Upload Results' : 'Upload Failed'),
-              content: SizedBox(
-                width: double.maxFinite,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(message),
-                    const SizedBox(height: 16),
-                    if (results.isNotEmpty)
-                      Flexible(
-                        child: ListView.builder(
-                          shrinkWrap: true,
-                          itemCount: results.length,
-                          itemBuilder: (context, index) {
-                            String r = results[index].toString();
-                            bool isError = !r.toLowerCase().contains("successfully");
-                            return ListTile(
-                              dense: true,
-                              leading: Icon(
-                                isError ? Icons.error : Icons.check_circle,
-                                color: isError ? Colors.red : Colors.green,
-                              ),
-                              title: Text(r, style: TextStyle(fontSize: 12)),
-                            );
-                          },
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () {
-                    Navigator.pop(context);
-                    _fetchTeachers(); // Refresh list
-                  },
-                  child: const Text('OK'),
-                ),
-              ],
+            var request = http.MultipartRequest(
+              'POST',
+              Uri.parse('${ApiConfig.baseUrl}/api/v1/admin/users/bulk-parse'),
             );
+            request.headers.addAll({
+              'Authorization': 'Bearer ${context.read<AuthProvider>().token!}',
+            });
+            request.files.add(await http.MultipartFile.fromPath('file', file.path));
+
+            updateProgress(0.70, 'Validating teachers and sub-roles...');
+            var response = await request.send();
+            var responseBody = await response.stream.bytesToString();
+            var parsedResponse = jsonDecode(responseBody);
+
+            updateProgress(0.95, 'Preparing preview...');
+            return parsedResponse;
           },
-        );
-      } else {
-        messenger.showSnackBar(
-          SnackBar(
-            content: Text('Server error: ${response.statusCode}'),
-            backgroundColor: Colors.redAccent,
-          ),
-        );
+        ),
+      );
+
+      if (parseResult is Exception) {
+        throw parseResult;
+      }
+
+      if (parseResult is Map<String, dynamic> && parseResult['success'] == true) {
+        List<dynamic> parsedData = parseResult['data'] ?? [];
+        String errorMsg = parseResult['error'] ?? '';
+
+        if (parsedData.isEmpty && errorMsg.isEmpty) {
+          throw Exception('No valid teacher data found in the Excel file');
+        }
+
+        if (!mounted) return;
+        _showPreviewDialog(parsedData, errorMsg);
+      } else if (parseResult is Map<String, dynamic>) {
+        throw Exception(parseResult['message'] ?? 'Failed to parse Excel file');
       }
     } catch (e) {
       if (mounted) {
-        setState(() => isLoading = false);
-        messenger.showSnackBar(
-          SnackBar(
-            content: Text('Error uploading file: $e'),
-            backgroundColor: Colors.redAccent,
+        ErrorHandler.showSnackBar(context, e);
+      }
+    }
+  }
+
+  void _showPreviewDialog(List<dynamic> parsedData, String errorMsg) {
+    List<String> rawErrors = errorMsg.isNotEmpty ? errorMsg.split(';') : [];
+    List<String> errors = rawErrors
+        .map((e) => e.trim())
+        .where((e) => e.isNotEmpty)
+        .toList();
+
+    int validCount = parsedData.length;
+    int skippedCount = errors.length;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) {
+        final theme = Theme.of(context);
+        final isDark = theme.brightness == Brightness.dark;
+
+        return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          titlePadding: const EdgeInsets.fromLTRB(20, 20, 20, 10),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+          actionsPadding: const EdgeInsets.fromLTRB(20, 10, 20, 16),
+          title: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFEA4335).withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(Icons.analytics_outlined, color: Color(0xFFEA4335), size: 22),
+              ),
+              const SizedBox(width: 12),
+              const Text(
+                'Upload Summary',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+              ),
+            ],
           ),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Summary Metric Cards Row
+                Row(
+                  children: [
+                    // Total Valid / Imported
+                    Expanded(
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
+                        decoration: BoxDecoration(
+                          color: isDark ? Colors.green.shade900.withValues(alpha: 0.25) : Colors.green.shade50,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.green.withValues(alpha: 0.3)),
+                        ),
+                        child: Column(
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                const Icon(Icons.check_circle_rounded, color: Colors.green, size: 18),
+                                const SizedBox(width: 6),
+                                Text(
+                                  '$validCount',
+                                  style: const TextStyle(
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.green,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'Valid to Import',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: isDark ? Colors.green.shade200 : Colors.green.shade800,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    // Skipped Count
+                    Expanded(
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
+                        decoration: BoxDecoration(
+                          color: skippedCount > 0
+                              ? (isDark ? Colors.red.shade900.withValues(alpha: 0.25) : Colors.red.shade50)
+                              : (isDark ? const Color(0xFF334155) : const Color(0xFFF1F5F9)),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: skippedCount > 0
+                                ? Colors.red.withValues(alpha: 0.3)
+                                : (isDark ? const Color(0xFF475569) : Colors.grey.shade300),
+                          ),
+                        ),
+                        child: Column(
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  skippedCount > 0 ? Icons.warning_amber_rounded : Icons.remove_circle_outline,
+                                  color: skippedCount > 0 ? Colors.red : Colors.grey,
+                                  size: 18,
+                                ),
+                                const SizedBox(width: 6),
+                                Text(
+                                  '$skippedCount',
+                                  style: TextStyle(
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.bold,
+                                    color: skippedCount > 0 ? Colors.red : Colors.grey,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'Skipped Records',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: skippedCount > 0
+                                    ? (isDark ? Colors.red.shade200 : Colors.red.shade800)
+                                    : Colors.grey,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+
+                // Skipped Details Section
+                if (skippedCount > 0) ...[
+                  Row(
+                    children: [
+                      const Icon(Icons.error_outline_rounded, size: 16, color: Colors.redAccent),
+                      const SizedBox(width: 6),
+                      Text(
+                        'Skipped Details ($skippedCount):',
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Container(
+                    constraints: const BoxConstraints(maxHeight: 220),
+                    decoration: BoxDecoration(
+                      color: isDark ? const Color(0xFF1E293B) : Colors.grey.shade100,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: isDark ? const Color(0xFF334155) : Colors.grey.shade300),
+                    ),
+                    child: ListView.separated(
+                      shrinkWrap: true,
+                      padding: const EdgeInsets.all(8),
+                      itemCount: errors.length,
+                      separatorBuilder: (_, __) => const Divider(height: 8),
+                      itemBuilder: (context, index) {
+                        return Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Padding(
+                              padding: EdgeInsets.only(top: 2),
+                              child: Icon(Icons.close_rounded, size: 16, color: Colors.redAccent),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                errors[index],
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: isDark ? Colors.white70 : Colors.black87,
+                                  height: 1.3,
+                                ),
+                              ),
+                            ),
+                          ],
+                        );
+                      },
+                    ),
+                  ),
+                ] else ...[
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: isDark ? Colors.green.shade900.withValues(alpha: 0.2) : Colors.green.shade50,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: Colors.green.withValues(alpha: 0.3)),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.check_circle_outline_rounded, color: Colors.green, size: 20),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            'All $validCount records are valid and ready to be imported.',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                              color: isDark ? Colors.green.shade200 : Colors.green.shade800,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            if (validCount > 0)
+              ElevatedButton.icon(
+                onPressed: () async {
+                  Navigator.pop(context);
+                  await _confirmBulkUpload(parsedData);
+                },
+                icon: const Icon(Icons.cloud_upload_rounded, size: 18, color: Colors.white),
+                label: Text('Import $validCount Teachers', style: const TextStyle(color: Colors.white)),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFEA4335),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                ),
+              ),
+          ],
         );
+      },
+    );
+  }
+
+  Future<void> _confirmBulkUpload(List<dynamic> parsedData) async {
+    try {
+      final importResult = await showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (ctx) => _TeacherBulkProgressDialog(
+          title: 'Importing Teachers',
+          action: (updateProgress) async {
+            updateProgress(0.15, 'Submitting ${parsedData.length} teachers...');
+            await Future.delayed(const Duration(milliseconds: 150));
+            updateProgress(0.45, 'Creating teacher accounts & assigning roles...');
+
+            final response = await http.post(
+              Uri.parse('${ApiConfig.baseUrl}/api/v1/admin/users/bulk-import'),
+              headers: {
+                'Authorization': 'Bearer ${context.read<AuthProvider>().token!}',
+                'Content-Type': 'application/json',
+              },
+              body: jsonEncode(parsedData),
+            );
+
+            updateProgress(0.85, 'Finalizing import...');
+            var parsedResponse = jsonDecode(response.body);
+            return parsedResponse;
+          },
+        ),
+      );
+
+      if (importResult is Exception) {
+        throw importResult;
+      }
+
+      if (importResult is Map<String, dynamic> && importResult['success'] == true) {
+        String finalMsg = importResult['message'] ?? 'Teachers imported successfully';
+        String errorMsg = importResult['error'] ?? '';
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('$finalMsg ${errorMsg.isNotEmpty ? 'with some errors.' : ''}'),
+              backgroundColor: errorMsg.isNotEmpty ? Colors.orange : Colors.green,
+            ),
+          );
+          _fetchTeachers();
+        }
+      } else if (importResult is Map<String, dynamic>) {
+        throw Exception(importResult['message'] ?? 'Failed to import teachers');
+      }
+    } catch (e) {
+      if (mounted) {
+        ErrorHandler.showSnackBar(context, e);
       }
     }
   }
@@ -849,6 +1129,10 @@ class _TeachersTabState extends State<TeachersTab> {
 
                       TextField(
                         controller: nameController,
+                        textCapitalization: TextCapitalization.characters,
+                        inputFormatters: [
+                          UpperCaseTextFormatter(),
+                        ],
                         decoration: const InputDecoration(
                           labelText: 'Full Name *',
                         ),
@@ -907,8 +1191,8 @@ class _TeachersTabState extends State<TeachersTab> {
                         ),
                       ),
                       const SizedBox(height: 8),
-                      ...['None', 'HOD', 'CC'].map((subRole) {
-                        String? groupValue = 'None';
+                      ...['Other', 'HOD', 'CC'].map((subRole) {
+                        String? groupValue = 'Other';
                         if (selectedSubRoles.contains('HOD')) groupValue = 'HOD';
                         else if (selectedSubRoles.contains('CC')) groupValue = 'CC';
 
@@ -922,7 +1206,7 @@ class _TeachersTabState extends State<TeachersTab> {
                             setDialogState(() {
                               selectedSubRoles.remove('HOD');
                               selectedSubRoles.remove('CC');
-                              if (value != 'None' && value != null) {
+                              if (value != 'Other' && value != null) {
                                 selectedSubRoles.add(value);
                               }
                               if (value != 'CC') {
@@ -1152,6 +1436,10 @@ class _TeachersTabState extends State<TeachersTab> {
                     children: [
                       TextField(
                         controller: nameController,
+                        textCapitalization: TextCapitalization.characters,
+                        inputFormatters: [
+                          UpperCaseTextFormatter(),
+                        ],
                         decoration: const InputDecoration(
                           labelText: 'Full Name *',
                         ),
@@ -1211,8 +1499,8 @@ class _TeachersTabState extends State<TeachersTab> {
                         ),
                       ),
                       const SizedBox(height: 8),
-                      ...['None', 'HOD', 'CC'].map((subRole) {
-                        String? groupValue = 'None';
+                      ...['Other', 'HOD', 'CC'].map((subRole) {
+                        String? groupValue = 'Other';
                         if (selectedSubRoles.contains('HOD')) groupValue = 'HOD';
                         else if (selectedSubRoles.contains('CC')) groupValue = 'CC';
 
@@ -1226,7 +1514,7 @@ class _TeachersTabState extends State<TeachersTab> {
                             setDialogState(() {
                               selectedSubRoles.remove('HOD');
                               selectedSubRoles.remove('CC');
-                              if (value != 'None' && value != null) {
+                              if (value != 'Other' && value != null) {
                                 selectedSubRoles.add(value);
                               }
                               if (value != 'CC') {
@@ -1625,3 +1913,161 @@ class _TeachersTabState extends State<TeachersTab> {
     );
   }
 }
+
+class _TeacherBulkProgressDialog extends StatefulWidget {
+  final String title;
+  final Future<dynamic> Function(void Function(double progress, String status) updateProgress) action;
+
+  const _TeacherBulkProgressDialog({
+    required this.title,
+    required this.action,
+  });
+
+  @override
+  State<_TeacherBulkProgressDialog> createState() => _TeacherBulkProgressDialogState();
+}
+
+class _TeacherBulkProgressDialogState extends State<_TeacherBulkProgressDialog> {
+  double _progress = 0.05;
+  String _status = 'Initializing...';
+  Timer? _ticker;
+
+  @override
+  void initState() {
+    super.initState();
+    _startProgressAnimation();
+    _executeAction();
+  }
+
+  void _startProgressAnimation() {
+    _ticker = Timer.periodic(const Duration(milliseconds: 120), (timer) {
+      if (!mounted) return;
+      if (_progress < 0.90) {
+        setState(() {
+          _progress = (_progress + 0.03).clamp(0.0, 0.92);
+        });
+      }
+    });
+  }
+
+  Future<void> _executeAction() async {
+    try {
+      final result = await widget.action((progress, status) {
+        if (!mounted) return;
+        setState(() {
+          _progress = progress.clamp(0.0, 1.0);
+          _status = status;
+        });
+      });
+      _ticker?.cancel();
+      if (!mounted) return;
+      setState(() {
+        _progress = 1.0;
+        _status = 'Completed!';
+      });
+      await Future.delayed(const Duration(milliseconds: 250));
+      if (!mounted) return;
+      Navigator.of(context).pop(result);
+    } catch (e) {
+      _ticker?.cancel();
+      if (!mounted) return;
+      Navigator.of(context).pop(e);
+    }
+  }
+
+  @override
+  void dispose() {
+    _ticker?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    const primaryColor = Color(0xFFEA4335);
+
+    return PopScope(
+      canPop: false,
+      child: Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+        child: Padding(
+          padding: const EdgeInsets.all(24.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: Text(
+                      widget.title,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: primaryColor.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      '${(_progress * 100).toInt()}%',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                        color: primaryColor,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: LinearProgressIndicator(
+                  value: _progress,
+                  minHeight: 8,
+                  backgroundColor: isDark ? const Color(0xFF334155) : Colors.grey.shade300,
+                  valueColor: const AlwaysStoppedAnimation<Color>(primaryColor),
+                ),
+              ),
+              const SizedBox(height: 14),
+              Row(
+                children: [
+                  const SizedBox(
+                    width: 14,
+                    height: 14,
+                    child: CircularProgressIndicator(strokeWidth: 2, color: primaryColor),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      _status,
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: isDark ? Colors.white70 : Colors.grey.shade700,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'Please do not close this window.',
+                style: TextStyle(fontSize: 11, color: isDark ? Colors.white38 : Colors.grey.shade500),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+

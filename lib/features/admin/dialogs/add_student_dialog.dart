@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:pragatix/core/utils/string_utils.dart';
 
 class AddStudentDialog extends StatefulWidget {
   final TextEditingController regNoController;
@@ -73,7 +74,6 @@ class _AddStudentDialogState extends State<AddStudentDialog> {
     'Father',
     'Mother',
     'Guardian',
-    'Parent',
   ];
   String? selectedGuardianRel;
   bool isFetchingSections = false;
@@ -183,10 +183,18 @@ class _AddStudentDialogState extends State<AddStudentDialog> {
           children: [
             TextField(
               controller: widget.regNoController,
-              decoration: const InputDecoration(labelText: 'Student ID *'),
+              textCapitalization: TextCapitalization.characters,
+              inputFormatters: [
+                UpperCaseTextFormatter(),
+              ],
+              decoration: const InputDecoration(labelText: 'Register Number *'),
             ),
             TextField(
               controller: widget.nameController,
+              textCapitalization: TextCapitalization.characters,
+              inputFormatters: [
+                UpperCaseTextFormatter(),
+              ],
               decoration: const InputDecoration(labelText: 'Full Name *'),
             ),
             TextField(
@@ -383,21 +391,6 @@ class _AddStudentDialogState extends State<AddStudentDialog> {
                       });
                     },
                   ),
-            DropdownButtonFormField<int>(
-              value: selectedGroupId,
-              decoration: const InputDecoration(labelText: 'Group'),
-              items: uniqueGroups.map((grp) {
-                return DropdownMenuItem<int>(
-                  value: grp['id'],
-                  child: Text(grp['groupName'] ?? ''),
-                );
-              }).toList(),
-              onChanged: (value) {
-                setState(() {
-                  selectedGroupId = value;
-                });
-              },
-            ),
           ],
         ),
       ),
@@ -426,7 +419,7 @@ class _AddStudentDialogState extends State<AddStudentDialog> {
                     semesterId: selectedSemesterId,
                     genderId: selectedGenderId,
                     sectionId: selectedSectionId,
-                    groupId: selectedGroupId,
+                    groupId: null,
                     address: addressController.text,
                     dob: selectedDob,
                   );

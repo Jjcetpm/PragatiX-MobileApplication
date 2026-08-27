@@ -8,7 +8,6 @@ import 'package:pragatix/features/profile/models/profile_response.dart';
 import 'package:pragatix/features/profile/repository/profile_repository.dart';
 import 'package:pragatix/shared/widgets/profile_header.dart';
 import 'package:pragatix/shared/widgets/shared_profile_card.dart';
-import 'package:pragatix/features/auth/pages/login_page.dart';
 import 'package:pragatix/features/auth/providers/auth_provider.dart';
 import 'package:pragatix/features/attendance/providers/attendance_provider.dart';
 
@@ -101,52 +100,94 @@ class _ProfilePageState extends State<ProfilePage> {
       return const Center(child: Text('Profile not found'));
     }
 
-    return RefreshIndicator(
-      onRefresh: _loadProfile,
-      child: SingleChildScrollView(
-        physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            SharedProfileHeader(
-              title: _profile!.fullName,
-              subtitle: _profile!.role,
-              icon: Icons.person,
-              isCaptain: _profile!.studentDetails?.isCaptain ?? false,
-              isViceCaptain: _profile!.studentDetails?.isViceCaptain ?? false,
-            ),
-            const SizedBox(height: 24),
-            
-            _buildCommonInfoCard(),
-            const SizedBox(height: 16),
-            
-            if (_profile!.superAdminDetails != null) ...[
-              _buildSuperAdminCard(),
-              const SizedBox(height: 16),
-            ],
-            if (_profile!.teacherDetails != null &&
-                _profile!.ccDetails == null &&
-                _profile!.hodDetails == null) ...[
-              _buildTeacherCard(),
-              const SizedBox(height: 16),
-            ],
-            if (_profile!.studentDetails != null) ...[
-              _buildStudentCard(),
-              const SizedBox(height: 16),
-            ],
-            if (_profile!.ccDetails != null) ...[
-              _buildCcCard(),
-              const SizedBox(height: 16),
-            ],
-            if (_profile!.hodDetails != null) ...[
-              _buildHodCard(),
-              const SizedBox(height: 16),
-            ],
+    final String resolvedGender = _profile!.gender ?? _profile!.studentDetails?.gender ?? '';
+    final bool isFemale = resolvedGender.trim().toLowerCase().startsWith('f');
+    final String? avatarAsset = _profile!.studentDetails != null
+        ? (isFemale ? 'assets/images/avatar_female.png' : 'assets/images/avatar_male.png')
+        : null;
 
-            const SizedBox(height: 24),
-            _buildQuickActions(),
-          ],
+    return Scaffold(
+      backgroundColor: const Color(0xFFF8FAFC),
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 0,
+        centerTitle: true,
+        leading: Navigator.canPop(context)
+            ? IconButton(
+                icon: const Icon(
+                  Icons.arrow_back_ios_new_rounded,
+                  color: Color(0xFF0F172A),
+                  size: 20,
+                ),
+                onPressed: () => Navigator.pop(context),
+              )
+            : null,
+        title: const Text(
+          'Profile',
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.w800,
+            color: Color(0xFF0F172A),
+            letterSpacing: -0.3,
+          ),
+        ),
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(1),
+          child: Container(
+            color: const Color(0xFFF1F5F9),
+            height: 1,
+          ),
+        ),
+      ),
+      body: RefreshIndicator(
+        onRefresh: _loadProfile,
+        color: const Color(0xFF4F46E5),
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.fromLTRB(20, 20, 20, 36),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              SharedProfileHeader(
+                title: _profile!.fullName,
+                subtitle: _profile!.role,
+                icon: Icons.person,
+                imageAsset: avatarAsset,
+                isCaptain: _profile!.studentDetails?.isCaptain ?? false,
+                isViceCaptain: _profile!.studentDetails?.isViceCaptain ?? false,
+              ),
+              const SizedBox(height: 24),
+              
+              _buildCommonInfoCard(),
+              const SizedBox(height: 16),
+              
+              if (_profile!.superAdminDetails != null) ...[
+                _buildSuperAdminCard(),
+                const SizedBox(height: 16),
+              ],
+              if (_profile!.teacherDetails != null &&
+                  _profile!.ccDetails == null &&
+                  _profile!.hodDetails == null) ...[
+                _buildTeacherCard(),
+                const SizedBox(height: 16),
+              ],
+              if (_profile!.studentDetails != null) ...[
+                _buildStudentCard(),
+                const SizedBox(height: 16),
+              ],
+              if (_profile!.ccDetails != null) ...[
+                _buildCcCard(),
+                const SizedBox(height: 16),
+              ],
+              if (_profile!.hodDetails != null) ...[
+                _buildHodCard(),
+                const SizedBox(height: 16),
+              ],
+
+              const SizedBox(height: 24),
+              _buildQuickActions(),
+            ],
+          ),
         ),
       ),
     );
@@ -212,20 +253,33 @@ class _ProfilePageState extends State<ProfilePage> {
     
     return SharedProfileCard(
       children: [
-        const Text('Personal Information', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-        const Divider(),
-        SharedProfileRow(label: 'Username', value: _profile!.username),
-        const SizedBox(height: 8),
-        SharedProfileRow(label: 'Email', value: _profile!.email ?? 'Not Available'),
-        const SizedBox(height: 8),
+        const Text(
+          'Personal Information',
+          style: TextStyle(
+            fontWeight: FontWeight.w800,
+            fontSize: 16,
+            color: Color(0xFF0F172A),
+            letterSpacing: -0.2,
+          ),
+        ),
+        const SizedBox(height: 10),
+        const Divider(color: Color(0xFFF1F5F9), height: 1),
+        const SizedBox(height: 10),
+        if (_profile!.username.isNotEmpty && _profile!.username != _profile!.email && !_profile!.username.contains('@')) ...[
+          SharedProfileRow(label: 'Username', value: _profile!.username),
+          const SizedBox(height: 4),
+        ],
+        SharedProfileRow(label: 'Email', value: _profile!.email ?? (_profile!.username.contains('@') ? _profile!.username : 'Not Available')),
+        const SizedBox(height: 4),
         SharedProfileRow(label: 'Phone', value: _profile!.phone ?? 'Not Available'),
-        const SizedBox(height: 8),
+        const SizedBox(height: 4),
         if (isAdmin) ...[
           SharedProfileRow(label: 'Assigned Year', value: _profile!.adminDetails!.academicYear ?? 'Not Available'),
+          const SizedBox(height: 4),
         ] else if (!isSuperAdmin) ...[
           SharedProfileRow(label: 'Department', value: _profile!.department ?? 'Not Available'),
+          const SizedBox(height: 4),
         ],
-        const SizedBox(height: 8),
         SharedProfileRow(label: 'Status', value: _profile!.accountStatus ?? 'Not Available'),
       ],
     );
@@ -235,29 +289,47 @@ class _ProfilePageState extends State<ProfilePage> {
     final stats = _profile!.superAdminDetails!;
     return SharedProfileCard(
       children: [
-        const Text('System Statistics', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-        const Divider(),
+        const Text(
+          'System Statistics',
+          style: TextStyle(
+            fontWeight: FontWeight.w800,
+            fontSize: 16,
+            color: Color(0xFF0F172A),
+            letterSpacing: -0.2,
+          ),
+        ),
+        const SizedBox(height: 10),
+        const Divider(color: Color(0xFFF1F5F9), height: 1),
+        const SizedBox(height: 10),
         SharedProfileRow(label: 'Total Departments', value: stats.totalDepartments.toString()),
-        const SizedBox(height: 8),
+        const SizedBox(height: 4),
         SharedProfileRow(label: 'Total Students', value: stats.totalStudents.toString()),
-        const SizedBox(height: 8),
+        const SizedBox(height: 4),
         SharedProfileRow(label: 'Total Teachers', value: stats.totalTeachers.toString()),
       ],
     );
   }
 
-
-
   Widget _buildTeacherCard() {
     final stats = _profile!.teacherDetails!;
     return SharedProfileCard(
       children: [
-        const Text('Teacher Information', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-        const Divider(),
+        const Text(
+          'Teacher Information',
+          style: TextStyle(
+            fontWeight: FontWeight.w800,
+            fontSize: 16,
+            color: Color(0xFF0F172A),
+            letterSpacing: -0.2,
+          ),
+        ),
+        const SizedBox(height: 10),
+        const Divider(color: Color(0xFFF1F5F9), height: 1),
+        const SizedBox(height: 10),
         SharedProfileRow(label: 'Employee ID', value: stats.employeeId ?? 'Not Available'),
-        const SizedBox(height: 8),
+        const SizedBox(height: 4),
         SharedProfileRow(label: 'Total Students', value: stats.totalStudents.toString()),
-        const SizedBox(height: 8),
+        const SizedBox(height: 4),
         SharedProfileRow(label: 'Attendance Taken', value: stats.attendanceTakenCount.toString()),
       ],
     );
@@ -266,9 +338,12 @@ class _ProfilePageState extends State<ProfilePage> {
   Widget _buildStudentCard() {
     final stats = _profile!.studentDetails!;
     
-    String leadershipRole = 'Member';
-    if (stats.isCaptain) leadershipRole = 'Captain';
-    else if (stats.isViceCaptain) leadershipRole = 'Vice Captain';
+    String leadershipRole = 'Student';
+    if (stats.isCaptain) {
+      leadershipRole = 'Captain';
+    } else if (stats.isViceCaptain) {
+      leadershipRole = 'Vice Captain';
+    }
 
     String attendanceDisplay = '${stats.attendancePercentage}%';
     try {
@@ -280,22 +355,42 @@ class _ProfilePageState extends State<ProfilePage> {
 
     return SharedProfileCard(
       children: [
-        const Text('Academic Details', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-        const Divider(),
+        const Text(
+          'Academic Details',
+          style: TextStyle(
+            fontWeight: FontWeight.w800,
+            fontSize: 16,
+            color: Color(0xFF0F172A),
+            letterSpacing: -0.2,
+          ),
+        ),
+        const SizedBox(height: 10),
+        const Divider(color: Color(0xFFF1F5F9), height: 1),
+        const SizedBox(height: 10),
         SharedProfileRow(label: 'Register Number', value: stats.registerNumber ?? 'Not Available'),
-        const SizedBox(height: 8),
+        const SizedBox(height: 4),
         SharedProfileRow(label: 'Academic Year', value: stats.academicYear ?? 'Not Available'),
-        const SizedBox(height: 8),
+        const SizedBox(height: 4),
         SharedProfileRow(label: 'Section', value: stats.section ?? 'Not Available'),
-        const SizedBox(height: 8),
+        const SizedBox(height: 4),
         SharedProfileRow(label: 'Leadership Role', value: leadershipRole),
         const SizedBox(height: 16),
-        const Text('Performance', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-        const Divider(),
+        const Text(
+          'Performance',
+          style: TextStyle(
+            fontWeight: FontWeight.w800,
+            fontSize: 16,
+            color: Color(0xFF0F172A),
+            letterSpacing: -0.2,
+          ),
+        ),
+        const SizedBox(height: 10),
+        const Divider(color: Color(0xFFF1F5F9), height: 1),
+        const SizedBox(height: 10),
         SharedProfileRow(label: 'Current XP', value: stats.currentXp.toString()),
-        const SizedBox(height: 8),
+        const SizedBox(height: 4),
         SharedProfileRow(label: 'Attendance', value: attendanceDisplay),
-        const SizedBox(height: 8),
+        const SizedBox(height: 4),
         SharedProfileRow(label: 'Rank', value: stats.rank.toString()),
       ],
     );
@@ -305,10 +400,20 @@ class _ProfilePageState extends State<ProfilePage> {
     final stats = _profile!.ccDetails!;
     return SharedProfileCard(
       children: [
-        const Text('Class Coordinator Info', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-        const Divider(),
+        const Text(
+          'Class Coordinator Info',
+          style: TextStyle(
+            fontWeight: FontWeight.w800,
+            fontSize: 16,
+            color: Color(0xFF0F172A),
+            letterSpacing: -0.2,
+          ),
+        ),
+        const SizedBox(height: 10),
+        const Divider(color: Color(0xFFF1F5F9), height: 1),
+        const SizedBox(height: 10),
         SharedProfileRow(label: 'Section', value: stats.section ?? 'Not Available'),
-        const SizedBox(height: 8),
+        const SizedBox(height: 4),
         SharedProfileRow(label: 'Assigned Year', value: stats.academicYear ?? 'Not Available'),
       ],
     );
@@ -318,10 +423,20 @@ class _ProfilePageState extends State<ProfilePage> {
     final stats = _profile!.hodDetails!;
     return SharedProfileCard(
       children: [
-        const Text('HOD Statistics', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-        const Divider(),
+        const Text(
+          'HOD Statistics',
+          style: TextStyle(
+            fontWeight: FontWeight.w800,
+            fontSize: 16,
+            color: Color(0xFF0F172A),
+            letterSpacing: -0.2,
+          ),
+        ),
+        const SizedBox(height: 10),
+        const Divider(color: Color(0xFFF1F5F9), height: 1),
+        const SizedBox(height: 10),
         SharedProfileRow(label: 'Total Faculty', value: stats.totalFaculty.toString()),
-        const SizedBox(height: 8),
+        const SizedBox(height: 4),
         SharedProfileRow(label: 'Total Students', value: stats.totalStudents.toString()),
       ],
     );
@@ -340,20 +455,32 @@ class _ProfilePageState extends State<ProfilePage> {
             label: const Text('Refresh DB Cache'),
             style: ElevatedButton.styleFrom(
               padding: const EdgeInsets.symmetric(vertical: 16),
-              backgroundColor: Colors.indigo,
+              backgroundColor: const Color(0xFF4F46E5),
               foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+              elevation: 0,
             ),
           ),
           const SizedBox(height: 12),
         ],
         ElevatedButton.icon(
           onPressed: _handleLogout,
-          icon: const Icon(Icons.logout),
-          label: const Text('Logout'),
+          icon: const Icon(Icons.logout_rounded, size: 20),
+          label: const Text(
+            'Logout',
+            style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+          ),
           style: ElevatedButton.styleFrom(
             padding: const EdgeInsets.symmetric(vertical: 16),
-            backgroundColor: Colors.red.shade600,
+            backgroundColor: const Color(0xFFEF4444),
             foregroundColor: Colors.white,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            elevation: 0,
+            shadowColor: Colors.transparent,
           ),
         ),
       ],

@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:open_filex/open_filex.dart';
 import 'package:path_provider/path_provider.dart';
@@ -9,6 +10,7 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:pragatix/core/di/service_locator.dart';
 import 'package:pragatix/features/enrollment/models/enrollment_model.dart';
 import 'package:pragatix/features/enrollment/repository/enrollment_repository.dart';
+import 'package:pragatix/core/utils/string_utils.dart';
 
 class EnrollmentAdminPage extends StatefulWidget {
   const EnrollmentAdminPage({super.key});
@@ -57,60 +59,32 @@ class _EnrollmentAdminPageState extends State<EnrollmentAdminPage> with SingleTi
     super.dispose();
   }
 
-  static const List<String> allowedMainDepartments = [
-    'Aeronautical Engineering',
-    'Mechanical Engineering',
-    'Civil Engineering',
-    'Computer Science and Engineering',
-    'Computer Science and Engineering (Cyber Security)',
-    'Electrical and Electronics Engineering',
-    'Electronics and Communication Engineering',
-    'Information Technology',
-    'Artificial Intelligence and Data Science',
-  ];
-
-  bool _isAllowedDepartment(String name) {
-    final lower = name.toLowerCase().trim();
-    if (lower.contains('tamil') ||
-        lower.contains('chemistry') ||
-        lower.contains('math') ||
-        lower.contains('english') ||
-        lower.contains('physics')) {
-      return false;
-    }
-    for (final allowed in allowedMainDepartments) {
-      if (allowed.toLowerCase() == lower || name.contains(allowed)) {
-        return true;
-      }
-    }
-    return false;
-  }
-
   Future<void> _loadInitialData() async {
     setState(() => _isLoadingLookups = true);
     try {
-      final statusFuture = _enrollmentRepository.getAdminStatus();
-      final deptsFuture = _enrollmentRepository.getEnrollmentDepartments();
+      final status = await _enrollmentRepository.getAdminStatus();
+      _isEnrollmentEnabled = status;
+    } catch (e) {
+      debugPrint('Status error: $e');
+    }
 
-      final results = await Future.wait([statusFuture, deptsFuture]);
-      if (!mounted) return;
+    try {
+      final depts = await _enrollmentRepository.getEnrollmentDepartments();
+      _departments = depts;
+    } catch (e) {
+      debugPrint('Enrollment depts error: $e');
+      try {
+        final pubDepts = await _enrollmentRepository.getPendingDepartments();
+        _departments = pubDepts;
+      } catch (pubErr) {
+        debugPrint('Public depts error: $pubErr');
+      }
+    }
 
-      final rawDepts = results[1] as List<PendingDepartment>;
-      final filteredDepts = rawDepts
-          .where((d) => _isAllowedDepartment(d.name))
-          .toList();
-
-      setState(() {
-        _isEnrollmentEnabled = results[0] as bool;
-        _departments = filteredDepts;
-        _isLoadingLookups = false;
-      });
+    if (mounted) {
+      setState(() => _isLoadingLookups = false);
       _fetchPending();
       _fetchEnrolled();
-    } catch (e) {
-      if (!mounted) return;
-      setState(() => _isLoadingLookups = false);
-      _showSnackBar('Failed to load enrollment settings: $e', isError: true);
     }
   }
 
@@ -934,13 +908,48 @@ class _SingleStudentModalState extends State<_SingleStudentModal> {
   String _selectedGender = 'Male';
   int? _selectedDepartmentId;
   bool _isLoading = false;
+  bool _isLoadingDepts = false;
   String? _errorMessage;
+  List<PendingDepartment> _depts = [];
 
   @override
   void initState() {
     super.initState();
-    if (widget.departments.isNotEmpty) {
-      _selectedDepartmentId = widget.departments.first.id;
+    _depts = List.from(widget.departments);
+    if (_depts.isNotEmpty) {
+      _selectedDepartmentId = _depts.first.id;
+    } else {
+      _fetchDepartments();
+    }
+  }
+
+  Future<void> _fetchDepartments() async {
+    setState(() => _isLoadingDepts = true);
+    try {
+      final list = await _repository.getEnrollmentDepartments();
+      if (!mounted) return;
+      setState(() {
+        _depts = list;
+        if (_selectedDepartmentId == null && _depts.isNotEmpty) {
+          _selectedDepartmentId = _depts.first.id;
+        }
+        _isLoadingDepts = false;
+      });
+    } catch (_) {
+      try {
+        final pubList = await _repository.getPendingDepartments();
+        if (!mounted) return;
+        setState(() {
+          _depts = pubList;
+          if (_selectedDepartmentId == null && _depts.isNotEmpty) {
+            _selectedDepartmentId = _depts.first.id;
+          }
+          _isLoadingDepts = false;
+        });
+      } catch (e) {
+        if (!mounted) return;
+        setState(() => _isLoadingDepts = false);
+      }
     }
   }
 
@@ -966,7 +975,7 @@ class _SingleStudentModalState extends State<_SingleStudentModal> {
 
     try {
       await _repository.addSingleEnrollment(
-        fullName: _nameController.text.trim(),
+        fullName: _nameController.text.trim().toUpperCase(),
         gender: _selectedGender,
         email: _emailController.text.trim(),
         mobile: _mobileController.text.trim(),
@@ -1052,9 +1061,13 @@ class _SingleStudentModalState extends State<_SingleStudentModal> {
                     TextFormField(
                       controller: _nameController,
                       enabled: !_isLoading,
+                      textCapitalization: TextCapitalization.characters,
+                      inputFormatters: [
+                        UpperCaseTextFormatter(),
+                      ],
                       decoration: InputDecoration(
                         labelText: 'Full Name *',
-                        hintText: 'e.g. Arun Kumar',
+                        hintText: 'e.g. ARUN KUMAR',
                         isDense: true,
                         contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                         prefixIcon: const Icon(Icons.person_outline_rounded),
@@ -1098,9 +1111,15 @@ class _SingleStudentModalState extends State<_SingleStudentModal> {
                       controller: _mobileController,
                       enabled: !_isLoading,
                       keyboardType: TextInputType.phone,
+                      maxLength: 10,
+                      inputFormatters: [
+                        FilteringTextInputFormatter.digitsOnly,
+                        LengthLimitingTextInputFormatter(10),
+                      ],
                       decoration: InputDecoration(
                         labelText: 'Mobile Number *',
                         hintText: '10 digits',
+                        counterText: '',
                         isDense: true,
                         contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                         prefixIcon: const Icon(Icons.phone_outlined),
@@ -1112,7 +1131,7 @@ class _SingleStudentModalState extends State<_SingleStudentModal> {
                         if (val == null || val.trim().isEmpty) {
                           return 'Mobile is required';
                         }
-                        if (val.trim().length < 10) {
+                        if (val.trim().length != 10) {
                           return '10-digit number required';
                         }
                         return null;
@@ -1148,32 +1167,36 @@ class _SingleStudentModalState extends State<_SingleStudentModal> {
                     const SizedBox(height: 14),
 
                     // Department Dropdown
-                    DropdownButtonFormField<int>(
-                      value: _selectedDepartmentId,
-                      isExpanded: true,
-                      decoration: InputDecoration(
-                        labelText: 'Department (9 Approved) *',
-                        isDense: true,
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                        prefixIcon: const Icon(Icons.school_outlined),
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                        filled: true,
-                        fillColor: isDark ? const Color(0xFF334155) : const Color(0xFFF8FAFC),
-                      ),
-                      items: widget.departments.map((d) {
-                        final code = d.deptCode.isNotEmpty ? d.deptCode : d.name;
-                        return DropdownMenuItem<int>(
-                          value: d.id,
-                          child: Text(
-                            '$code - ${d.name}',
-                            style: const TextStyle(fontSize: 13),
-                            overflow: TextOverflow.ellipsis,
+                    _isLoadingDepts
+                        ? const Center(child: Padding(padding: EdgeInsets.all(12), child: CircularProgressIndicator()))
+                        : DropdownButtonFormField<int>(
+                            value: _depts.any((d) => d.id == _selectedDepartmentId)
+                                ? _selectedDepartmentId
+                                : (_depts.isNotEmpty ? _depts.first.id : null),
+                            isExpanded: true,
+                            decoration: InputDecoration(
+                              labelText: 'Department (9 Approved) *',
+                              isDense: true,
+                              contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                              prefixIcon: const Icon(Icons.school_outlined),
+                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                              filled: true,
+                              fillColor: isDark ? const Color(0xFF334155) : const Color(0xFFF8FAFC),
+                            ),
+                            items: _depts.map((d) {
+                              final code = d.deptCode.isNotEmpty ? d.deptCode : d.name;
+                              return DropdownMenuItem<int>(
+                                value: d.id,
+                                child: Text(
+                                  '$code - ${d.name}',
+                                  style: const TextStyle(fontSize: 13),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              );
+                            }).toList(),
+                            onChanged: _isLoading ? null : (v) => setState(() => _selectedDepartmentId = v),
+                            validator: (val) => val == null ? 'Department is required' : null,
                           ),
-                        );
-                      }).toList(),
-                      onChanged: _isLoading ? null : (v) => setState(() => _selectedDepartmentId = v),
-                      validator: (val) => val == null ? 'Department is required' : null,
-                    ),
                     const SizedBox(height: 20),
 
                     // Submit Button
@@ -1269,7 +1292,9 @@ class _EditStudentModalState extends State<_EditStudentModal> {
   int? _selectedDepartmentId;
   bool _isLoading = false;
   bool _isDeleting = false;
+  bool _isLoadingDepts = false;
   String? _errorMessage;
+  List<PendingDepartment> _depts = [];
 
   @override
   void initState() {
@@ -1281,9 +1306,43 @@ class _EditStudentModalState extends State<_EditStudentModal> {
     const validGenders = ['Male', 'Female', 'Other'];
     _selectedGender = validGenders.contains(widget.item.gender) ? widget.item.gender : 'Male';
 
+    _depts = List.from(widget.departments);
     _selectedDepartmentId = widget.item.departmentId;
-    if (_selectedDepartmentId == null && widget.departments.isNotEmpty) {
-      _selectedDepartmentId = widget.departments.first.id;
+    if (_selectedDepartmentId == null && _depts.isNotEmpty) {
+      _selectedDepartmentId = _depts.first.id;
+    }
+    if (_depts.isEmpty) {
+      _fetchDepartments();
+    }
+  }
+
+  Future<void> _fetchDepartments() async {
+    setState(() => _isLoadingDepts = true);
+    try {
+      final list = await _repository.getEnrollmentDepartments();
+      if (!mounted) return;
+      setState(() {
+        _depts = list;
+        if (_selectedDepartmentId == null && _depts.isNotEmpty) {
+          _selectedDepartmentId = _depts.first.id;
+        }
+        _isLoadingDepts = false;
+      });
+    } catch (_) {
+      try {
+        final pubList = await _repository.getPendingDepartments();
+        if (!mounted) return;
+        setState(() {
+          _depts = pubList;
+          if (_selectedDepartmentId == null && _depts.isNotEmpty) {
+            _selectedDepartmentId = _depts.first.id;
+          }
+          _isLoadingDepts = false;
+        });
+      } catch (e) {
+        if (!mounted) return;
+        setState(() => _isLoadingDepts = false);
+      }
     }
   }
 
@@ -1310,7 +1369,7 @@ class _EditStudentModalState extends State<_EditStudentModal> {
     try {
       await _repository.updateEnrollment(
         widget.item.id,
-        fullName: _nameController.text.trim(),
+        fullName: _nameController.text.trim().toUpperCase(),
         gender: _selectedGender,
         email: _emailController.text.trim(),
         mobile: _mobileController.text.trim(),
@@ -1443,9 +1502,13 @@ class _EditStudentModalState extends State<_EditStudentModal> {
                     TextFormField(
                       controller: _nameController,
                       enabled: !_isLoading && !_isDeleting,
+                      textCapitalization: TextCapitalization.characters,
+                      inputFormatters: [
+                        UpperCaseTextFormatter(),
+                      ],
                       decoration: InputDecoration(
                         labelText: 'Full Name *',
-                        hintText: 'e.g. Arun Kumar',
+                        hintText: 'e.g. ARUN KUMAR',
                         isDense: true,
                         contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                         prefixIcon: const Icon(Icons.person_outline_rounded),
@@ -1491,9 +1554,15 @@ class _EditStudentModalState extends State<_EditStudentModal> {
                       controller: _mobileController,
                       enabled: !_isLoading && !_isDeleting,
                       keyboardType: TextInputType.phone,
+                      maxLength: 10,
+                      inputFormatters: [
+                        FilteringTextInputFormatter.digitsOnly,
+                        LengthLimitingTextInputFormatter(10),
+                      ],
                       decoration: InputDecoration(
                         labelText: 'Mobile Number *',
                         hintText: '10 digits',
+                        counterText: '',
                         isDense: true,
                         contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                         prefixIcon: const Icon(Icons.phone_outlined),
@@ -1505,7 +1574,7 @@ class _EditStudentModalState extends State<_EditStudentModal> {
                         if (val == null || val.trim().isEmpty) {
                           return 'Mobile is required';
                         }
-                        if (val.trim().length < 10) {
+                        if (val.trim().length != 10) {
                           return '10-digit number required';
                         }
                         return null;
@@ -1538,37 +1607,39 @@ class _EditStudentModalState extends State<_EditStudentModal> {
                         return null;
                       },
                     ),
-                    const SizedBox(height: 14),
-
                     // Department Dropdown
-                    DropdownButtonFormField<int>(
-                      initialValue: _selectedDepartmentId,
-                      isExpanded: true,
-                      decoration: InputDecoration(
-                        labelText: 'Department (9 Approved) *',
-                        isDense: true,
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                        prefixIcon: const Icon(Icons.school_outlined),
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                        filled: true,
-                        fillColor: isDark ? const Color(0xFF334155) : const Color(0xFFF8FAFC),
-                      ),
-                      items: widget.departments.map((d) {
-                        final code = d.deptCode.isNotEmpty ? d.deptCode : d.name;
-                        return DropdownMenuItem<int>(
-                          value: d.id,
-                          child: Text(
-                            '$code - ${d.name}',
-                            style: const TextStyle(fontSize: 13),
-                            overflow: TextOverflow.ellipsis,
+                    _isLoadingDepts
+                        ? const Center(child: Padding(padding: EdgeInsets.all(12), child: CircularProgressIndicator()))
+                        : DropdownButtonFormField<int>(
+                            value: _depts.any((d) => d.id == _selectedDepartmentId)
+                                ? _selectedDepartmentId
+                                : (_depts.isNotEmpty ? _depts.first.id : null),
+                            isExpanded: true,
+                            decoration: InputDecoration(
+                              labelText: 'Department (9 Approved) *',
+                              isDense: true,
+                              contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                              prefixIcon: const Icon(Icons.school_outlined),
+                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                              filled: true,
+                              fillColor: isDark ? const Color(0xFF334155) : const Color(0xFFF8FAFC),
+                            ),
+                            items: _depts.map((d) {
+                              final code = d.deptCode.isNotEmpty ? d.deptCode : d.name;
+                              return DropdownMenuItem<int>(
+                                value: d.id,
+                                child: Text(
+                                  '$code - ${d.name}',
+                                  style: const TextStyle(fontSize: 13),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              );
+                            }).toList(),
+                            onChanged: (_isLoading || _isDeleting)
+                                ? null
+                                : (v) => setState(() => _selectedDepartmentId = v),
+                            validator: (val) => val == null ? 'Department is required' : null,
                           ),
-                        );
-                      }).toList(),
-                      onChanged: (_isLoading || _isDeleting)
-                          ? null
-                          : (v) => setState(() => _selectedDepartmentId = v),
-                      validator: (val) => val == null ? 'Department is required' : null,
-                    ),
                     const SizedBox(height: 24),
 
                     // Action Buttons Row (Delete + Save)

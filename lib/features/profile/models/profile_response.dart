@@ -6,6 +6,7 @@ class ProfileResponse {
   final String? phone;
   final String role;
   final String? department;
+  final String? gender;
   final String? accountStatus;
   final DateTime? createdDate;
   final DateTime? lastUpdated;
@@ -25,6 +26,7 @@ class ProfileResponse {
     this.phone,
     required this.role,
     this.department,
+    this.gender,
     this.accountStatus,
     this.createdDate,
     this.lastUpdated,
@@ -45,6 +47,7 @@ class ProfileResponse {
       phone: json['phone'],
       role: json['role'] ?? '',
       department: json['department'],
+      gender: json['gender'],
       accountStatus: json['accountStatus'],
       createdDate: json['createdDate'] != null ? DateTime.tryParse(json['createdDate']) : null,
       lastUpdated: json['lastUpdated'] != null ? DateTime.tryParse(json['lastUpdated']) : null,
@@ -122,6 +125,7 @@ class StudentDetails {
   final String? section;
   final String? semester;
   final String? batch;
+  final String? gender;
   final int currentXp;
   final String? currentStage;
   final String? currentLevel;
@@ -142,6 +146,7 @@ class StudentDetails {
         section = json['section'],
         semester = json['semester'],
         batch = json['batch'],
+        gender = json['gender'],
         currentXp = json['currentXp'] ?? 0,
         currentStage = json['currentStage'],
         currentLevel = json['currentLevel'],

@@ -67,4 +67,21 @@ class RecycleBinService {
       throw Exception('Error deleting item: $e');
     }
   }
+
+  Future<void> clearAllItems() async {
+    try {
+      final response = await http.delete(
+        Uri.parse('${ApiConfig.baseUrl}/api/v1/recycle-bin/clear'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+      );
+      if (response.statusCode != 200) {
+        throw Exception('Failed to empty recycle bin');
+      }
+    } catch (e) {
+      throw Exception('Error emptying recycle bin: $e');
+    }
+  }
 }

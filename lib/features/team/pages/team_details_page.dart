@@ -576,7 +576,27 @@ class _TeamDetailsPageState extends State<TeamDetailsPage> {
       );
     }
 
-    final members = _team!.members ?? [];
+    final members = List<dynamic>.from(_team!.members ?? []);
+    members.sort((a, b) {
+      final xpA = ((a['totalXp'] ?? a['currentXp'] ?? a['score'] ?? 0) as num).toInt();
+      final xpB = ((b['totalXp'] ?? b['currentXp'] ?? b['score'] ?? 0) as num).toInt();
+      if (xpA != xpB) {
+        return xpB.compareTo(xpA);
+      }
+      final bool isCapA = a['regNo'] == _team!.captainId || a['teamRole'] == 'CAPTAIN';
+      final bool isCapB = b['regNo'] == _team!.captainId || b['teamRole'] == 'CAPTAIN';
+      if (isCapA && !isCapB) return -1;
+      if (!isCapA && isCapB) return 1;
+
+      final bool isVcA = a['teamRole'] == 'VICE_CAPTAIN';
+      final bool isVcB = b['teamRole'] == 'VICE_CAPTAIN';
+      if (isVcA && !isVcB) return -1;
+      if (!isVcA && isVcB) return 1;
+
+      final nameA = (a['fullName'] ?? '').toString();
+      final nameB = (b['fullName'] ?? '').toString();
+      return nameA.compareTo(nameB);
+    });
     final currentStage = _team!.currentStage;
     final bool captainInMembers = _team!.captainId != null &&
         members.any((m) =>
@@ -825,6 +845,7 @@ class _TeamDetailsPageState extends State<TeamDetailsPage> {
                 (m) => TeamMemberCard(
                   member: m,
                   captainId: _team!.captainId,
+                  viceCaptainId: _team!.viceCaptainId,
                   canManage: widget.canManage,
                   onRemove: () => _removeMember(m['regNo']),
                   onChangeCaptainRequest: members.length == 1
@@ -930,10 +951,7 @@ class _TeamDetailsPageState extends State<TeamDetailsPage> {
                   ),
                 ),
                 Expanded(
-                  child: _buildInfoItem(
-                    'Academic Year',
-                    getVal(_team!.academicYear),
-                  ),
+                  child: _buildInfoItem('Year', getVal(_team!.yearName)),
                 ),
               ],
             ),
@@ -941,25 +959,15 @@ class _TeamDetailsPageState extends State<TeamDetailsPage> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Expanded(
-                  child: _buildInfoItem('Year', getVal(_team!.yearName)),
-                ),
                 Expanded(
                   child: _buildInfoItem(
                     'Semester',
                     getVal(_team!.semesterName),
                   ),
                 ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
                 Expanded(
                   child: _buildInfoItem('Section', getVal(_team!.sectionName)),
                 ),
-                const Expanded(child: SizedBox()),
               ],
             ),
           ],

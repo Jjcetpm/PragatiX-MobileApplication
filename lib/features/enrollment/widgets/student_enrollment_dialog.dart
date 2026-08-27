@@ -377,7 +377,7 @@ class _StudentEnrollmentDialogState extends State<StudentEnrollmentDialog> {
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    'Select the first letter of your name (${_selectedDept?.deptCode ?? _selectedDept?.name})',
+                    'Select the first letter of your name Name',
                     style: TextStyle(color: primaryColor, fontSize: 13, fontWeight: FontWeight.w500),
                   ),
                 ),
@@ -595,6 +595,13 @@ class _StudentEnrollmentDialogState extends State<StudentEnrollmentDialog> {
                 _buildConfirmRow('Full Name', _selectedStudent!.fullName, Icons.person_outline, isDark),
                 const Divider(height: 24),
                 _buildConfirmRow('Department', _selectedStudent!.departmentName, Icons.school_outlined, isDark),
+                if (_selectedStudent!.email != null && _selectedStudent!.email!.isNotEmpty) ...[
+                  const Divider(height: 24),
+                  _buildConfirmRow('Email ID', _selectedStudent!.email!, Icons.mail_outline, isDark),
+                ] else if (_selectedStudent!.maskedEmail != null && _selectedStudent!.maskedEmail!.isNotEmpty) ...[
+                  const Divider(height: 24),
+                  _buildConfirmRow('Email ID', _selectedStudent!.maskedEmail!, Icons.mail_outline, isDark),
+                ],
                 const Divider(height: 24),
                 _buildConfirmRow('Registered Mobile', _selectedStudent!.maskedMobile, Icons.phone_locked_outlined, isDark),
               ],

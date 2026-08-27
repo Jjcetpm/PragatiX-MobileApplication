@@ -76,7 +76,7 @@ class _TeacherAttendanceTabState extends State<TeacherAttendanceTab> {
           headers: headers,
         ),
         http.get(
-          Uri.parse('${ApiConfig.baseUrl}/api/v1/admin/departments'),
+          Uri.parse('${ApiConfig.baseUrl}/api/v1/admin/departments?type=MAIN'),
           headers: headers,
         ),
         http.get(

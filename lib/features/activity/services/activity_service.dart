@@ -103,7 +103,7 @@ class ActivityService {
 
   Future<List<dynamic>> fetchDepartments() async {
     final response = await http.get(
-      Uri.parse('${ActivityConstants.baseUrl}/departments'),
+      Uri.parse('${ActivityConstants.baseUrl}/departments?type=MAIN'),
       headers: _authHeaders,
     );
     if (response.statusCode == 200) {

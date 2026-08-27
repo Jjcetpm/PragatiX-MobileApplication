@@ -4,12 +4,9 @@ import 'package:provider/provider.dart';
 import 'package:pragatix/core/config/api_config.dart';
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:pragatix/core/utils/error_handler.dart';
 import 'package:pragatix/features/teacher/services/teacher_proxy_service.dart';
 import 'package:pragatix/core/di/service_locator.dart';
 import 'package:pragatix/core/utils/string_utils.dart';
-
-part 'teacher_student_detail_dialogs.dart';
 
 class TeacherStudentDetail extends StatefulWidget {
   final Map<String, dynamic> student;
@@ -20,28 +17,55 @@ class TeacherStudentDetail extends StatefulWidget {
 }
 
 class _TeacherStudentDetailState extends State<TeacherStudentDetail> {
+  late Map<String, dynamic> _studentData;
   int currentScore = 0;
   List<dynamic> historyLogs = [];
-  List<dynamic> stagesList = [];
   bool isLoadingHistory = true;
   bool isCurrentlyCaptain = false;
 
   @override
   void initState() {
     super.initState();
-    currentScore = widget.student['score'] ?? 100;
+    _studentData = Map<String, dynamic>.from(widget.student);
+    currentScore = _studentData['score'] ?? 100;
     isCurrentlyCaptain =
-        widget.student['teamRole'] == 'CAPTAIN' ||
-        widget.student['teamRole'] == 'VICE_CAPTAIN';
+        _studentData['teamRole'] == 'CAPTAIN' ||
+        _studentData['teamRole'] == 'VICE_CAPTAIN';
+    _fetchFullStudentDetails();
     _fetchHistoryLogs();
-    _fetchStages();
+  }
+
+  Future<void> _fetchFullStudentDetails() async {
+    final id = _studentData['id'];
+    if (id == null) return;
+    try {
+      final response = await getIt<TeacherProxyService>().get(
+        Uri.parse('${ApiConfig.baseUrl}/api/v1/students/$id'),
+        headers: {
+          'Authorization': 'Bearer ${context.read<AuthProvider>().token!}',
+        },
+      );
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (data['success'] == true && data['data'] != null) {
+          if (!mounted) return;
+          setState(() {
+            _studentData.addAll(Map<String, dynamic>.from(data['data']));
+            currentScore = _studentData['score'] ?? currentScore;
+            isCurrentlyCaptain =
+                _studentData['teamRole'] == 'CAPTAIN' ||
+                _studentData['teamRole'] == 'VICE_CAPTAIN';
+          });
+        }
+      }
+    } catch (_) {}
   }
 
   Future<void> _fetchHistoryLogs() async {
     try {
       final response = await getIt<TeacherProxyService>().get(
         Uri.parse(
-          "${ApiConfig.baseUrl}/api/v1/students/${widget.student['id']}/discipline-logs",
+          '${ApiConfig.baseUrl}/api/v1/students/${widget.student['id']}/discipline-logs',
         ),
         headers: {
           'Authorization': 'Bearer ${context.read<AuthProvider>().token!}',
@@ -57,162 +81,61 @@ class _TeacherStudentDetailState extends State<TeacherStudentDetail> {
           return;
         }
       }
-    } catch (e) {
-      // Catch
-    }
+    } catch (_) {}
     setState(() {
       isLoadingHistory = false;
     });
   }
 
-  Future<void> _fetchStages() async {
-    try {
-      final response = await getIt<TeacherProxyService>().get(
-        Uri.parse('${ApiConfig.baseUrl}/api/v1/admin/stages'),
-        headers: {
-          'Authorization': 'Bearer ${context.read<AuthProvider>().token!}',
-        },
-      );
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        if (data['success'] == true) {
-          setState(() {
-            stagesList = data['data'] ?? [];
-          });
-        }
-      }
-    } catch (e) {
-      // Catch
-    }
-  }
-
-  Future<void> _makeCaptain() async {
-    try {
-      final response = await getIt<TeacherProxyService>().post(
-        Uri.parse(
-          "${ApiConfig.baseUrl}/api/v1/students/${widget.student['id']}/make-captain",
+  Widget _buildInfoRow(IconData icon, String label, String value) {
+    return Row(
+      children: [
+        Icon(icon, size: 20, color: Colors.blueGrey),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(label, style: const TextStyle(fontSize: 12, color: Colors.grey)),
+              Text(value, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
+            ],
+          ),
         ),
-        headers: {
-          'Authorization': 'Bearer ${context.read<AuthProvider>().token!}',
-          'Content-Type': 'application/json',
-        },
-      );
-
-      if (!mounted) return;
-      if (response.statusCode == 200) {
-        setState(() {
-          isCurrentlyCaptain = true;
-        });
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Student successfully promoted to Captain!'),
-            backgroundColor: Colors.green,
-          ),
-        );
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'Failed to promote: ${jsonDecode(response.body)['message'] ?? response.statusCode}',
-            ),
-            backgroundColor: Colors.redAccent,
-          ),
-        );
-      }
-    } catch (e) {
-      if (!mounted) return;
-      ErrorHandler.showSnackBar(context, e);
-    }
-  }
-
-  Future<void> _removeCaptain() async {
-    try {
-      final response = await getIt<TeacherProxyService>().post(
-        Uri.parse(
-          "${ApiConfig.baseUrl}/api/v1/students/${widget.student['id']}/remove-captain",
-        ),
-        headers: {
-          'Authorization': 'Bearer ${context.read<AuthProvider>().token!}',
-          'Content-Type': 'application/json',
-        },
-      );
-
-      if (!mounted) return;
-      if (response.statusCode == 200) {
-        setState(() {
-          isCurrentlyCaptain = false;
-        });
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Student successfully removed from Captain status!'),
-            backgroundColor: Colors.green,
-          ),
-        );
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'Failed to remove: ${jsonDecode(response.body)['message'] ?? response.statusCode}',
-            ),
-            backgroundColor: Colors.redAccent,
-          ),
-        );
-      }
-    } catch (e) {
-      if (!mounted) return;
-      ErrorHandler.showSnackBar(context, e);
-    }
-  }
-
-  Future<void> _changeScore(int points, String reason, int? subgroupId) async {
-    try {
-      final response = await getIt<TeacherProxyService>().post(
-        Uri.parse(
-          "${ApiConfig.baseUrl}/api/v1/students/${widget.student['id']}/adjust-points",
-        ),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer ${context.read<AuthProvider>().token!}',
-        },
-        body: jsonEncode({
-          'points': points,
-          'reason': reason,
-          'subgroupId': subgroupId,
-        }),
-      );
-
-      final data = jsonDecode(response.body);
-      if (!mounted) return;
-      if (response.statusCode == 200 && data['success'] == true) {
-        setState(() {
-          currentScore = data['data']['score'] ?? currentScore;
-          isLoadingHistory = true;
-        });
-        _fetchHistoryLogs();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              '${points > 0 ? "Added" : "Deducted"} $points points successfully!',
-            ),
-            backgroundColor: Colors.green,
-          ),
-        );
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(data['message'] ?? 'Failed to adjust points'),
-            backgroundColor: Colors.redAccent,
-          ),
-        );
-      }
-    } catch (e) {
-      if (!mounted) return;
-      ErrorHandler.showSnackBar(context, e);
-    }
+      ],
+    );
   }
 
   @override
   Widget build(BuildContext context) {
+    final String name = _studentData['fullName'] ?? _studentData['name'] ?? 'Unknown';
+    final String regNo = _studentData['regNo'] ?? _studentData['studentId'] ?? '-';
+    final String sprNo = (_studentData['sprNo'] ?? '').toString().trim();
+    final String dept = _studentData['departmentName'] ?? _studentData['department'] ?? _studentData['dept'] ?? 'N/A';
+    final String year = (_studentData['year'] ?? '-').toString().trim();
+    final String semester = (_studentData['semester'] ?? '-').toString().trim();
+    final String section = (_studentData['section'] ?? _studentData['sectionName'] ?? '-').toString().trim();
+    final String email = (_studentData['email'] ?? '-').toString().trim();
+    final String phone = (_studentData['phone'] ?? '-').toString().trim();
+    final String gender = (_studentData['gender'] ?? '-').toString().trim();
+    final String teamName = (_studentData['teamName'] ?? _studentData['team'] ?? _studentData['group'] ?? '').toString().trim();
+
+    final rawDob = _studentData['dateOfBirth'] ?? _studentData['dob'];
+    String dobStr = '';
+    if (rawDob != null) {
+      try {
+        dobStr = rawDob.toString().split('T')[0];
+      } catch (_) {}
+    }
+
+    // Guardian Information resolution
+    final guardian = _studentData['guardian'] is Map ? _studentData['guardian'] as Map : null;
+    final String gName = (guardian?['guardianName'] ?? guardian?['name'] ?? _studentData['guardianName'] ?? '').toString().trim();
+    String gRel = (guardian?['relationship'] ?? guardian?['relation'] ?? _studentData['guardianRelationship'] ?? _studentData['guardianRel'] ?? 'Guardian').toString().trim();
+    gRel = StringUtils.toTitleCase(gRel);
+    final String gPhone = (guardian?['phoneNo'] ?? guardian?['phone'] ?? guardian?['mobile'] ?? _studentData['guardianPhone'] ?? _studentData['guardianPhoneNo'] ?? '').toString().trim();
+    final String gEmail = (guardian?['email'] ?? _studentData['guardianEmail'] ?? '').toString().trim();
+    final bool hasGuardian = gName.isNotEmpty || gPhone.isNotEmpty || gEmail.isNotEmpty;
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Student Details'),
@@ -226,9 +149,10 @@ class _TeacherStudentDetailState extends State<TeacherStudentDetail> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Student Main Profile Card
             Center(
               child: Card(
-                elevation: 4,
+                elevation: 3,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(16),
                 ),
@@ -236,33 +160,108 @@ class _TeacherStudentDetailState extends State<TeacherStudentDetail> {
                   padding: const EdgeInsets.all(24.0),
                   child: Column(
                     children: [
-                      const CircleAvatar(
-                        radius: 50,
-                        child: Icon(Icons.person, size: 60),
+                      CircleAvatar(
+                        radius: 46,
+                        backgroundColor: const Color(0xFFEA4335).withValues(alpha: 0.12),
+                        child: const Icon(Icons.person, size: 54, color: Color(0xFFEA4335)),
                       ),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 14),
                       Text(
-                        widget.student['name'] ?? '',
+                        name,
+                        textAlign: TextAlign.center,
                         style: const TextStyle(
-                          fontSize: 24,
+                          fontSize: 22,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
-                      const SizedBox(height: 8),
-                      Text("Reg No: ${widget.student['regNo'] ?? ''}"),
-                      Text("Department: ${widget.student['dept'] ?? ''}"),
+                      const SizedBox(height: 6),
+                      Text(
+                        'Reg No: $regNo',
+                        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.blueGrey),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        dept,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(fontSize: 13, color: Colors.grey),
+                      ),
+                      if (teamName.isNotEmpty || isCurrentlyCaptain) ...[
+                        const SizedBox(height: 10),
+                        Wrap(
+                          spacing: 8,
+                          alignment: WrapAlignment.center,
+                          children: [
+                            if (isCurrentlyCaptain)
+                              Chip(
+                                avatar: const Icon(Icons.star, size: 16, color: Colors.amber),
+                                label: const Text('Captain', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                                backgroundColor: Colors.amber.shade100,
+                              ),
+                            if (teamName.isNotEmpty)
+                              Chip(
+                                avatar: const Icon(Icons.groups, size: 16, color: Colors.indigo),
+                                label: Text(teamName, style: const TextStyle(fontSize: 12)),
+                                backgroundColor: Colors.indigo.shade50,
+                              ),
+                          ],
+                        ),
+                      ],
                     ],
                   ),
                 ),
               ),
             ),
 
-            const SizedBox(height: 30),
+            const SizedBox(height: 20),
 
-            if (widget.student['guardian'] != null) ...[
+            // Academic & Contact Information Card
+            const Text(
+              'Academic & Contact Info',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 10),
+            Card(
+              elevation: 2,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  children: [
+                    _buildInfoRow(Icons.school_outlined, 'Year / Sem / Sec', 'Year: $year  •  Sem: $semester  •  Sec: $section'),
+                    if (sprNo.isNotEmpty) ...[
+                      const Divider(height: 16),
+                      _buildInfoRow(Icons.badge_outlined, 'SPR Number', sprNo),
+                    ],
+                    if (gender != '-' && gender.isNotEmpty) ...[
+                      const Divider(height: 16),
+                      _buildInfoRow(Icons.person_outline, 'Gender', gender),
+                    ],
+                    if (dobStr.isNotEmpty) ...[
+                      const Divider(height: 16),
+                      _buildInfoRow(Icons.cake_outlined, 'Date of Birth', dobStr),
+                    ],
+                    if (email != '-' && email.isNotEmpty) ...[
+                      const Divider(height: 16),
+                      _buildInfoRow(Icons.email_outlined, 'Email', email),
+                    ],
+                    if (phone != '-' && phone.isNotEmpty) ...[
+                      const Divider(height: 16),
+                      _buildInfoRow(Icons.phone_outlined, 'Phone', phone),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 20),
+
+            // Guardian Information Card
+            if (hasGuardian) ...[
               const Text(
                 'Guardian Information',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 10),
               Card(
@@ -276,138 +275,63 @@ class _TeacherStudentDetailState extends State<TeacherStudentDetail> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       ListTile(
-                        leading: const Icon(
-                          Icons.person,
-                          color: Colors.blueGrey,
+                        leading: const CircleAvatar(
+                          backgroundColor: Color(0xFFF1F5F9),
+                          child: Icon(Icons.family_restroom, color: Colors.blueGrey),
                         ),
                         title: Text(
-                          widget.student['guardian']['guardianName'] ?? '',
-                          style: const TextStyle(fontWeight: FontWeight.bold),
+                          gName.isNotEmpty ? gName : 'Guardian',
+                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                         ),
                         subtitle: Text(
-                          widget.student['guardian']['relationship'] ??
-                              'Guardian',
+                          gRel.isNotEmpty ? gRel : 'Guardian',
+                          style: TextStyle(color: Colors.grey.shade700, fontWeight: FontWeight.w500),
                         ),
                         contentPadding: EdgeInsets.zero,
                       ),
-                      const Divider(height: 1),
-                      ListTile(
-                        leading: const Icon(
-                          Icons.phone,
-                          color: Colors.blueGrey,
-                        ),
-                        title: Text(
-                          widget.student['guardian']['phoneNo'] ?? 'No Phone',
-                        ),
-                        contentPadding: EdgeInsets.zero,
-                      ),
-                      if (widget.student['guardian']['email'] != null &&
-                          widget.student['guardian']['email']
-                              .toString()
-                              .isNotEmpty) ...[
-                        const Divider(height: 1),
-                        ListTile(
-                          leading: const Icon(
-                            Icons.email,
-                            color: Colors.blueGrey,
-                          ),
-                          title: Text(
-                            widget.student['guardian']['email'] ?? '',
-                          ),
-                          contentPadding: EdgeInsets.zero,
-                        ),
+                      if (gPhone.isNotEmpty) ...[
+                        const Divider(height: 16),
+                        _buildInfoRow(Icons.phone_outlined, 'Phone Number', gPhone),
+                      ],
+                      if (gEmail.isNotEmpty) ...[
+                        const Divider(height: 16),
+                        _buildInfoRow(Icons.email_outlined, 'Email', gEmail),
                       ],
                     ],
                   ),
                 ),
               ),
-              const SizedBox(height: 30),
+              const SizedBox(height: 20),
             ],
 
+            // Current Discipline Score (View Only)
             Center(
               child: Column(
                 children: [
                   const Text(
                     'Current Discipline Score',
-                    style: TextStyle(fontSize: 18, color: Colors.grey),
+                    style: TextStyle(fontSize: 16, color: Colors.grey, fontWeight: FontWeight.w500),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 6),
                   Text(
                     '$currentScore',
                     style: const TextStyle(
-                      fontSize: 52,
+                      fontSize: 48,
                       fontWeight: FontWeight.bold,
+                      color: Color(0xFFEA4335),
                     ),
                   ),
-                  const Text('Points', style: TextStyle(fontSize: 18)),
+                  const Text('Points', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500)),
                 ],
               ),
             ),
 
-            const SizedBox(height: 40),
+            const SizedBox(height: 24),
 
-            Row(
-              children: [
-                Expanded(
-                  child: ElevatedButton.icon(
-                    onPressed: _showAddPointsSheet,
-                    icon: const Icon(Icons.add),
-                    label: const Text('Add Points'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color.fromARGB(255, 207, 212, 207),
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: ElevatedButton.icon(
-                    onPressed: _showDeductPointsSheet,
-                    icon: const Icon(Icons.remove),
-                    label: const Text('Deduct Points'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color.fromARGB(255, 211, 206, 206),
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-
-            // --- PROMOTE/REMOVE CAPTAIN BUTTON ---
-            const SizedBox(height: 12),
-
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: isCurrentlyCaptain ? _removeCaptain : _makeCaptain,
-                icon: Icon(
-                  isCurrentlyCaptain
-                      ? Icons.star_border_rounded
-                      : Icons.star_rounded,
-                  color: Colors.white,
-                ),
-                label: Text(
-                  isCurrentlyCaptain
-                      ? 'Remove from Captain'
-                      : 'Promote to Captain',
-                ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: isCurrentlyCaptain
-                      ? Colors.redAccent
-                      : Colors.amber.shade700,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                ),
-              ),
-            ),
-
-            // --- END OF BUTTON ---
-            const SizedBox(height: 30),
-
+            // Score History
             const Text(
               'Score History',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 10),
             isLoadingHistory

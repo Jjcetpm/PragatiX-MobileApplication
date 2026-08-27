@@ -241,7 +241,6 @@ extension StudentsTabDialogs on _StudentsTabState {
     int? selectedDeptId;
     int? selectedYearId;
     int? selectedSectionId;
-    final TextEditingController academicYearController = TextEditingController();
     int? selectedSemesterId;
     int? selectedGenderId;
     int? selectedGroupId;
@@ -274,10 +273,6 @@ extension StudentsTabDialogs on _StudentsTabState {
                   orElse: () => null,
                 );
                 if (yMatch != null) selectedYearId = yMatch['id'];
-              }
-
-              if (academicYearController.text.isEmpty && ccAcademicYear != null) {
-                academicYearController.text = ccAcademicYear!;
               }
             } else {
               if (selectedDeptId == null && departments.isNotEmpty) {
@@ -340,14 +335,22 @@ extension StudentsTabDialogs on _StudentsTabState {
                   children: [
                     TextField(
                       controller: nameController,
+                      textCapitalization: TextCapitalization.characters,
+                      inputFormatters: [
+                        UpperCaseTextFormatter(),
+                      ],
                       decoration: const InputDecoration(
-                        labelText: 'Student Name *',
+                        labelText: 'Full Name *',
                       ),
                     ),
                     TextField(
                       controller: regNoController,
+                      textCapitalization: TextCapitalization.characters,
+                      inputFormatters: [
+                        UpperCaseTextFormatter(),
+                      ],
                       decoration: const InputDecoration(
-                        labelText: 'Register Number * (reg_no)',
+                        labelText: 'Register Number *',
                       ),
                     ),
                     TextField(
@@ -598,12 +601,6 @@ extension StudentsTabDialogs on _StudentsTabState {
                       ),
                     ],
 
-                    TextField(
-                      controller: academicYearController,
-                      decoration: const InputDecoration(
-                        labelText: 'Academic Year * (e.g. 2024-2025)',
-                      ),
-                    ),
                     DropdownButtonFormField<int>(
                       initialValue: selectedSemesterId,
                       decoration: const InputDecoration(
@@ -640,29 +637,7 @@ extension StudentsTabDialogs on _StudentsTabState {
                         });
                       },
                     ),
-                    DropdownButtonFormField<int?>(
-                      initialValue: selectedGroupId,
-                      decoration: const InputDecoration(
-                        labelText: 'Group (Optional)',
-                      ),
-                      items: [
-                        const DropdownMenuItem<int?>(
-                          value: null,
-                          child: Text('No Group Selected (Optional)'),
-                        ),
-                        ...groups.map((grp) {
-                          return DropdownMenuItem<int?>(
-                            value: grp['teamId'],
-                            child: Text(grp['teamName'] ?? ''),
-                          );
-                        }),
-                      ],
-                      onChanged: (value) {
-                        setDialogState(() {
-                          selectedGroupId = value;
-                        });
-                      },
-                    ),
+
                     Card(
                       elevation: 2,
                       margin: const EdgeInsets.symmetric(vertical: 16),
@@ -746,12 +721,12 @@ extension StudentsTabDialogs on _StudentsTabState {
                   onPressed: () {
                     _addSingleStudent(
                       departmentId: selectedDeptId,
-                      academicYear: academicYearController.text.trim(),
+                      academicYear: null,
                       yearId: selectedYearId,
                       semesterId: selectedSemesterId,
                       genderId: selectedGenderId,
                       sectionId: selectedSectionId,
-                      groupId: selectedGroupId,
+                      groupId: null,
                       address: addressController.text.trim(),
                     );
                   },
@@ -1355,7 +1330,7 @@ extension StudentsTabDialogs on _StudentsTabState {
           'Authorization': 'Bearer ${context.read<AuthProvider>().token!}',
         },
         body: jsonEncode({
-          'fullName': fullName,
+          'fullName': fullName.trim().toUpperCase(),
           'email': email,
           'phone': phone,
           'genderId': genderId,
@@ -1474,7 +1449,6 @@ extension StudentsTabDialogs on _StudentsTabState {
       'Father',
       'Mother',
       'Guardian',
-      'Parent',
     ];
 
     final g = student['guardian'];
@@ -1487,8 +1461,8 @@ extension StudentsTabDialogs on _StudentsTabState {
         relStr = relStr[0].toUpperCase() + relStr.substring(1).toLowerCase();
         if (guardianRelations.contains(relStr)) {
           selectedGuardianRel = relStr;
-        } else if (relStr.toUpperCase() == 'LOCAL_GUARDIAN') {
-          selectedGuardianRel = 'Parent';
+        } else {
+          selectedGuardianRel = 'Guardian';
         }
       }
       guardianRelCtrl.text = selectedGuardianRel ?? '';
@@ -1633,6 +1607,10 @@ extension StudentsTabDialogs on _StudentsTabState {
                     children: [
                     TextField(
                       controller: nameCtrl,
+                      textCapitalization: TextCapitalization.characters,
+                      inputFormatters: [
+                        UpperCaseTextFormatter(),
+                      ],
                       decoration: const InputDecoration(
                         labelText: 'Full Name *',
                       ),
@@ -1713,30 +1691,6 @@ extension StudentsTabDialogs on _StudentsTabState {
                         setDialogState(() {
                           selectedDeptId = value;
                           selectedSectionId = null;
-                        });
-                      },
-                    ),
-                    const SizedBox(height: 12),
-                    DropdownButtonFormField<int>(
-                      isExpanded: true,
-                      value:
-                          uniqueAcademicYears.any(
-                            (ay) => ay['id'] == selectedAcademicYearId,
-                          )
-                          ? selectedAcademicYearId
-                          : null,
-                      decoration: const InputDecoration(
-                        labelText: 'Academic Year *',
-                      ),
-                      items: uniqueAcademicYears.map((ay) {
-                        return DropdownMenuItem<int>(
-                          value: ay['id'],
-                          child: Text(ay['academicYear'] ?? ''),
-                        );
-                      }).toList(),
-                      onChanged: (value) {
-                        setDialogState(() {
-                          selectedAcademicYearId = value;
                         });
                       },
                     ),
@@ -1840,35 +1794,7 @@ extension StudentsTabDialogs on _StudentsTabState {
                       },
                     ),
                     const SizedBox(height: 12),
-                    DropdownButtonFormField<int?>(
-                      isExpanded: true,
-                      value:
-                          uniqueGroups.any(
-                            (grp) => grp['id'] == selectedGroupId,
-                          )
-                          ? selectedGroupId
-                          : null,
-                      decoration: const InputDecoration(
-                        labelText: 'Group (Optional)',
-                      ),
-                      items: [
-                        const DropdownMenuItem<int?>(
-                          value: null,
-                          child: Text('No Group Selected (Optional)'),
-                        ),
-                        ...uniqueGroups.map((grp) {
-                          return DropdownMenuItem<int?>(
-                            value: grp['id'],
-                            child: Text(grp['name'] ?? ''),
-                          );
-                        }),
-                      ],
-                      onChanged: (value) {
-                        setDialogState(() {
-                          selectedGroupId = value;
-                        });
-                      },
-                    ),
+
                     Card(
                       elevation: 2,
                       margin: const EdgeInsets.symmetric(vertical: 16),
@@ -1968,7 +1894,7 @@ extension StudentsTabDialogs on _StudentsTabState {
                             yearId: selectedYearId,
                             semesterId: selectedSemesterId,
                             sectionId: selectedSectionId,
-                            groupId: selectedGroupId,
+                            groupId: null,
                             sprNo: sprCtrl.text.trim(),
                             dob: editDob,
                             address: addressCtrl.text.trim(),

@@ -45,7 +45,7 @@ class StudentFilterPanel extends StatelessWidget {
         TextField(
           controller: searchController,
           decoration: InputDecoration(
-            hintText: 'Search by student ID or name...',
+            hintText: 'Search by Register Number or name...',
             prefixIcon: const Icon(Icons.search),
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
           ),
@@ -69,9 +69,12 @@ class StudentFilterPanel extends StatelessWidget {
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
                   ),
                   value: selectedYear,
-                  items: [
-                    const DropdownMenuItem(value: null, child: Text('All Years')),
-                    ...years.map((y) {
+                  items: () {
+                    final seenYears = <String>{};
+                    final items = <DropdownMenuItem<String?>>[
+                      const DropdownMenuItem(value: null, child: Text('All Years')),
+                    ];
+                    for (final y in years) {
                       String yearVal;
                       String yearName;
                       if (y is String) {
@@ -81,18 +84,22 @@ class StudentFilterPanel extends StatelessWidget {
                         yearVal = y['yearNo']?.toString() ?? y['yearName']?.toString() ?? y['name']?.toString() ?? '';
                         yearName = y['yearName']?.toString() ?? y['year_name']?.toString() ?? y['name']?.toString() ?? (y['yearNo'] != null ? 'Year ${y['yearNo']}' : 'Year');
                       }
-                      return DropdownMenuItem(
-                        value: yearVal,
-                        child: Text(yearName),
-                      );
-                    }),
-                  ],
+                      if (yearVal.isNotEmpty && !seenYears.contains(yearVal)) {
+                        seenYears.add(yearVal);
+                        items.add(DropdownMenuItem(
+                          value: yearVal,
+                          child: Text(yearName, overflow: TextOverflow.ellipsis, maxLines: 1),
+                        ));
+                      }
+                    }
+                    return items;
+                  }(),
                   onChanged: onYearChanged,
                   isExpanded: true,
                 ),
               ),
             SizedBox(
-              width: 180,
+              width: 190,
               child: DropdownButtonFormField<int?>(
                 decoration: InputDecoration(
                   labelText: 'Department',
@@ -100,22 +107,50 @@ class StudentFilterPanel extends StatelessWidget {
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
                 ),
                 value: selectedDepartmentId,
-                items: [
-                  const DropdownMenuItem(value: null, child: Text('All Departments')),
-                  ...departments.map((d) {
-                    final dId = int.tryParse(d['id'].toString());
-                    return DropdownMenuItem(
-                      value: dId,
-                      child: Text((d['name'] ?? d['code'] ?? d['deptName'] ?? d['deptCode'] ?? '').toString()),
-                    );
-                  }),
-                ],
+                selectedItemBuilder: (BuildContext context) {
+                  final list = <Widget>[
+                    const Text('All Departments', overflow: TextOverflow.ellipsis, maxLines: 1),
+                  ];
+                  final seenDepts = <int>{};
+                  for (final d in departments) {
+                    final dId = int.tryParse(d['id']?.toString() ?? '');
+                    if (dId != null && !seenDepts.contains(dId)) {
+                      seenDepts.add(dId);
+                      final name = (d['name'] ?? d['deptName'] ?? d['code'] ?? d['deptCode'] ?? '').toString();
+                      list.add(Text(name, overflow: TextOverflow.ellipsis, maxLines: 1));
+                    }
+                  }
+                  return list;
+                },
+                items: () {
+                  final seenDepts = <int>{};
+                  final items = <DropdownMenuItem<int?>>[
+                    const DropdownMenuItem(value: null, child: Text('All Departments')),
+                  ];
+                  for (final d in departments) {
+                    final dId = int.tryParse(d['id']?.toString() ?? '');
+                    if (dId != null && !seenDepts.contains(dId)) {
+                      seenDepts.add(dId);
+                      final name = (d['name'] ?? d['deptName'] ?? d['code'] ?? d['deptCode'] ?? '').toString();
+                      items.add(DropdownMenuItem(
+                        value: dId,
+                        child: Text(
+                          name,
+                          softWrap: true,
+                          maxLines: 2,
+                          style: const TextStyle(fontSize: 13),
+                        ),
+                      ));
+                    }
+                  }
+                  return items;
+                }(),
                 onChanged: onDepartmentChanged,
                 isExpanded: true,
               ),
             ),
             SizedBox(
-              width: 150,
+              width: 160,
               child: DropdownButtonFormField<int?>(
                 decoration: InputDecoration(
                   labelText: 'Section',
@@ -123,16 +158,27 @@ class StudentFilterPanel extends StatelessWidget {
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
                 ),
                 value: selectedSectionId,
-                items: [
-                  const DropdownMenuItem(value: null, child: Text('All Sections')),
-                  ...sections.map((s) {
-                    final sId = int.tryParse(s['id'].toString());
-                    return DropdownMenuItem(
-                      value: sId,
-                      child: Text('Section ${s['sectionName'] ?? s['name'] ?? ''}'),
-                    );
-                  }),
-                ],
+                items: () {
+                  final seenSecs = <int>{};
+                  final items = <DropdownMenuItem<int?>>[
+                    const DropdownMenuItem(value: null, child: Text('All Sections')),
+                  ];
+                  for (final s in sections) {
+                    final sId = int.tryParse(s['id']?.toString() ?? '');
+                    if (sId != null && !seenSecs.contains(sId)) {
+                      seenSecs.add(sId);
+                      items.add(DropdownMenuItem(
+                        value: sId,
+                        child: Text(
+                          'Section ${s['sectionName'] ?? s['name'] ?? ''}',
+                          overflow: TextOverflow.ellipsis,
+                          maxLines: 1,
+                        ),
+                      ));
+                    }
+                  }
+                  return items;
+                }(),
                 onChanged: onSectionChanged,
                 isExpanded: true,
               ),

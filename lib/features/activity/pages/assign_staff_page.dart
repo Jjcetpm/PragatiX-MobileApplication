@@ -788,6 +788,7 @@ class _AssignStaffPageState extends State<AssignStaffPage> {
                   const SizedBox(height: 8),
                   DropdownButtonFormField<String>(
                     value: _attendanceRule,
+                    isExpanded: true,
                     decoration: InputDecoration(
                       filled: true,
                       fillColor: Colors.white,
@@ -807,15 +808,24 @@ class _AssignStaffPageState extends State<AssignStaffPage> {
                     items: const [
                       DropdownMenuItem(
                         value: 'DAILY',
-                        child: Text('Daily Check (Apply partial/full day penalty)'),
+                        child: Text(
+                          'Daily Check (Apply partial/full day penalty)',
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ),
                       DropdownMenuItem(
                         value: 'WEEKLY',
-                        child: Text('Weekly Check (Apply perfect week reward)'),
+                        child: Text(
+                          'Weekly Check (Apply perfect week reward)',
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ),
                       DropdownMenuItem(
                         value: 'BOTH',
-                        child: Text('Both (Daily penalty + Weekly reward)'),
+                        child: Text(
+                          'Both (Daily penalty + Weekly reward)',
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ),
                     ],
                     onChanged: (val) {

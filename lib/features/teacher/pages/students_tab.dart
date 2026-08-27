@@ -381,8 +381,8 @@ class _StudentsTabState extends State<StudentsTab> {
           'Authorization': 'Bearer ${context.read<AuthProvider>().token!}',
         },
         body: jsonEncode({
-          'regNo': regNoController.text.trim(),
-          'fullName': nameController.text.trim(),
+          'regNo': regNoController.text.trim().toUpperCase(),
+          'fullName': nameController.text.trim().toUpperCase(),
           'email': emailController.text.trim(),
           'password': passwordDob,
           'phone': phoneController.text.trim(),
@@ -1443,13 +1443,6 @@ class _EditStudentDialogState extends State<EditStudentDialog> {
               decoration: const InputDecoration(labelText: 'Department'),
             ),
             const SizedBox(height: 12),
-            TextField(
-              controller: academicYearCtrl,
-              decoration: const InputDecoration(
-                labelText: 'Academic Year (e.g. 2024-2025)',
-              ),
-            ),
-            const SizedBox(height: 16),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [

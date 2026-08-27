@@ -89,7 +89,7 @@ class _AdminAttendanceTabState extends State<AdminAttendanceTab> {
           headers: headers,
         ),
         http.get(
-          Uri.parse('${ApiConfig.baseUrl}/api/v1/admin/departments'),
+          Uri.parse('${ApiConfig.baseUrl}/api/v1/admin/departments?type=MAIN'),
           headers: headers,
         ),
       ]);
@@ -97,7 +97,6 @@ class _AdminAttendanceTabState extends State<AdminAttendanceTab> {
       if (!mounted) return;
 
       setState(() {
-        // Safely parse JSON or default to empty list if HTML/Error is returned
         _years = _safeDecodeList(results[0].body);
         _departments = _safeDecodeList(results[1].body);
 
@@ -167,7 +166,7 @@ class _AdminAttendanceTabState extends State<AdminAttendanceTab> {
       final dateStr = DateFormat('yyyy-MM-dd').format(_selectedDate);
       final summary = await _service.getAdminSummary(
         dateStr,
-        isYearAdmin ? -1 : _yearId!, // Use a dummy value if year admin, backend will override
+        isYearAdmin ? -1 : _yearId!,
         _departmentId,
         sectionId: _sectionId,
         period: _period,
@@ -195,7 +194,6 @@ class _AdminAttendanceTabState extends State<AdminAttendanceTab> {
     try {
       final token = getIt<AuthProvider>().token ?? '';
       
-      // Find yearNo from _yearId
       String yearNo = '';
       if (isYearAdmin) {
         yearNo = '-1';
@@ -219,7 +217,6 @@ class _AdminAttendanceTabState extends State<AdminAttendanceTab> {
       if (_period != null) {
         url += '&period=$_period';
       }
-      // Do NOT pass token in URL anymore! ExportUtils handles Authorization header.
       
       await ExportUtils.downloadAndOpenExcel(context, url, token);
     } catch (e) {
@@ -463,7 +460,6 @@ class _AdminAttendanceTabState extends State<AdminAttendanceTab> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Summary Cards
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12),
           child: Row(
@@ -492,7 +488,6 @@ class _AdminAttendanceTabState extends State<AdminAttendanceTab> {
             ],
           ),
         ),
-        // Period Matrix Table
         students.isEmpty
             ? const Padding(
                 padding: EdgeInsets.all(32.0),
@@ -536,36 +531,36 @@ class _AdminAttendanceTabState extends State<AdminAttendanceTab> {
                       DataColumn(label: Text('P7')),
                       DataColumn(label: Text('P8')),
                     ],
-                        rows: students.asMap().entries.map((entry) {
-                          final idx = entry.key;
-                          final student = entry.value;
-                          final isEven = idx % 2 == 0;
-                          return DataRow(
-                            color: WidgetStateProperty.all(
-                              isEven
-                                  ? Colors.white
-                                  : const Color(0xFFF8FAFC),
+                    rows: students.asMap().entries.map((entry) {
+                      final idx = entry.key;
+                      final student = entry.value;
+                      final isEven = idx % 2 == 0;
+                      return DataRow(
+                        color: WidgetStateProperty.all(
+                          isEven
+                              ? Colors.white
+                              : const Color(0xFFF8FAFC),
+                        ),
+                        cells: [
+                          DataCell(Text('${idx + 1}', style: const TextStyle(fontSize: 13))),
+                          DataCell(Text(
+                            student.registerNumber,
+                            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+                          )),
+                          DataCell(SizedBox(
+                            width: 160,
+                            child: Text(
+                              student.studentName,
+                              style: const TextStyle(fontSize: 13),
+                              overflow: TextOverflow.ellipsis,
                             ),
-                            cells: [
-                              DataCell(Text('${idx + 1}', style: const TextStyle(fontSize: 13))),
-                              DataCell(Text(
-                                student.registerNumber,
-                                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
-                              )),
-                              DataCell(SizedBox(
-                                width: 160,
-                                child: Text(
-                                  student.studentName,
-                                  style: const TextStyle(fontSize: 13),
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              )),
-                              ...List.generate(8, (i) {
-                                final period = i + 1;
-                                final status = student.periodStatuses[period] ?? '—';
-                                return DataCell(_buildPeriodCell(status));
-                              }),
-                            ],
+                          )),
+                          ...List.generate(8, (i) {
+                            final period = i + 1;
+                            final status = student.periodStatuses[period] ?? '—';
+                            return DataCell(_buildPeriodCell(status));
+                          }),
+                        ],
                       );
                     }).toList(),
                   ),
@@ -642,5 +637,4 @@ class _AdminAttendanceTabState extends State<AdminAttendanceTab> {
       ),
     );
   }
-
 }

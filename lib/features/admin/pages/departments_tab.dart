@@ -26,6 +26,7 @@ class _DepartmentsTabState extends State<DepartmentsTab> {
   String searchQuery = '';
   
   bool _supportsSections = false;
+  String _departmentType = 'MAIN';
 
   final TextEditingController nameController = TextEditingController();
   final TextEditingController codeController = TextEditingController();
@@ -44,8 +45,10 @@ class _DepartmentsTabState extends State<DepartmentsTab> {
     return departments.where((dept) {
       final name = (dept['name'] ?? '').toString().toLowerCase();
       final code = (dept['code'] ?? '').toString().toLowerCase();
+      final type = (dept['departmentType'] ?? dept['type'] ?? '').toString().toLowerCase();
       return name.contains(searchQuery.toLowerCase()) ||
-          code.contains(searchQuery.toLowerCase());
+          code.contains(searchQuery.toLowerCase()) ||
+          type.contains(searchQuery.toLowerCase());
     }).toList();
   }
 
@@ -64,7 +67,12 @@ class _DepartmentsTabState extends State<DepartmentsTab> {
     }
 
     try {
-      await getIt<AdminRepository>().addDepartment(name, code, _supportsSections);
+      await getIt<AdminRepository>().addDepartment(
+        name,
+        code,
+        _departmentType == 'SUB' ? false : _supportsSections,
+        departmentType: _departmentType,
+      );
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -75,6 +83,7 @@ class _DepartmentsTabState extends State<DepartmentsTab> {
       nameController.clear();
       codeController.clear();
       _supportsSections = false;
+      _departmentType = 'MAIN';
       Navigator.pop(context);
       context.read<import_provider.DepartmentProvider>().fetchDepartments();
     } catch (e) {
@@ -98,7 +107,13 @@ class _DepartmentsTabState extends State<DepartmentsTab> {
     }
 
     try {
-      await getIt<AdminRepository>().editDepartment(id, name, code, _supportsSections);
+      await getIt<AdminRepository>().editDepartment(
+        id,
+        name,
+        code,
+        _departmentType == 'SUB' ? false : _supportsSections,
+        departmentType: _departmentType,
+      );
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -109,6 +124,7 @@ class _DepartmentsTabState extends State<DepartmentsTab> {
       nameController.clear();
       codeController.clear();
       _supportsSections = false;
+      _departmentType = 'MAIN';
       Navigator.pop(context);
       context.read<import_provider.DepartmentProvider>().fetchDepartments();
     } catch (e) {
@@ -138,6 +154,7 @@ class _DepartmentsTabState extends State<DepartmentsTab> {
     nameController.clear();
     codeController.clear();
     _supportsSections = true;
+    _departmentType = 'MAIN';
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -178,19 +195,84 @@ class _DepartmentsTabState extends State<DepartmentsTab> {
                 const SizedBox(height: 16),
                 StatefulBuilder(
                   builder: (context, setDialogState) {
-                    return SwitchListTile(
-                      title: const Text('Supports Sections?'),
-                      subtitle: const Text(
-                        'Enable if this department will have sections (A, B, C, etc.)',
-                        style: TextStyle(fontSize: 12),
-                      ),
-                      value: _supportsSections,
-                      onChanged: (val) {
-                        setDialogState(() => _supportsSections = val);
-                        setState(() => _supportsSections = val);
-                      },
-                      contentPadding: EdgeInsets.zero,
-                      activeColor: const Color(0xFF1E293B),
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        DropdownButtonFormField<String>(
+                          value: _departmentType,
+                          decoration: const InputDecoration(
+                            labelText: 'Department Type *',
+                            border: OutlineInputBorder(),
+                            prefixIcon: Icon(Icons.category),
+                          ),
+                          items: const [
+                            DropdownMenuItem(
+                              value: 'MAIN',
+                              child: Text('MAIN (Engineering / Academic)'),
+                            ),
+                            DropdownMenuItem(
+                              value: 'SUB',
+                              child: Text('SUB (Language / Basic Science)'),
+                            ),
+                          ],
+                          onChanged: (val) {
+                            final newType = val ?? 'MAIN';
+                            setDialogState(() {
+                              _departmentType = newType;
+                              if (newType == 'SUB') {
+                                _supportsSections = false;
+                              } else {
+                                _supportsSections = true;
+                              }
+                            });
+                            setState(() {
+                              _departmentType = newType;
+                              if (newType == 'SUB') {
+                                _supportsSections = false;
+                              } else {
+                                _supportsSections = true;
+                              }
+                            });
+                          },
+                        ),
+                        const SizedBox(height: 16),
+                        if (_departmentType == 'MAIN')
+                          SwitchListTile(
+                            title: const Text('Supports Sections?'),
+                            subtitle: const Text(
+                              'Enable if this department will have sections (A, B, C, etc.)',
+                              style: TextStyle(fontSize: 12),
+                            ),
+                            value: _supportsSections,
+                            onChanged: (val) {
+                              setDialogState(() => _supportsSections = val);
+                              setState(() => _supportsSections = val);
+                            },
+                            contentPadding: EdgeInsets.zero,
+                            activeColor: const Color(0xFF1E293B),
+                          )
+                        else
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: Colors.purple.withValues(alpha: 0.08),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: Colors.purple.withValues(alpha: 0.2)),
+                            ),
+                            child: Row(
+                              children: const [
+                                Icon(Icons.info_outline, color: Colors.purple, size: 20),
+                                SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    'SUB departments do not support sections.',
+                                    style: TextStyle(fontSize: 12, color: Colors.purple, fontWeight: FontWeight.w500),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                      ],
                     );
                   }
                 ),
@@ -237,7 +319,8 @@ class _DepartmentsTabState extends State<DepartmentsTab> {
   void _showEditDeptDialog(Map<String, dynamic> dept) {
     nameController.text = dept['name'] ?? '';
     codeController.text = dept['code'] ?? '';
-    _supportsSections = dept['supportsSections'] == true;
+    _departmentType = (dept['departmentType'] ?? dept['type'] ?? 'MAIN').toString();
+    _supportsSections = dept['supportsSections'] == true && _departmentType == 'MAIN';
     final sectionNameController = TextEditingController();
     List<dynamic> deptSections = [];
     bool loadingSections = true;
@@ -249,6 +332,10 @@ class _DepartmentsTabState extends State<DepartmentsTab> {
           return StatefulBuilder(
             builder: (context, setPageState) {
               Future<void> fetchDeptSections() async {
+                if (_departmentType == 'SUB') {
+                  setPageState(() => loadingSections = false);
+                  return;
+                }
                 setPageState(() => loadingSections = true);
                 try {
                   final sections = await getIt<AdminRepository>()
@@ -305,7 +392,7 @@ class _DepartmentsTabState extends State<DepartmentsTab> {
                 }
               }
 
-              if (loadingSections && deptSections.isEmpty) {
+              if (loadingSections && deptSections.isEmpty && _departmentType == 'MAIN') {
                 Future.microtask(fetchDeptSections);
               }
 
@@ -353,7 +440,41 @@ class _DepartmentsTabState extends State<DepartmentsTab> {
                         ),
                       ),
                       const SizedBox(height: 16),
-                      if (dept['supportsSections'] == true) ...[
+                      DropdownButtonFormField<String>(
+                        value: _departmentType,
+                        decoration: const InputDecoration(
+                          labelText: 'Department Type *',
+                          border: OutlineInputBorder(),
+                          prefixIcon: Icon(Icons.category),
+                        ),
+                        items: const [
+                          DropdownMenuItem(
+                            value: 'MAIN',
+                            child: Text('MAIN (Engineering / Academic)'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'SUB',
+                            child: Text('SUB (Language / Basic Science)'),
+                          ),
+                        ],
+                        onChanged: (val) {
+                          final newType = val ?? 'MAIN';
+                          setPageState(() {
+                            _departmentType = newType;
+                            if (newType == 'SUB') {
+                              _supportsSections = false;
+                            }
+                          });
+                          setState(() {
+                            _departmentType = newType;
+                            if (newType == 'SUB') {
+                              _supportsSections = false;
+                            }
+                          });
+                        },
+                      ),
+                      const SizedBox(height: 16),
+                      if (_departmentType == 'MAIN') ...[
                         StatefulBuilder(
                           builder: (context, setDialogState) {
                             return Column(
@@ -452,6 +573,28 @@ class _DepartmentsTabState extends State<DepartmentsTab> {
                               ],
                             );
                           }
+                        ),
+                      ] else ...[
+                        const SizedBox(height: 16),
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.purple.withValues(alpha: 0.08),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: Colors.purple.withValues(alpha: 0.2)),
+                          ),
+                          child: Row(
+                            children: const [
+                              Icon(Icons.info_outline, color: Colors.purple, size: 20),
+                              SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  'SUB departments do not support sections.',
+                                  style: TextStyle(fontSize: 12, color: Colors.purple, fontWeight: FontWeight.w500),
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ],
                     ],
@@ -659,22 +802,68 @@ class _DepartmentsTabState extends State<DepartmentsTab> {
                                           crossAxisAlignment:
                                               CrossAxisAlignment.start,
                                           children: [
-                                            Text(
-                                              dept['name'] ?? '',
-                                              style: const TextStyle(
-                                                fontSize: 15,
-                                                fontWeight: FontWeight.bold,
-                                                color: Color(0xFF1E293B),
-                                              ),
+                                            Row(
+                                              children: [
+                                                Expanded(
+                                                  child: Text(
+                                                    dept['name'] ?? '',
+                                                    style: const TextStyle(
+                                                      fontSize: 15,
+                                                      fontWeight: FontWeight.bold,
+                                                      color: Color(0xFF1E293B),
+                                                    ),
+                                                  ),
+                                                ),
+                                                const SizedBox(width: 8),
+                                                Container(
+                                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                                  decoration: BoxDecoration(
+                                                    color: ((dept['departmentType'] ?? dept['type']) == 'SUB')
+                                                        ? Colors.purple.withValues(alpha: 0.12)
+                                                        : Colors.blue.withValues(alpha: 0.12),
+                                                    borderRadius: BorderRadius.circular(6),
+                                                    border: Border.all(
+                                                      color: ((dept['departmentType'] ?? dept['type']) == 'SUB')
+                                                          ? Colors.purple.shade300
+                                                          : Colors.blue.shade300,
+                                                    ),
+                                                  ),
+                                                  child: Text(
+                                                    ((dept['departmentType'] ?? dept['type']) == 'SUB') ? 'SUB' : 'MAIN',
+                                                    style: TextStyle(
+                                                      fontSize: 10,
+                                                      fontWeight: FontWeight.bold,
+                                                      color: ((dept['departmentType'] ?? dept['type']) == 'SUB')
+                                                          ? Colors.purple.shade800
+                                                          : Colors.blue.shade800,
+                                                    ),
+                                                  ),
+                                                ),
+                                              ],
                                             ),
                                             const SizedBox(height: 4),
-                                            Text(
-                                              'Code: ${dept["code"] ?? ""}',
-                                              style: TextStyle(
-                                                fontSize: 12,
-                                                color: Colors.grey.shade600,
-                                                fontWeight: FontWeight.w500,
-                                              ),
+                                            Row(
+                                              children: [
+                                                Text(
+                                                  'Code: ${dept["code"] ?? ""}',
+                                                  style: TextStyle(
+                                                    fontSize: 12,
+                                                    color: Colors.grey.shade600,
+                                                    fontWeight: FontWeight.w500,
+                                                  ),
+                                                ),
+                                                if (dept['supportsSections'] == true) ...[
+                                                  const SizedBox(width: 8),
+                                                  Text(
+                                                    '• Sections Enabled',
+                                                    style: TextStyle(
+                                                      fontSize: 11,
+                                                      color: Colors.green.shade700,
+                                                      fontWeight: FontWeight.w500,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ],
                                             ),
                                           ],
                                         ),

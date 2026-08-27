@@ -7,6 +7,7 @@ class StudentList extends StatelessWidget {
   final String searchQuery;
   final void Function(Map<String, dynamic>) onEdit;
   final void Function(int) onDelete;
+  final void Function(Map<String, dynamic>)? onTap;
   final ScrollController? scrollController;
   final bool isLoadingMore;
   final bool hasMore;
@@ -17,6 +18,7 @@ class StudentList extends StatelessWidget {
     required this.searchQuery,
     required this.onEdit,
     required this.onDelete,
+    this.onTap,
     this.scrollController,
     this.isLoadingMore = false,
     this.hasMore = false,
@@ -93,38 +95,46 @@ class StudentList extends StatelessWidget {
           ),
           margin: const EdgeInsets.only(bottom: 12),
           elevation: 2,
-          child: ListTile(
-            leading: CircleAvatar(
-              backgroundColor: const Color(0xFFEA4335).withValues(alpha: 0.1),
-              child: const Icon(Icons.person, color: Color(0xFFEA4335)),
-            ),
-            title: Text(
-              name,
-              style: const TextStyle(fontWeight: FontWeight.bold),
-            ),
-            subtitle: Text(
-              "$sId • $deptName\nSem: ${s["semester"] ?? '1'}${s["year"] != null && s["year"].toString().isNotEmpty ? ' • Year: ${s["year"]}' : ''}${s["section"] != null && s["section"].toString().isNotEmpty ? ' • Section: ${s["section"]}' : ''}",
-            ),
-            trailing: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                IconButton(
-                  icon: const Icon(Icons.edit_outlined, color: Colors.blue),
-                  onPressed: () => onEdit(s),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.delete_outline, color: Colors.red),
-                  onPressed: () {
-                    showDialog(
-                      context: context,
-                      builder: (context) => DeleteStudentDialog(
-                        studentName: name,
-                        onConfirmDelete: () => onDelete(s['id']),
-                      ),
-                    );
-                  },
-                ),
-              ],
+          child: InkWell(
+            borderRadius: BorderRadius.circular(12),
+            onTap: () {
+              if (onTap != null) {
+                onTap!(Map<String, dynamic>.from(s));
+              }
+            },
+            child: ListTile(
+              leading: CircleAvatar(
+                backgroundColor: const Color(0xFFEA4335).withValues(alpha: 0.1),
+                child: const Icon(Icons.person, color: Color(0xFFEA4335)),
+              ),
+              title: Text(
+                name,
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
+              subtitle: Text(
+                "$sId • $deptName\nSem: ${s["semester"] ?? '1'}${s["year"] != null && s["year"].toString().isNotEmpty ? ' • Year: ${s["year"]}' : ''}${s["section"] != null && s["section"].toString().isNotEmpty ? ' • Section: ${s["section"]}' : ''}",
+              ),
+              trailing: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.edit_outlined, color: Colors.blue),
+                    onPressed: () => onEdit(s),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.delete_outline, color: Colors.red),
+                    onPressed: () {
+                      showDialog(
+                        context: context,
+                        builder: (context) => DeleteStudentDialog(
+                          studentName: name,
+                          onConfirmDelete: () => onDelete(s['id']),
+                        ),
+                      );
+                    },
+                  ),
+                ],
+              ),
             ),
           ),
         );

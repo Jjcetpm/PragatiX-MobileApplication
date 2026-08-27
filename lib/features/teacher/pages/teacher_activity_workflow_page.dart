@@ -169,8 +169,15 @@ class _TeacherActivityWorkflowPageState
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         if (data['success'] == true) {
+          final List<dynamic> list = data['data'] ?? [];
           setState(() {
-            _availableDeptsList = data['data'] ?? [];
+            _availableDeptsList = list.where((d) {
+              final type = (d['departmentType'] ?? d['type'] ?? '').toString().toUpperCase();
+              final name = (d['name'] ?? d['departmentName'] ?? '').toString();
+              if (type == 'SUB') return false;
+              if (name.toLowerCase().startsWith('department of')) return false;
+              return true;
+            }).toList();
           });
         }
       }

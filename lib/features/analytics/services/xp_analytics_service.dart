@@ -27,7 +27,7 @@ class XpAnalyticsService {
   }
 
   Future<List<dynamic>> getDepartments() async {
-    final response = await http.get(Uri.parse('${ApiConfig.baseUrl}/api/v1/admin/departments'), headers: _getHeaders());
+    final response = await http.get(Uri.parse('${ApiConfig.baseUrl}/api/v1/admin/departments?type=MAIN'), headers: _getHeaders());
     if (response.statusCode == 200) {
       final body = json.decode(response.body);
       return body['data'] ?? [];

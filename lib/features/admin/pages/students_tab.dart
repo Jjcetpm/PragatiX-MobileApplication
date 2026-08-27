@@ -22,6 +22,7 @@ import '../widgets/student_filter_panel.dart';
 import '../widgets/student_list.dart';
 import '../widgets/student_fab.dart';
 import 'package:pragatix/features/badge/pages/admin_badge_requests_page.dart';
+import 'package:pragatix/features/teacher/pages/teacher_student_detail.dart';
 
 class StudentsTab extends StatefulWidget {
   const StudentsTab({super.key});
@@ -167,8 +168,16 @@ class _StudentsTabState extends State<StudentsTab> {
         repo.getTeams(),
       ]);
       if (!mounted) return;
+      final mainDepartments = (results[0] as List).where((d) {
+        final type = (d['departmentType'] ?? d['type'] ?? '').toString().toUpperCase();
+        final name = (d['name'] ?? d['deptName'] ?? '').toString();
+        if (type == 'SUB') return false;
+        if (name.toLowerCase().startsWith('department of')) return false;
+        return true;
+      }).toList();
+
       setState(() {
-        departments = results[0];
+        departments = mainDepartments;
         academicYears = results[1];
         years = results[2];
         semesters = results[3];
@@ -321,8 +330,8 @@ class _StudentsTabState extends State<StudentsTab> {
 
     try {
       await getIt<AdminRepository>().addStudent({
-        'regNo': regNoController.text.trim(),
-        'fullName': nameController.text.trim(),
+        'regNo': regNoController.text.trim().toUpperCase(),
+        'fullName': nameController.text.trim().toUpperCase(),
         'email': emailController.text.trim(),
         'password': passwordDob,
         'phone': phoneController.text.trim(),
@@ -413,11 +422,12 @@ class _StudentsTabState extends State<StudentsTab> {
           ? "${dob.year}-${dob.month.toString().padLeft(2, '0')}-${dob.day.toString().padLeft(2, '0')}"
           : null;
       await getIt<AdminRepository>().updateStudent(id, {
-        'fullName': fullName,
+        'fullName': fullName.trim().toUpperCase(),
         'email': email,
         'phone': phone,
         'sprNo': sprNo,
         if (formattedDob != null) 'dateOfBirth': formattedDob,
+        if (formattedDob != null) 'dob': formattedDob,
         'address': address,
         'departmentId': departmentId,
         'academicYearId': academicYearId,
@@ -704,19 +714,20 @@ class _StudentsTabState extends State<StudentsTab> {
                       onYearChanged: (year) async {
                         setState(() {
                           filterYear = year;
-                          filterDeptId = null;
                           filterSectionId = null;
                           filterSections = [];
+                          filterDepartments = List.from(departments);
                         });
-                        if (year != null) {
+                        if (filterDeptId != null) {
                           try {
-                            final depts = await getIt<AdminRepository>().getFilterDepartmentsByYear(year);
-                            setState(() => filterDepartments = depts);
+                            final secs = await getIt<AdminRepository>().getFilterSections(
+                              year: filterYear, 
+                              departmentId: filterDeptId
+                            );
+                            if (mounted) setState(() => filterSections = secs);
                           } catch (_) {
-                            setState(() => filterDepartments = []);
+                            if (mounted) setState(() => filterSections = []);
                           }
-                        } else {
-                          setState(() => filterDepartments = List.from(departments));
                         }
                         _fetchStudents();
                       },
@@ -765,6 +776,14 @@ class _StudentsTabState extends State<StudentsTab> {
                         scrollController: _scrollController,
                         isLoadingMore: _isLoadingMore,
                         hasMore: _hasMore,
+                        onTap: (student) {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => TeacherStudentDetail(student: student),
+                            ),
+                          ).then((_) => _fetchStudents(isRefresh: true));
+                        },
                         onEdit: _showEditStudentDialog,
                         onDelete: _deleteStudent,
                       ),

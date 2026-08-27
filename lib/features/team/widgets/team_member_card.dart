@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 class TeamMemberCard extends StatelessWidget {
   final Map<String, dynamic> member;
   final String? captainId;
+  final String? viceCaptainId;
   final bool canManage;
   final bool isCaptainRoleSection;
   final VoidCallback? onRemove;
@@ -12,6 +13,7 @@ class TeamMemberCard extends StatelessWidget {
     super.key,
     required this.member,
     this.captainId,
+    this.viceCaptainId,
     this.canManage = false,
     this.isCaptainRoleSection = false,
     this.onRemove,
@@ -45,7 +47,9 @@ class TeamMemberCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final bool isCaptain =
         member['regNo'] == captainId || member['teamRole'] == 'CAPTAIN';
-    final bool isViceCaptain = member['teamRole'] == 'VICE_CAPTAIN';
+    final bool isViceCaptain =
+        (viceCaptainId != null && member['regNo'] == viceCaptainId) ||
+        member['teamRole'] == 'VICE_CAPTAIN';
 
     Color avatarBgColor = Colors.indigo.shade50;
     Color avatarIconColor = Colors.indigo.shade400;
@@ -172,7 +176,7 @@ class TeamMemberCard extends StatelessWidget {
                       ),
                       const SizedBox(width: 4),
                       Text(
-                        "${member["currentXp"] ?? 0} XP",
+                        "${member['currentXp'] ?? member['totalXp'] ?? member['score'] ?? 0} XP",
                         style: const TextStyle(
                           fontWeight: FontWeight.bold,
                           color: Colors.amber,
@@ -180,23 +184,32 @@ class TeamMemberCard extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(width: 12),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 6,
-                          vertical: 2,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.indigo.shade50,
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Text(
-                          "Stage : Level ${member['currentStage'] ?? 1} - ${_getStageName(member['currentStage'] ?? 1)}",
-                          style: TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.indigo.shade700,
-                          ),
-                        ),
+                      Builder(
+                        builder: (context) {
+                          int sStage = 1;
+                          final rawStage = member['currentStage'];
+                          if (rawStage is int && rawStage > 0) {
+                            sStage = rawStage;
+                          }
+                          return Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 2,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.indigo.shade50,
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              "Stage : Level $sStage - ${_getStageName(sStage)}",
+                              style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.indigo.shade700,
+                              ),
+                            ),
+                          );
+                        },
                       ),
                     ],
                   ),

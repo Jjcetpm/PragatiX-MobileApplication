@@ -140,6 +140,10 @@ class _SuperAdminManagementTabState extends State<SuperAdminManagementTab> {
                     children: [
                       TextField(
                         controller: fullNameCtrl,
+                        textCapitalization: TextCapitalization.characters,
+                        inputFormatters: [
+                          UpperCaseTextFormatter(),
+                        ],
                         decoration: const InputDecoration(
                           labelText: 'Full Name',
                           border: OutlineInputBorder(),
@@ -235,7 +239,7 @@ class _SuperAdminManagementTabState extends State<SuperAdminManagementTab> {
                             }
 
                             final data = <String, dynamic>{
-                              'fullName': fullNameCtrl.text.trim(),
+                              'fullName': fullNameCtrl.text.trim().toUpperCase(),
                               'username': usernameCtrl.text.trim(),
                               'email': emailCtrl.text.trim(),
                               'phone': phoneCtrl.text.trim(),

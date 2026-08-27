@@ -348,6 +348,7 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
                           (m) => TeamMemberCard(
                             member: m,
                             captainId: _team.captainId,
+                            viceCaptainId: _team.viceCaptainId,
                             canManage: true,
                             isCaptainRoleSection: false,
                             onRemove: () {

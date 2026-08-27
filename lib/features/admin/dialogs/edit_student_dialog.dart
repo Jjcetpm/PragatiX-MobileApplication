@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:pragatix/core/widgets/pragatix_loader.dart';
+import 'package:pragatix/core/utils/string_utils.dart';
 
 class EditStudentDialog extends StatefulWidget {
   final Map<String, dynamic> student;
@@ -83,7 +84,6 @@ class _EditStudentDialogState extends State<EditStudentDialog> {
     'Father',
     'Mother',
     'Guardian',
-    'Parent',
   ];
   String? selectedGuardianRel;
   bool isFetchingSections = false;
@@ -126,13 +126,12 @@ class _EditStudentDialogState extends State<EditStudentDialog> {
       widget.guardianNameController.text = g['guardianName'] ?? '';
 
       String relStr = g['relationship'] ?? '';
-      // Map 'FATHER' to 'Father'
       if (relStr.isNotEmpty) {
         relStr = relStr[0].toUpperCase() + relStr.substring(1).toLowerCase();
         if (guardianRelations.contains(relStr)) {
           selectedGuardianRel = relStr;
-        } else if (relStr.toUpperCase() == 'LOCAL_GUARDIAN') {
-          selectedGuardianRel = 'Parent';
+        } else {
+          selectedGuardianRel = 'Guardian';
         }
       }
       widget.guardianRelController.text = selectedGuardianRel ?? '';
@@ -147,9 +146,14 @@ class _EditStudentDialogState extends State<EditStudentDialog> {
       selectedGuardianRel = null;
     }
 
-    if (s['dob'] != null) {
+    final rawDob = s['dob'] ?? s['dateOfBirth'];
+    if (rawDob != null) {
       try {
-        selectedDob = DateTime.parse(s['dob']);
+        if (rawDob is DateTime) {
+          selectedDob = rawDob;
+        } else {
+          selectedDob = DateTime.parse(rawDob.toString().split('T')[0]);
+        }
       } catch (e) {
         selectedDob = null;
       }
@@ -314,12 +318,20 @@ class _EditStudentDialogState extends State<EditStudentDialog> {
                             _buildSectionTitle('Personal Information'),
                             TextField(
                               controller: widget.regNoController,
-                              decoration: inputDecoration('Student ID *'),
+                              textCapitalization: TextCapitalization.characters,
+                              inputFormatters: [
+                                UpperCaseTextFormatter(),
+                              ],
+                              decoration: inputDecoration('Register Number *'),
                               readOnly: true,
                             ),
                             const SizedBox(height: 16),
                             TextField(
                               controller: widget.nameController,
+                              textCapitalization: TextCapitalization.characters,
+                              inputFormatters: [
+                                UpperCaseTextFormatter(),
+                              ],
                               decoration: inputDecoration('Full Name *'),
                             ),
                             const SizedBox(height: 16),
@@ -363,37 +375,55 @@ class _EditStudentDialogState extends State<EditStudentDialog> {
                                   setState(() => selectedGenderId = val),
                             ),
                             const SizedBox(height: 16),
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Text(
-                                  selectedDob == null
-                                      ? 'Select Date of Birth'
-                                      : "DOB: ${selectedDob!.year}-${selectedDob!.month.toString().padLeft(2, '0')}-${selectedDob!.day.toString().padLeft(2, '0')}",
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.black87,
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                              decoration: BoxDecoration(
+                                border: Border.all(color: Colors.grey.shade400),
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Icon(
+                                        Icons.cake_outlined,
+                                        color: selectedDob != null ? const Color(0xFF1E293B) : Colors.grey,
+                                        size: 20,
+                                      ),
+                                      const SizedBox(width: 10),
+                                      Text(
+                                        selectedDob == null
+                                            ? 'Select Date of Birth'
+                                            : 'DOB: ${selectedDob!.year}-${selectedDob!.month.toString().padLeft(2, '0')}-${selectedDob!.day.toString().padLeft(2, '0')}',
+                                        style: TextStyle(
+                                          fontWeight: selectedDob != null ? FontWeight.bold : FontWeight.normal,
+                                          color: selectedDob != null ? Colors.black87 : Colors.grey.shade700,
+                                          fontSize: 14,
+                                        ),
+                                      ),
+                                    ],
                                   ),
-                                ),
-                                TextButton.icon(
-                                  onPressed: () async {
-                                    final picked = await showDatePicker(
-                                      context: context,
-                                      initialDate:
-                                          selectedDob ?? DateTime(2004),
-                                      firstDate: DateTime(1995),
-                                      lastDate: DateTime.now(),
-                                    );
-                                    if (picked != null) {
-                                      setState(() {
-                                        selectedDob = picked;
-                                      });
-                                    }
-                                  },
-                                  icon: const Icon(Icons.calendar_month),
-                                  label: const Text('Pick'),
-                                ),
-                              ],
+                                  TextButton.icon(
+                                    onPressed: () async {
+                                      final picked = await showDatePicker(
+                                        context: context,
+                                        initialDate:
+                                            selectedDob ?? DateTime(2004),
+                                        firstDate: DateTime(1970),
+                                        lastDate: DateTime.now(),
+                                      );
+                                      if (picked != null) {
+                                        setState(() {
+                                          selectedDob = picked;
+                                        });
+                                      }
+                                    },
+                                    icon: const Icon(Icons.calendar_month, size: 18),
+                                    label: Text(selectedDob == null ? 'Pick' : 'Change'),
+                                  ),
+                                ],
+                              ),
                             ),
                           ],
                         ),
@@ -564,21 +594,6 @@ class _EditStudentDialogState extends State<EditStudentDialog> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             _buildSectionTitle('Account & Status'),
-                            DropdownButtonFormField<int>(
-                              value: selectedGroupId,
-                              decoration: inputDecoration('Group'),
-                              items: uniqueGroups
-                                  .map(
-                                    (grp) => DropdownMenuItem<int>(
-                                      value: grp['id'],
-                                      child: Text(grp['groupName'] ?? ''),
-                                    ),
-                                  )
-                                  .toList(),
-                              onChanged: (val) =>
-                                  setState(() => selectedGroupId = val),
-                            ),
-                            const SizedBox(height: 16),
                             SwitchListTile(
                               title: const Text(
                                 'Active Account',
@@ -619,7 +634,7 @@ class _EditStudentDialogState extends State<EditStudentDialog> {
                 onPressed: () {
                   widget.onEditStudent(
                     id: widget.student['id'],
-                    fullName: widget.nameController.text.trim(),
+                    fullName: widget.nameController.text.trim().toUpperCase(),
                     email: widget.emailController.text.trim(),
                     phone: widget.phoneController.text.trim(),
                     genderId: selectedGenderId,
@@ -628,7 +643,7 @@ class _EditStudentDialogState extends State<EditStudentDialog> {
                     yearId: selectedYearId,
                     semesterId: selectedSemesterId,
                     sectionId: selectedSectionId,
-                    groupId: selectedGroupId,
+                    groupId: null,
                     sprNo: widget.sprNoController.text.trim(),
                     dob: selectedDob,
                     address: addressController.text.trim(),

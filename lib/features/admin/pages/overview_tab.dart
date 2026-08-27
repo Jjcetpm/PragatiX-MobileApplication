@@ -79,7 +79,7 @@ class _OverviewTabState extends State<OverviewTab> {
     });
 
     String titlePrefix = 'Admin';
-    String welcomeText = 'System Admin';
+    String welcomeText = 'Super Admin';
     if (isSuperAdmin) {
       titlePrefix = 'Super Admin';
       welcomeText = 'Super Admin';
@@ -94,215 +94,742 @@ class _OverviewTabState extends State<OverviewTab> {
     }
 
     return Scaffold(
-      backgroundColor: Colors.transparent,
-      appBar: AppBar(
-        title: Text(
-          '$titlePrefix Overview',
-          style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
-        ),
-        backgroundColor: const Color(0xFF1E293B),
-        elevation: 0,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.delete_outline, color: Colors.white),
-            tooltip: 'Recycle Bin',
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => RecycleBinScreen()),
-              );
-            },
+      backgroundColor: const Color(0xFFF4F7FB),
+      body: Stack(
+        children: [
+          // Background mesh subtle gradient
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            height: 280,
+            child: Container(
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    Color(0xFFDCE8F6),
+                    Color(0xFFE8EFF9),
+                    Color(0xFFF4F7FB),
+                  ],
+                ),
+              ),
+            ),
           ),
-          IconButton(
-            icon: const Icon(Icons.refresh, color: Colors.white),
-            onPressed: () {
-              setState(() => isLoading = true);
-              _fetchStats();
-            },
+          SafeArea(
+            child: Column(
+              children: [
+                // ── Top Header ───────────────────────────────────────────────
+                _buildHeader(titlePrefix),
+
+                // ── Body Content ─────────────────────────────────────────────
+                Expanded(
+                  child: isLoading
+                      ? const Center(child: PragatiXLoader())
+                      : hasError
+                          ? _buildErrorView()
+                          : RefreshIndicator(
+                              onRefresh: _fetchStats,
+                              color: const Color(0xFF2563EB),
+                              child: SingleChildScrollView(
+                                physics: const AlwaysScrollableScrollPhysics(),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 20,
+                                  vertical: 10,
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    // ── Welcome Hero Banner with College Image ──
+                                    _buildWelcomeBanner(welcomeText),
+                                    const SizedBox(height: 22),
+
+                                    // ── Metrics Section Header ───────────────
+                                    Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        const Text(
+                                          'System Overview',
+                                          style: TextStyle(
+                                            fontSize: 17,
+                                            fontWeight: FontWeight.w700,
+                                            color: Color(0xFF0F172A),
+                                            letterSpacing: -0.3,
+                                          ),
+                                        ),
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 10,
+                                            vertical: 4,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 14),
+
+                                    // ── Stat Cards Grid (2x2) ────────────────
+                                    _buildStatsGrid(),
+                                    const SizedBox(height: 14),
+
+                                    // ── Wide Featured Leaderboard Card ───────
+                                    _buildLeaderboardCard(),
+                                    const SizedBox(height: 28),
+                                  ],
+                                ),
+                              ),
+                            ),
+                ),
+              ],
+            ),
           ),
         ],
-      ),
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [Color(0xFF1E293B), Color(0xFFF1F5F9)],
-            stops: [0.3, 0.3],
-          ),
-        ),
-        child: isLoading
-            ? const Center(child: PragatiXLoader())
-            : hasError
-                ? Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Icon(Icons.error_outline, color: Colors.red, size: 48),
-                        const SizedBox(height: 16),
-                        const Text(
-                          'Failed to load dashboard data',
-                          style: TextStyle(color: Colors.white, fontSize: 16),
-                        ),
-                        const SizedBox(height: 16),
-                        ElevatedButton(
-                          onPressed: _fetchStats,
-                          child: const Text('Retry'),
-                        ),
-                      ],
-                    ),
-                  )
-                : SingleChildScrollView(
-                    padding: const EdgeInsets.all(20),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Welcome back, $welcomeText',
-                          style: const TextStyle(
-                            fontSize: 22,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        const Text(
-                          'Here is a summary of the discipline system metrics.',
-                          style: TextStyle(fontSize: 13, color: Colors.white70),
-                        ),
-                        const SizedBox(height: 20),
-
-                        // ── Stat Cards Grid ───────────────────────────────────
-                        GridView.count(
-                          crossAxisCount: 2,
-                          shrinkWrap: true,
-                          physics: const NeverScrollableScrollPhysics(),
-                          crossAxisSpacing: 16,
-                          mainAxisSpacing: 16,
-                          childAspectRatio: 1.2,
-                          children: [
-                            _buildStatCard(
-                              title: 'Students',
-                              count: totalStudents.toString(),
-                              icon: Icons.people_alt_rounded,
-                              color: const Color(0xFF4A90E2),
-                              onTap: () => Navigator.push(context,
-                                  MaterialPageRoute(builder: (_) => const StudentsTab())),
-                            ),
-                            _buildStatCard(
-                              title: 'Teachers',
-                              count: totalTeachers.toString(),
-                              icon: Icons.school_rounded,
-                              color: const Color(0xFF34A853),
-                              onTap: () => Navigator.push(context,
-                                  MaterialPageRoute(builder: (_) => const TeachersTab())),
-                            ),
-                            _buildStatCard(
-                              title: 'Departments',
-                              count: totalDepartments.toString(),
-                              icon: Icons.account_balance_rounded,
-                              color: const Color(0xFFFBBC05),
-                              onTap: () => Navigator.push(context,
-                                  MaterialPageRoute(builder: (_) => const DepartmentsTab())),
-                            ),
-                            _buildStatCard(
-                              title: 'Enrollment',
-                              count: 'Manage',
-                              icon: Icons.how_to_reg_rounded,
-                              color: const Color(0xFF673AB7),
-                              onTap: () => Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (_) => const EnrollmentAdminPage(),
-                                ),
-                              ),
-                            ),
-                            _buildStatCard(
-                              title: 'Leaderboard',
-                              count: 'Top',
-                              icon: Icons.emoji_events_rounded,
-                              color: const Color(0xFFE91E63),
-                              onTap: () => Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (_) => const SharedLeaderboardPage(
-                                    title: 'Global Leaderboard',
-                                    showFilters: true,
-                                    showCurrentUserRank: false,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 30),
-                      ],
-                    ),
-                  ),
       ),
     );
   }
 
-  // ── Stat Card ────────────────────────────────────────────────────────────────
+  // ── Top Header ───────────────────────────────────────────────────────────────
+
+  Widget _buildHeader(String titlePrefix) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(18, 10, 16, 6),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  '$titlePrefix Overview',
+                  style: const TextStyle(
+                    fontSize: 19,
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFF0F172A),
+                    letterSpacing: -0.4,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 2),
+                const Text(
+                  'Dashboard',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                    color: Color(0xFF64748B),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Recycle Bin
+              _buildHeaderActionButton(
+                icon: Icons.delete,
+                tooltip: 'Recycle Bin',
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const RecycleBinScreen(),
+                    ),
+                  );
+                },
+              ),
+              const SizedBox(width: 6),
+
+              // Notification Indicator
+              Stack(
+                children: [
+                  if (pendingBadgeRequests > 0)
+                    Positioned(
+                      top: 6,
+                      right: 6,
+                      child: Container(
+                        width: 8,
+                        height: 8,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFEF4444),
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.white, width: 1.5),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+              const SizedBox(width: 6),
+
+              // Refresh
+              _buildHeaderActionButton(
+                icon: Icons.refresh_rounded,
+                tooltip: 'Refresh',
+                onPressed: () {
+                  setState(() => isLoading = true);
+                  _fetchStats();
+                },
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHeaderActionButton({
+    required IconData icon,
+    required String tooltip,
+    required VoidCallback onPressed,
+  }) {
+    return Container(
+      width: 38,
+      height: 38,
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.90),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: const Color(0xFFE2E8F0),
+          width: 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF0F172A).withValues(alpha: 0.04),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: IconButton(
+        padding: EdgeInsets.zero,
+        icon: Icon(icon, size: 19, color: const Color(0xFF1E293B)),
+        tooltip: tooltip,
+        onPressed: onPressed,
+      ),
+    );
+  }
+
+  // ── Welcome Hero Banner with College Background ──────────────────────────────
+
+  Widget _buildWelcomeBanner(String welcomeText) {
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(22),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF0F172A).withValues(alpha: 0.22),
+            blurRadius: 20,
+            offset: const Offset(0, 8),
+            spreadRadius: -2,
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(22),
+        child: Stack(
+          children: [
+            // Dark base background
+            Container(
+              height: 165,
+              color: const Color(0xFF0D1522),
+            ),
+
+            // College Image positioned on right side
+            Positioned(
+              right: 0,
+              top: 0,
+              bottom: 0,
+              width: MediaQuery.of(context).size.width * 0.58,
+              child: Image.asset(
+                'assets/images/college_banner.png',
+                fit: BoxFit.cover,
+                alignment: Alignment.center,
+                errorBuilder: (context, error, stackTrace) {
+                  return Image.asset(
+                    'assets/images/college_campus.png',
+                    fit: BoxFit.cover,
+                    alignment: Alignment.center,
+                  );
+                },
+              ),
+            ),
+
+            // Horizontal gradient overlay from solid dark slate on left to soft fade over image
+            Positioned.fill(
+              child: Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.centerLeft,
+                    end: Alignment.centerRight,
+                    stops: const [0.0, 0.38, 0.65, 1.0],
+                    colors: [
+                      const Color(0xFF0D1522),
+                      const Color(0xFF0D1522),
+                      const Color(0xFF0D1522).withValues(alpha: 0.60),
+                      const Color(0xFF0D1522).withValues(alpha: 0.18),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+
+            // Subtle top/bottom vignette
+            Positioned.fill(
+              child: Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      const Color(0xFF0D1522).withValues(alpha: 0.25),
+                      Colors.transparent,
+                      const Color(0xFF0D1522).withValues(alpha: 0.50),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+
+            // Sleek card border
+            Positioned.fill(
+              child: Container(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(22),
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: 0.14),
+                    width: 1.2,
+                  ),
+                ),
+              ),
+            ),
+
+            // Banner Content
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    'Welcome back,',
+                    style: TextStyle(
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.w500,
+                      color: Colors.white.withValues(alpha: 0.72),
+                      letterSpacing: 0.2,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Flexible(
+                        child: Text(
+                          welcomeText,
+                          style: const TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.w800,
+                            color: Colors.white,
+                            letterSpacing: -0.4,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      const Text(
+                        '👋',
+                        style: TextStyle(fontSize: 20),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  ConstrainedBox(
+                    constraints: BoxConstraints(
+                      maxWidth: MediaQuery.of(context).size.width * 0.54,
+                    ),
+                    child: Text(
+                      "Here's a quick overview of your institution's performance.",
+                      style: TextStyle(
+                        fontSize: 12,
+                        height: 1.35,
+                        color: Colors.white.withValues(alpha: 0.70),
+                        fontWeight: FontWeight.w400,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  // College Tag Badge
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 3,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.18),
+                        width: 0.8,
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(
+                          Icons.school_rounded,
+                          color: Color(0xFF93C5FD),
+                          size: 12,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          'JJCET Campus',
+                          style: TextStyle(
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.white.withValues(alpha: 0.90),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ── Stat Cards Grid (2x2) ────────────────────────────────────────────────────
+
+  Widget _buildStatsGrid() {
+    return GridView.count(
+      crossAxisCount: 2,
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      crossAxisSpacing: 14,
+      mainAxisSpacing: 14,
+      childAspectRatio: 1.25,
+      children: [
+        _buildStatCard(
+          title: 'Students',
+          count: totalStudents.toString(),
+          icon: Icons.groups_rounded,
+          gradientColors: const [Color(0xFF3B82F6), Color(0xFF1D4ED8)],
+          onTap: () => Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const StudentsTab()),
+          ),
+        ),
+        _buildStatCard(
+          title: 'Teachers',
+          count: totalTeachers.toString(),
+          icon: Icons.school_rounded,
+          gradientColors: const [Color(0xFF10B981), Color(0xFF047857)],
+          onTap: () => Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const TeachersTab()),
+          ),
+        ),
+        _buildStatCard(
+          title: 'Departments',
+          count: totalDepartments.toString(),
+          icon: Icons.account_balance_rounded,
+          gradientColors: const [Color(0xFFF59E0B), Color(0xFFD97706)],
+          onTap: () => Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const DepartmentsTab()),
+          ),
+        ),
+        _buildStatCard(
+          title: 'Enrollment',
+          count: 'Manage',
+          icon: Icons.how_to_reg_rounded,
+          gradientColors: const [Color(0xFF8B5CF6), Color(0xFF6D28D9)],
+          onTap: () => Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const EnrollmentAdminPage()),
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ── Single Stat Card ─────────────────────────────────────────────────────────
 
   Widget _buildStatCard({
     required String title,
     required String count,
     required IconData icon,
-    required Color color,
+    required List<Color> gradientColors,
     VoidCallback? onTap,
   }) {
-    return Card(
-      elevation: 4,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: color.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(10),
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: const Color(0xFFE2E8F0),
+          width: 1.1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF0F172A).withValues(alpha: 0.04),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(18),
+          splashColor: gradientColors[0].withValues(alpha: 0.08),
+          highlightColor: gradientColors[0].withValues(alpha: 0.04),
+          child: Padding(
+            padding: const EdgeInsets.all(15.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: gradientColors,
+                        ),
+                        borderRadius: BorderRadius.circular(12),
+                        boxShadow: [
+                          BoxShadow(
+                            color: gradientColors[0].withValues(alpha: 0.30),
+                            blurRadius: 8,
+                            offset: const Offset(0, 3),
+                          ),
+                        ],
+                      ),
+                      child: Icon(icon, color: Colors.white, size: 20),
                     ),
-                    child: Icon(icon, color: color, size: 24),
-                  ),
-                ],
-              ),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    count,
-                    style: const TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF1E293B),
+                    const Icon(
+                      Icons.arrow_forward_ios_rounded,
+                      size: 12,
+                      color: Color(0xFFCBD5E1),
                     ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    title,
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: Colors.grey.shade600,
-                      fontWeight: FontWeight.w500,
+                  ],
+                ),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      count,
+                      style: const TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w800,
+                        color: Color(0xFF0F172A),
+                        letterSpacing: -0.5,
+                      ),
                     ),
-                  ),
-                ],
-              ),
-            ],
+                    const SizedBox(height: 1),
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        fontSize: 12.5,
+                        color: Color(0xFF64748B),
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
         ),
       ),
     );
   }
+
+  // ── Wide Featured Leaderboard Card ───────────────────────────────────────────
+
+  Widget _buildLeaderboardCard() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: const Color(0xFFE2E8F0),
+          width: 1.1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF0F172A).withValues(alpha: 0.04),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () => Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => const SharedLeaderboardPage(
+                title: 'Global Leaderboard',
+                showFilters: true,
+                showCurrentUserRank: false,
+              ),
+            ),
+          ),
+          borderRadius: BorderRadius.circular(18),
+          splashColor: const Color(0xFFEC4899).withValues(alpha: 0.08),
+          highlightColor: const Color(0xFFEC4899).withValues(alpha: 0.04),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            child: Row(
+              children: [
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [Color(0xFFEC4899), Color(0xFFBE185D)],
+                    ),
+                    borderRadius: BorderRadius.circular(14),
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFFEC4899).withValues(alpha: 0.30),
+                        blurRadius: 8,
+                        offset: const Offset(0, 3),
+                      ),
+                    ],
+                  ),
+                  child: const Icon(
+                    Icons.emoji_events_rounded,
+                    color: Colors.white,
+                    size: 22,
+                  ),
+                ),
+                const SizedBox(width: 14),
+                const Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Global Leaderboard',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800,
+                          color: Color(0xFF0F172A),
+                          letterSpacing: -0.3,
+                        ),
+                      ),
+                      SizedBox(height: 2),
+                      Text(
+                        'View top ranking students and achievements',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Color(0xFF64748B),
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF1F5F9),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(
+                    Icons.arrow_forward_ios_rounded,
+                    size: 13,
+                    color: Color(0xFF64748B),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ── Error View ───────────────────────────────────────────────────────────────
+
+  Widget _buildErrorView() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: const BoxDecoration(
+                color: Color(0xFFFEE2E2),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.error_outline_rounded,
+                color: Color(0xFFEF4444),
+                size: 40,
+              ),
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              'Failed to load dashboard data',
+              style: TextStyle(
+                color: Color(0xFF0F172A),
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 6),
+            const Text(
+              'Please check your network connection and try again.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: Color(0xFF64748B),
+                fontSize: 13,
+              ),
+            ),
+            const SizedBox(height: 20),
+            ElevatedButton.icon(
+              onPressed: _fetchStats,
+              icon: const Icon(Icons.refresh_rounded, size: 18),
+              label: const Text('Retry'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF2563EB),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 12,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                elevation: 0,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
+
+

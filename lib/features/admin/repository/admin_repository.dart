@@ -9,8 +9,13 @@ class AdminRepository {
   AdminRepository(this._adminService);
 
   // DEPARTMENTS
-  Future<List<dynamic>> getDepartments({bool all = false}) async {
-    final String endpoint = all ? '/api/v1/admin/departments?all=true' : '/api/v1/admin/departments';
+  Future<List<dynamic>> getDepartments({bool all = false, String? type}) async {
+    String endpoint = '/api/v1/admin/departments';
+    if (type != null && type.isNotEmpty) {
+      endpoint += '?type=$type';
+    } else if (all) {
+      endpoint += '?type=ALL';
+    }
     final response = await _adminService.get(endpoint);
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body);
@@ -66,11 +71,17 @@ class AdminRepository {
     throw Exception('Failed to load teams');
   }
 
-  Future<Map<String, dynamic>> addDepartment(String name, String code, bool supportsSections) async {
+  Future<Map<String, dynamic>> addDepartment(
+    String name,
+    String code,
+    bool supportsSections, {
+    String departmentType = 'MAIN',
+  }) async {
     final response = await _adminService.post('/api/v1/admin/departments', {
       'name': name,
       'code': code,
-      'supportsSections': supportsSections,
+      'departmentType': departmentType,
+      'supportsSections': departmentType == 'SUB' ? false : supportsSections,
     });
     return _handleResponse(response);
   }
@@ -79,12 +90,14 @@ class AdminRepository {
     int id,
     String name,
     String code,
-    bool supportsSections,
-  ) async {
+    bool supportsSections, {
+    String departmentType = 'MAIN',
+  }) async {
     final response = await _adminService.put('/api/v1/admin/departments/$id', {
       'name': name,
       'code': code,
-      'supportsSections': supportsSections,
+      'departmentType': departmentType,
+      'supportsSections': departmentType == 'SUB' ? false : supportsSections,
     });
     return _handleResponse(response);
   }

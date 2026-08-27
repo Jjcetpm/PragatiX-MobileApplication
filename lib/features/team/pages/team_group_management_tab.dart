@@ -100,7 +100,7 @@ class _TeamGroupManagementTabState extends State<TeamGroupManagementTab> {
       try {
         final results = await Future.wait([
           getIt<TeamProxyService>().get(
-            Uri.parse('${ApiConfig.baseUrl}/api/v1/admin/departments'),
+            Uri.parse('${ApiConfig.baseUrl}/api/v1/admin/departments?type=MAIN'),
             headers: headers,
           ),
           getIt<TeamProxyService>().get(
@@ -584,9 +584,15 @@ class _TeamGroupManagementTabState extends State<TeamGroupManagementTab> {
                               final targetOrder = stageMatches.isNotEmpty
                                   ? (stageMatches.first['displayOrder'] ?? stageMatches.first['id'])
                                   : selectedStage;
-                              final currentStage = (g['teamMembers'] as List?)?.isNotEmpty == true
-                                  ? (g['teamMembers'][0]['currentStage'] ?? 1)
-                                  : 1;
+                              int currentStage = 1;
+                              if (g['currentStage'] != null && g['currentStage'] is int && (g['currentStage'] as int) > 0) {
+                                currentStage = g['currentStage'];
+                              } else if ((g['teamMembers'] as List?)?.isNotEmpty == true) {
+                                final memberStage = g['teamMembers'][0]['currentStage'];
+                                if (memberStage is int && memberStage > 0) {
+                                  currentStage = memberStage;
+                                }
+                              }
                               return currentStage == targetOrder;
                             }
                             return true;
@@ -633,10 +639,15 @@ class _TeamGroupManagementTabState extends State<TeamGroupManagementTab> {
                             final groupName = g['teamName'] ?? 'Group';
                             final size = g['teamCapacity'] ?? 0;
 
-                            final currentStage =
-                                (g['teamMembers'] as List?)?.isNotEmpty == true
-                                ? (g['teamMembers'][0]['currentStage'] ?? 1)
-                                : 1;
+                            int currentStage = 1;
+                            if (g['currentStage'] != null && g['currentStage'] is int && (g['currentStage'] as int) > 0) {
+                              currentStage = g['currentStage'];
+                            } else if ((g['teamMembers'] as List?)?.isNotEmpty == true) {
+                              final memberStage = g['teamMembers'][0]['currentStage'];
+                              if (memberStage is int && memberStage > 0) {
+                                currentStage = memberStage;
+                              }
+                            }
 
                             return Card(
                               margin: const EdgeInsets.symmetric(

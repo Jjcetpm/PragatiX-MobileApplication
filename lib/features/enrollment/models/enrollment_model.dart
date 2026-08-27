@@ -21,6 +21,8 @@ class PendingDepartment {
 class PendingStudent {
   final int id;
   final String fullName;
+  final String? email;
+  final String? maskedEmail;
   final String maskedMobile;
   final int? departmentId;
   final String departmentName;
@@ -29,6 +31,8 @@ class PendingStudent {
   PendingStudent({
     required this.id,
     required this.fullName,
+    this.email,
+    this.maskedEmail,
     required this.maskedMobile,
     this.departmentId,
     required this.departmentName,
@@ -39,6 +43,8 @@ class PendingStudent {
     return PendingStudent(
       id: json['id'] is int ? json['id'] : int.tryParse(json['id'].toString()) ?? 0,
       fullName: json['fullName']?.toString() ?? '',
+      email: json['email']?.toString(),
+      maskedEmail: json['maskedEmail']?.toString() ?? json['email']?.toString(),
       maskedMobile: json['maskedMobile']?.toString() ?? '******',
       departmentId: json['departmentId'] != null ? (json['departmentId'] is int ? json['departmentId'] : int.tryParse(json['departmentId'].toString())) : null,
       departmentName: json['departmentName']?.toString() ?? '',
