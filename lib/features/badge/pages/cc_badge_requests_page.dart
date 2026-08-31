@@ -46,11 +46,11 @@ class _CCBadgeRequestsPageState extends State<CCBadgeRequestsPage> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                _buildFilterChip('PENDING'),
+                _buildFilterChip('PENDING', badgeProvider),
                 const SizedBox(width: 8),
-                _buildFilterChip('APPROVED'),
+                _buildFilterChip('APPROVED', badgeProvider),
                 const SizedBox(width: 8),
-                _buildFilterChip('REJECTED'),
+                _buildFilterChip('REJECTED', badgeProvider),
               ],
             ),
           ),
@@ -69,10 +69,14 @@ class _CCBadgeRequestsPageState extends State<CCBadgeRequestsPage> {
     );
   }
 
-  Widget _buildFilterChip(String status) {
+  Widget _buildFilterChip(String status, BadgeProvider badgeProvider) {
     final isSelected = _selectedStatus == status;
+    final int count = badgeProvider.adminCCBadgeRequests
+        .where((r) => (r['status'] ?? '').toString().toUpperCase() == status)
+        .length;
+
     return ChoiceChip(
-      label: Text(status),
+      label: Text(count > 0 ? '$status ($count)' : status),
       selected: isSelected,
       onSelected: (selected) {
         if (selected) setState(() => _selectedStatus = status);
@@ -97,7 +101,7 @@ class _CCBadgeRequestsPageState extends State<CCBadgeRequestsPage> {
                       req.badgeIcon,
                       width: 40,
                       height: 40,
-                      errorBuilder: (_, __, ___) => const Icon(Icons.shield),
+                      errorBuilder: (context, error, stackTrace) => const Icon(Icons.shield),
                     ),
                   )
                 else
@@ -134,65 +138,38 @@ class _CCBadgeRequestsPageState extends State<CCBadgeRequestsPage> {
               Padding(
                 padding: const EdgeInsets.only(top: 8.0),
                 child: InkWell(
-                  onTap: () => ProofViewerUtils.openProof(
-                    context,
-                    req.proofLink,
-                    title: '${req.badgeName} Proof - ${req.studentName}',
-                  ),
-                  borderRadius: BorderRadius.circular(6),
-                  child: const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 4.0, horizontal: 2.0),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.link, size: 16, color: Colors.blue),
-                        SizedBox(width: 6),
-                        Text(
-                          'View Proof Link',
-                          style: TextStyle(
-                            color: Colors.blue,
-                            decoration: TextDecoration.underline,
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ],
+                  onTap: () {
+                    ProofViewerUtils.openProof(
+                      context,
+                      req.proofLink!,
+                      title: '${req.badgeName} Proof - ${req.studentName}',
+                    );
+                  },
+                  child: Text(
+                    'Evidence: ${req.proofLink!}',
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.primary,
+                      decoration: TextDecoration.underline,
+                      fontSize: 12,
                     ),
                   ),
                 ),
               ),
-            if (req.reviewedBy != null) ...[
-              Text(
-                'Reviewed By: ${req.reviewedBy}',
-                style: const TextStyle(fontSize: 12),
-              ),
-              Text(
-                'Reviewed At: ${_formatDate(req.reviewedAt!)}',
-                style: const TextStyle(fontSize: 12),
-              ),
-            ],
             if (req.status == 'PENDING') ...[
-              const Divider(),
+              const SizedBox(height: 12),
               Row(
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
-                  TextButton(
+                  OutlinedButton(
                     onPressed: () => _handleReject(req.id),
-                    child: const Text(
-                      'Reject',
-                      style: TextStyle(color: Colors.red),
-                    ),
+                    style: OutlinedButton.styleFrom(foregroundColor: Colors.red),
+                    child: const Text('Reject'),
                   ),
                   const SizedBox(width: 8),
                   ElevatedButton(
                     onPressed: () => _handleApprove(req.id),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.green,
-                    ),
-                    child: const Text(
-                      'Approve',
-                      style: TextStyle(color: Colors.white),
-                    ),
+                    style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
+                    child: const Text('Approve', style: TextStyle(color: Colors.white)),
                   ),
                 ],
               ),
@@ -205,40 +182,60 @@ class _CCBadgeRequestsPageState extends State<CCBadgeRequestsPage> {
 
   void _handleApprove(int id) async {
     final token = context.read<AuthProvider>().token;
-    final res = await context.read<BadgeProvider>().approveBadgeWorkflow(
-      token!,
-      id,
-      'CC',
-    );
+    if (token == null) return;
+    final res = await context.read<BadgeProvider>().approveBadgeWorkflow(token, id, 'CC');
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(res['message']),
-          backgroundColor: res['success'] == true ? Colors.green : Colors.red,
-        ),
+        SnackBar(content: Text(res['message'] ?? 'Approved')),
       );
     }
   }
 
   void _handleReject(int id) async {
     final token = context.read<AuthProvider>().token;
-    final res = await context.read<BadgeProvider>().rejectBadgeWorkflow(
-      token!,
-      id,
-      'CC',
-    );
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(res['message']),
-          backgroundColor: Colors.red,
+    if (token == null) return;
+
+    final remarksController = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Reject Badge Request'),
+        content: TextField(
+          controller: remarksController,
+          decoration: const InputDecoration(
+            labelText: 'Remarks / Reason',
+            border: OutlineInputBorder(),
+          ),
         ),
-      );
-    }
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              final res = await context.read<BadgeProvider>().rejectBadgeWorkflow(
+                token,
+                id,
+                'CC',
+                remarks: remarksController.text.trim(),
+              );
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text(res['message'] ?? 'Rejected')),
+                );
+              }
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('Reject', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
   }
 
   String _formatDate(String dateStr) {
-    if (dateStr.isEmpty) return 'N/A';
     try {
       final dt = DateTime.parse(dateStr).toLocal();
       return DateFormat('MMM dd, yyyy HH:mm').format(dt);

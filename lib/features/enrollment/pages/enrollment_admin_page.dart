@@ -288,15 +288,22 @@ class _EnrollmentAdminPageState extends State<EnrollmentAdminPage> with SingleTi
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-    const primaryColor = Color(0xFFEA4335);
+    const primaryColor = Color(0xFF2563EB);
 
     return Scaffold(
-      backgroundColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+      backgroundColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF4F7FB),
       appBar: AppBar(
-        title: const Text('Student Enrollment'),
+        title: const Text(
+          'Student Enrollment',
+          style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
+        ),
+        backgroundColor: const Color(0xFF2563EB),
+        foregroundColor: Colors.white,
+        elevation: 0,
+        iconTheme: const IconThemeData(color: Colors.white),
         actions: [
           IconButton(
-            icon: const Icon(Icons.refresh_rounded),
+            icon: const Icon(Icons.refresh_rounded, color: Colors.white),
             tooltip: 'Refresh',
             onPressed: () {
               _fetchPending();
@@ -304,7 +311,7 @@ class _EnrollmentAdminPageState extends State<EnrollmentAdminPage> with SingleTi
             },
           ),
           IconButton(
-            icon: const Icon(Icons.file_upload_outlined),
+            icon: const Icon(Icons.file_upload_outlined, color: Colors.white),
             tooltip: 'Bulk Import',
             onPressed: _showBulkImportDialog,
           ),
@@ -316,20 +323,20 @@ class _EnrollmentAdminPageState extends State<EnrollmentAdminPage> with SingleTi
               children: [
           // ── Status Banner ──────────────────────────────────────────────────
           Container(
-            margin: const EdgeInsets.all(16),
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+            margin: const EdgeInsets.fromLTRB(16, 16, 16, 12),
+            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
             decoration: BoxDecoration(
               color: isDark ? const Color(0xFF1E293B) : Colors.white,
               borderRadius: BorderRadius.circular(16),
               border: Border.all(
                 color: _isEnrollmentEnabled
-                    ? Colors.green.withOpacity(0.4)
-                    : (isDark ? const Color(0xFF334155) : Colors.grey.shade300),
-                width: 1.5,
+                    ? const Color(0xFF86EFAC)
+                    : (isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+                width: 1.2,
               ),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.04),
+                  color: Colors.black.withValues(alpha: 0.03),
                   blurRadius: 10,
                   offset: const Offset(0, 4),
                 ),
@@ -341,14 +348,14 @@ class _EnrollmentAdminPageState extends State<EnrollmentAdminPage> with SingleTi
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
                     color: _isEnrollmentEnabled
-                        ? Colors.green.withOpacity(0.12)
-                        : Colors.grey.withOpacity(0.12),
+                        ? const Color(0xFFDCFCE7)
+                        : (isDark ? const Color(0xFF334155) : const Color(0xFFF1F5F9)),
                     shape: BoxShape.circle,
                   ),
                   child: Icon(
-                    _isEnrollmentEnabled ? Icons.how_to_reg_rounded : Icons.lock_outline,
-                    color: _isEnrollmentEnabled ? Colors.green : Colors.grey,
-                    size: 24,
+                    _isEnrollmentEnabled ? Icons.how_to_reg_rounded : Icons.lock_outline_rounded,
+                    color: _isEnrollmentEnabled ? const Color(0xFF16A34A) : const Color(0xFF94A3B8),
+                    size: 22,
                   ),
                 ),
                 const SizedBox(width: 14),
@@ -358,22 +365,30 @@ class _EnrollmentAdminPageState extends State<EnrollmentAdminPage> with SingleTi
                     children: [
                       Row(
                         children: [
-                          const Text(
+                          Text(
                             'Enrollment Status: ',
-                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                            style: TextStyle(
+                              fontWeight: FontWeight.w700,
+                              fontSize: 14,
+                              color: isDark ? Colors.white : const Color(0xFF0F172A),
+                            ),
                           ),
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                             decoration: BoxDecoration(
-                              color: _isEnrollmentEnabled ? Colors.green.shade50 : Colors.grey.shade200,
+                              color: _isEnrollmentEnabled
+                                  ? const Color(0xFFDCFCE7)
+                                  : (isDark ? const Color(0xFF334155) : const Color(0xFFF1F5F9)),
                               borderRadius: BorderRadius.circular(6),
                             ),
                             child: Text(
                               _isEnrollmentEnabled ? 'ON' : 'OFF',
                               style: TextStyle(
-                                color: _isEnrollmentEnabled ? Colors.green.shade800 : Colors.grey.shade800,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 13,
+                                color: _isEnrollmentEnabled
+                                    ? const Color(0xFF16A34A)
+                                    : (isDark ? Colors.white70 : const Color(0xFF64748B)),
+                                fontWeight: FontWeight.w800,
+                                fontSize: 12,
                               ),
                             ),
                           ),
@@ -386,7 +401,7 @@ class _EnrollmentAdminPageState extends State<EnrollmentAdminPage> with SingleTi
                             : 'Self-enrollment is currently closed.',
                         style: TextStyle(
                           fontSize: 12,
-                          color: isDark ? Colors.white60 : Colors.grey.shade600,
+                          color: isDark ? Colors.white60 : const Color(0xFF64748B),
                         ),
                       ),
                     ],
@@ -394,13 +409,13 @@ class _EnrollmentAdminPageState extends State<EnrollmentAdminPage> with SingleTi
                 ),
                 _isTogglingStatus
                     ? const SizedBox(
-                        width: 24,
-                        height: 24,
+                        width: 22,
+                        height: 22,
                         child: CircularProgressIndicator(strokeWidth: 2.5),
                       )
                     : Switch.adaptive(
                         value: _isEnrollmentEnabled,
-                        activeColor: Colors.green,
+                        activeColor: const Color(0xFF16A34A),
                         onChanged: _toggleEnrollmentStatus,
                       ),
               ],
@@ -418,10 +433,11 @@ class _EnrollmentAdminPageState extends State<EnrollmentAdminPage> with SingleTi
                     controller: _searchController,
                     decoration: InputDecoration(
                       hintText: 'Search student...',
-                      prefixIcon: const Icon(Icons.search_rounded, size: 20),
+                      hintStyle: const TextStyle(fontSize: 13, color: Color(0xFF94A3B8)),
+                      prefixIcon: const Icon(Icons.search_rounded, size: 20, color: Color(0xFF64748B)),
                       suffixIcon: _searchController.text.isNotEmpty
                           ? IconButton(
-                              icon: const Icon(Icons.clear_rounded, size: 18),
+                              icon: const Icon(Icons.clear_rounded, size: 18, color: Color(0xFF64748B)),
                               onPressed: () {
                                 _searchController.clear();
                                 setState(() {
@@ -441,8 +457,18 @@ class _EnrollmentAdminPageState extends State<EnrollmentAdminPage> with SingleTi
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
                         borderSide: BorderSide(
-                          color: isDark ? const Color(0xFF334155) : Colors.grey.shade300,
+                          color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
                         ),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(
+                          color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+                        ),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(color: Color(0xFF2563EB), width: 1.5),
                       ),
                     ),
                     onSubmitted: (val) {
@@ -461,19 +487,20 @@ class _EnrollmentAdminPageState extends State<EnrollmentAdminPage> with SingleTi
                   flex: 2,
                   child: Container(
                     height: 42,
-                    padding: const EdgeInsets.symmetric(horizontal: 10),
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
                     decoration: BoxDecoration(
                       color: isDark ? const Color(0xFF1E293B) : Colors.white,
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(
-                        color: isDark ? const Color(0xFF334155) : Colors.grey.shade300,
+                        color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
                       ),
                     ),
                     child: DropdownButtonHideUnderline(
                       child: DropdownButton<int>(
                         value: _selectedDeptId,
-                        hint: const Text('All Depts', style: TextStyle(fontSize: 13)),
+                        hint: const Text('All Depts', style: TextStyle(fontSize: 13, color: Color(0xFF64748B))),
                         isExpanded: true,
+                        icon: const Icon(Icons.arrow_drop_down_rounded, color: Color(0xFF64748B)),
                         items: [
                           const DropdownMenuItem<int>(
                             value: null,
@@ -511,6 +538,7 @@ class _EnrollmentAdminPageState extends State<EnrollmentAdminPage> with SingleTi
           // ── Tabs ───────────────────────────────────────────────────────────
           Container(
             margin: const EdgeInsets.symmetric(horizontal: 16),
+            height: 44,
             decoration: BoxDecoration(
               color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0),
               borderRadius: BorderRadius.circular(12),
@@ -518,13 +546,22 @@ class _EnrollmentAdminPageState extends State<EnrollmentAdminPage> with SingleTi
             child: TabBar(
               controller: _tabController,
               indicator: BoxDecoration(
-                color: primaryColor,
-                borderRadius: BorderRadius.circular(12),
+                color: const Color(0xFF2563EB),
+                borderRadius: BorderRadius.circular(10),
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFF2563EB).withValues(alpha: 0.25),
+                    blurRadius: 6,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
               ),
               indicatorSize: TabBarIndicatorSize.tab,
+              indicatorPadding: const EdgeInsets.all(3),
               labelColor: Colors.white,
-              unselectedLabelColor: isDark ? Colors.white60 : Colors.grey.shade700,
-              labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+              unselectedLabelColor: isDark ? Colors.white60 : const Color(0xFF64748B),
+              labelStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+              unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
               tabs: [
                 Tab(text: 'Pending ($_pendingTotal)'),
                 Tab(text: 'Enrolled ($_enrolledTotal)'),
@@ -551,20 +588,40 @@ class _EnrollmentAdminPageState extends State<EnrollmentAdminPage> with SingleTi
           FloatingActionButton.extended(
             heroTag: 'add_single_student_btn',
             onPressed: _showAddSingleStudentDialog,
-            backgroundColor: isDark ? const Color(0xFF334155) : Colors.white,
-            foregroundColor: isDark ? Colors.white : Colors.black87,
+            backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+            foregroundColor: isDark ? Colors.white : const Color(0xFF0F172A),
             elevation: 3,
-            icon: const Icon(Icons.person_add_rounded, color: primaryColor),
-            label: const Text('Add Student', style: TextStyle(fontWeight: FontWeight.bold)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(24),
+              side: BorderSide(
+                color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+              ),
+            ),
+            icon: const Icon(Icons.person_add_rounded, color: Color(0xFF2563EB)),
+            label: const Text(
+              'Add Student',
+              style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+            ),
           ),
           const SizedBox(width: 12),
           FloatingActionButton.extended(
             heroTag: 'bulk_import_students_btn',
             onPressed: _showBulkImportDialog,
-            backgroundColor: primaryColor,
+            backgroundColor: const Color(0xFF2563EB),
+            foregroundColor: Colors.white,
             elevation: 3,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(24),
+            ),
             icon: const Icon(Icons.file_upload_rounded, color: Colors.white),
-            label: const Text('Bulk Import', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            label: const Text(
+              'Bulk Import',
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w700,
+                fontSize: 13,
+              ),
+            ),
           ),
         ],
       ),
@@ -613,25 +670,37 @@ class _EnrollmentAdminPageState extends State<EnrollmentAdminPage> with SingleTi
             elevation: 0,
             color: isDark ? const Color(0xFF1E293B) : Colors.white,
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(14),
+              borderRadius: BorderRadius.circular(16),
               side: BorderSide(
-                color: isDark ? const Color(0xFF334155) : Colors.grey.shade200,
+                color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
               ),
             ),
             clipBehavior: Clip.antiAlias,
             child: InkWell(
-              borderRadius: BorderRadius.circular(14),
+              borderRadius: BorderRadius.circular(16),
               onTap: () => _showEditStudentDialog(item),
               child: Padding(
                 padding: const EdgeInsets.all(14.0),
                 child: Row(
                   children: [
-                    CircleAvatar(
-                      backgroundColor: Colors.amber.withValues(alpha: 0.15),
-                      foregroundColor: Colors.amber.shade800,
+                    Container(
+                      width: 44,
+                      height: 44,
+                      decoration: BoxDecoration(
+                        color: isDark ? const Color(0xFF334155) : const Color(0xFFEFF6FF),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: isDark ? const Color(0xFF475569) : const Color(0xFFDBEAFE),
+                        ),
+                      ),
+                      alignment: Alignment.center,
                       child: Text(
                         item.fullName.isNotEmpty ? item.fullName.substring(0, 1).toUpperCase() : 'S',
-                        style: const TextStyle(fontWeight: FontWeight.bold),
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w800,
+                          fontSize: 16,
+                          color: Color(0xFF2563EB),
+                        ),
                       ),
                     ),
                     const SizedBox(width: 14),
@@ -644,69 +713,75 @@ class _EnrollmentAdminPageState extends State<EnrollmentAdminPage> with SingleTi
                               Expanded(
                                 child: Text(
                                   item.fullName,
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     fontWeight: FontWeight.bold,
                                     fontSize: 15,
+                                    color: isDark ? Colors.white : const Color(0xFF0F172A),
                                   ),
                                 ),
                               ),
                               Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                                 decoration: BoxDecoration(
-                                  color: Colors.amber.shade50,
+                                  color: const Color(0xFFFEF3C7),
                                   borderRadius: BorderRadius.circular(6),
-                                  border: Border.all(color: Colors.amber.shade300),
+                                  border: Border.all(color: const Color(0xFFFDE68A)),
                                 ),
-                                child: Text(
+                                child: const Text(
                                   'PENDING',
                                   style: TextStyle(
                                     fontSize: 10,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.amber.shade900,
+                                    fontWeight: FontWeight.w700,
+                                    color: Color(0xFFD97706),
+                                    letterSpacing: 0.3,
                                   ),
                                 ),
                               ),
-                              const SizedBox(width: 6),
+                              const SizedBox(width: 8),
                               Icon(
                                 Icons.edit_outlined,
-                                size: 16,
-                                color: isDark ? Colors.white60 : Colors.grey.shade600,
+                                size: 18,
+                                color: isDark ? Colors.white70 : const Color(0xFF2563EB),
                               ),
                             ],
                           ),
                           const SizedBox(height: 4),
                           Row(
                             children: [
-                              Icon(Icons.school_outlined, size: 14, color: Colors.grey.shade600),
+                              Icon(Icons.school_outlined, size: 14, color: isDark ? Colors.white60 : const Color(0xFF64748B)),
                               const SizedBox(width: 4),
                               Text(
                                 item.deptCode.isNotEmpty ? item.deptCode : item.departmentName,
                                 style: TextStyle(
                                   fontSize: 12,
-                                  color: isDark ? Colors.white70 : Colors.grey.shade700,
+                                  color: isDark ? Colors.white70 : const Color(0xFF64748B),
                                 ),
                               ),
                               const SizedBox(width: 12),
-                              Icon(Icons.phone_locked_outlined, size: 14, color: Colors.grey.shade600),
+                              Icon(Icons.phone_locked_outlined, size: 14, color: isDark ? Colors.white60 : const Color(0xFF64748B)),
                               const SizedBox(width: 4),
                               Text(
                                 item.maskedMobile,
                                 style: TextStyle(
                                   fontSize: 12,
-                                  color: isDark ? Colors.white70 : Colors.grey.shade700,
+                                  color: isDark ? Colors.white70 : const Color(0xFF64748B),
                                 ),
                               ),
                               const Spacer(),
                               if (item.gender.isNotEmpty)
                                 Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                                   decoration: BoxDecoration(
-                                    color: isDark ? const Color(0xFF334155) : Colors.grey.shade100,
-                                    borderRadius: BorderRadius.circular(4),
+                                    color: isDark ? const Color(0xFF334155) : const Color(0xFFF1F5F9),
+                                    borderRadius: BorderRadius.circular(6),
                                   ),
                                   child: Text(
                                     item.gender,
-                                    style: const TextStyle(fontSize: 10, color: Colors.grey),
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w600,
+                                      color: isDark ? Colors.white70 : const Color(0xFF64748B),
+                                    ),
                                   ),
                                 ),
                             ],
@@ -766,23 +841,35 @@ class _EnrollmentAdminPageState extends State<EnrollmentAdminPage> with SingleTi
             elevation: 0,
             color: isDark ? const Color(0xFF1E293B) : Colors.white,
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(14),
+              borderRadius: BorderRadius.circular(16),
               side: BorderSide(
-                color: isDark ? const Color(0xFF334155) : Colors.grey.shade200,
+                color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
               ),
             ),
             clipBehavior: Clip.antiAlias,
             child: InkWell(
-              borderRadius: BorderRadius.circular(14),
+              borderRadius: BorderRadius.circular(16),
               onTap: () => _showEnrolledStudentDetailsDialog(item),
               child: Padding(
                 padding: const EdgeInsets.all(14.0),
                 child: Row(
                   children: [
-                    CircleAvatar(
-                      backgroundColor: Colors.green.withValues(alpha: 0.15),
-                      foregroundColor: Colors.green.shade800,
-                      child: const Icon(Icons.check, size: 20),
+                    Container(
+                      width: 44,
+                      height: 44,
+                      decoration: BoxDecoration(
+                        color: isDark ? const Color(0xFF334155) : const Color(0xFFF0FDF4),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: isDark ? const Color(0xFF475569) : const Color(0xFFDCFCE7),
+                        ),
+                      ),
+                      alignment: Alignment.center,
+                      child: const Icon(
+                        Icons.check_rounded,
+                        size: 22,
+                        color: Color(0xFF16A34A),
+                      ),
                     ),
                     const SizedBox(width: 14),
                     Expanded(
@@ -794,58 +881,60 @@ class _EnrollmentAdminPageState extends State<EnrollmentAdminPage> with SingleTi
                               Expanded(
                                 child: Text(
                                   item.fullName,
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     fontWeight: FontWeight.bold,
                                     fontSize: 15,
+                                    color: isDark ? Colors.white : const Color(0xFF0F172A),
                                   ),
                                 ),
                               ),
                               Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                                 decoration: BoxDecoration(
-                                  color: Colors.green.shade50,
+                                  color: const Color(0xFFDCFCE7),
                                   borderRadius: BorderRadius.circular(6),
-                                  border: Border.all(color: Colors.green.shade300),
+                                  border: Border.all(color: const Color(0xFFBBF7D0)),
                                 ),
-                                child: Text(
+                                child: const Text(
                                   'ENROLLED',
                                   style: TextStyle(
                                     fontSize: 10,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.green.shade900,
+                                    fontWeight: FontWeight.w700,
+                                    color: Color(0xFF16A34A),
+                                    letterSpacing: 0.3,
                                   ),
                                 ),
                               ),
-                              const SizedBox(width: 6),
+                              const SizedBox(width: 8),
                               Icon(
                                 Icons.info_outline_rounded,
-                                size: 16,
-                                color: isDark ? Colors.white60 : Colors.grey.shade600,
+                                size: 18,
+                                color: isDark ? Colors.white70 : const Color(0xFF2563EB),
                               ),
                             ],
                           ),
                           const SizedBox(height: 4),
                           Row(
                             children: [
-                              Icon(Icons.school_outlined, size: 14, color: Colors.grey.shade600),
+                              Icon(Icons.school_outlined, size: 14, color: isDark ? Colors.white60 : const Color(0xFF64748B)),
                               const SizedBox(width: 4),
                               Text(
                                 item.deptCode.isNotEmpty ? item.deptCode : item.departmentName,
                                 style: TextStyle(
                                   fontSize: 12,
-                                  color: isDark ? Colors.white70 : Colors.grey.shade700,
+                                  color: isDark ? Colors.white70 : const Color(0xFF64748B),
                                 ),
                               ),
                               if (item.enrolledStudentRegNo != null) ...[
                                 const SizedBox(width: 12),
-                                Icon(Icons.badge_outlined, size: 14, color: Colors.grey.shade600),
+                                Icon(Icons.badge_outlined, size: 14, color: isDark ? Colors.white60 : const Color(0xFF64748B)),
                                 const SizedBox(width: 4),
                                 Text(
                                   'Reg: ${item.enrolledStudentRegNo}',
                                   style: TextStyle(
                                     fontSize: 12,
                                     fontWeight: FontWeight.w600,
-                                    color: isDark ? Colors.white70 : Colors.grey.shade700,
+                                    color: isDark ? Colors.white70 : const Color(0xFF64748B),
                                   ),
                                 ),
                               ],
@@ -855,13 +944,13 @@ class _EnrollmentAdminPageState extends State<EnrollmentAdminPage> with SingleTi
                             const SizedBox(height: 2),
                             Row(
                               children: [
-                                Icon(Icons.access_time_rounded, size: 14, color: Colors.grey.shade500),
+                                Icon(Icons.access_time_rounded, size: 14, color: isDark ? Colors.white54 : const Color(0xFF94A3B8)),
                                 const SizedBox(width: 4),
                                 Text(
                                   'Enrolled: ${item.enrolledAt!.substring(0, 10)}',
                                   style: TextStyle(
                                     fontSize: 11,
-                                    color: isDark ? Colors.white54 : Colors.grey.shade500,
+                                    color: isDark ? Colors.white54 : const Color(0xFF94A3B8),
                                   ),
                                 ),
                               ],
@@ -1003,7 +1092,7 @@ class _SingleStudentModalState extends State<_SingleStudentModal> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-    const primaryColor = Color(0xFFEA4335);
+    const primaryColor = Color(0xFF2563EB);
 
     return Container(
       height: MediaQuery.of(context).size.height * 0.90,
@@ -1444,7 +1533,7 @@ class _EditStudentModalState extends State<_EditStudentModal> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-    const primaryColor = Color(0xFFEA4335);
+    const primaryColor = Color(0xFF2563EB);
 
     return Container(
       height: MediaQuery.of(context).size.height * 0.90,
@@ -1956,7 +2045,7 @@ class _BulkImportModalState extends State<_BulkImportModal> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-    const primaryColor = Color(0xFFEA4335);
+    const primaryColor = Color(0xFF2563EB);
 
     return Container(
       height: MediaQuery.of(context).size.height * 0.88,

@@ -45,7 +45,7 @@ class ActivityForm extends StatefulWidget {
 // Public state class so parent pages can call buildBody() via GlobalKey.
 class ActivityFormState extends State<ActivityForm> {
   // ── Design tokens ──────────────────────────────────────────────────────────
-  static const Color _primary = Color(0xFFEA4335);
+  static const Color _primary = Color(0xFF2563EB);
   static const Color _dark = Color(0xFF1E293B);
   static const Color _surface = Color(0xFFF8FAFC);
 
@@ -333,13 +333,16 @@ class ActivityFormState extends State<ActivityForm> {
 
   String? _normalizeXpCategory(String? cat) {
     if (cat == null || cat.trim().isEmpty) return null;
-    final normalized = cat.trim().toLowerCase();
-    for (final key in _xpCategories) {
-      if (key.toLowerCase() == normalized) {
+    final trimmed = cat.trim();
+    final categories = widget.provider.xpCategories.isNotEmpty
+        ? widget.provider.xpCategories
+        : _xpCategories;
+    for (final key in categories) {
+      if (key.toLowerCase() == trimmed.toLowerCase()) {
         return key;
       }
     }
-    return null;
+    return trimmed;
   }
 
   // ── Helpers ───────────────────────────────────────────────────────────────
@@ -626,6 +629,7 @@ class ActivityFormState extends State<ActivityForm> {
                     number: (stepNum++).toString(),
                     title: 'Activity Details',
                     child: ActivityBasicInformationSection(
+                      provider: widget.provider,
                       nameCtrl: _nameCtrl,
                       descCtrl: _descCtrl,
                       displayOrderCtrl: _displayOrderCtrl,
@@ -725,36 +729,12 @@ class ActivityFormState extends State<ActivityForm> {
                     ActivitySection(
                       number: (stepNum++).toString(),
                       title: 'Evidence',
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          EvidenceSelector(
-                            selected: _selectedEvidence,
-                            onChanged: (next) =>
-                                setState(() => _selectedEvidence = next),
-                            showError: _submitted,
-                          ),
-                          if (_selectedEvidence.contains('Manual')) ...[
-                            const SizedBox(height: 12),
-                            TextFormField(
-                              controller: _manualEvidenceNameCtrl,
-                              decoration: const InputDecoration(
-                                labelText: 'Evidence Name',
-                                hintText: 'e.g. Attendance Register, Physical Verification',
-                                prefixIcon: Icon(Icons.edit_note, color: _primary, size: 20),
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.all(Radius.circular(10)),
-                                ),
-                              ),
-                              validator: (val) {
-                                if (val == null || val.trim().isEmpty) {
-                                  return 'Please enter a custom evidence name.';
-                                }
-                                return null;
-                              },
-                            ),
-                          ]
-                        ],
+                      child: EvidenceSelector(
+                        provider: widget.provider,
+                        selected: _selectedEvidence,
+                        onChanged: (next) =>
+                            setState(() => _selectedEvidence = next),
+                        showError: _submitted,
                       ),
                     ),
                     const SizedBox(height: 16),
@@ -923,7 +903,7 @@ class ActivityFormState extends State<ActivityForm> {
                         labelText: 'Justification (Optional)',
                         prefixIcon: const Icon(
                           Icons.notes_rounded,
-                          color: Color(0xFFEA4335),
+                          color: Color(0xFF2563EB),
                           size: 20,
                         ),
                         alignLabelWithHint: true,
@@ -944,7 +924,7 @@ class ActivityFormState extends State<ActivityForm> {
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(14),
                           borderSide: const BorderSide(
-                            color: Color(0xFFEA4335),
+                            color: Color(0xFF2563EB),
                             width: 2,
                           ),
                         ),

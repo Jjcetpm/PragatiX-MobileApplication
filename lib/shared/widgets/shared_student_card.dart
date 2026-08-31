@@ -8,6 +8,7 @@ class SharedStudentCard extends StatelessWidget {
   final VoidCallback? onTap;
   final Widget? trailingContent;
   final int? score;
+  final String? gender;
 
   const SharedStudentCard({
     super.key,
@@ -17,18 +18,44 @@ class SharedStudentCard extends StatelessWidget {
     this.onTap,
     this.trailingContent,
     this.score,
+    this.gender,
   });
 
   @override
   Widget build(BuildContext context) {
+    final String g = (gender ?? '').trim().toLowerCase();
+    final bool isFemale = g.startsWith('f') || g == 'girl';
+    final String avatarAsset = isFemale ? 'assets/images/avatar_female.png' : 'assets/images/avatar_male.png';
+
     return Card(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       margin: const EdgeInsets.only(bottom: 12),
       elevation: 2,
       child: ListTile(
-        leading: CircleAvatar(
-          backgroundColor: themeColor.withValues(alpha: 0.1),
-          child: Icon(Icons.person, color: themeColor),
+        leading: Container(
+          width: 44,
+          height: 44,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: isFemale ? const Color(0xFFFDF2F8) : const Color(0xFFEFF6FF),
+            border: Border.all(
+              color: isFemale ? const Color(0xFFFBCFE8) : const Color(0xFFBFDBFE),
+              width: 1.2,
+            ),
+          ),
+          child: ClipOval(
+            child: Image.asset(
+              avatarAsset,
+              width: 44,
+              height: 44,
+              fit: BoxFit.cover,
+              alignment: Alignment.topCenter,
+              errorBuilder: (context, error, stackTrace) => CircleAvatar(
+                backgroundColor: themeColor.withValues(alpha: 0.1),
+                child: Icon(Icons.person, color: themeColor),
+              ),
+            ),
+          ),
         ),
         title: Text(name, style: const TextStyle(fontWeight: FontWeight.bold)),
         subtitle: Text(subtitle),

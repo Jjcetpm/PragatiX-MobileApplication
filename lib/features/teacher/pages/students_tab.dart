@@ -9,7 +9,6 @@ import 'package:pragatix/core/utils/error_handler.dart';
 import 'package:pragatix/features/teacher/services/teacher_proxy_service.dart';
 import 'package:pragatix/shared/widgets/shared_student_card.dart';
 import 'package:file_picker/file_picker.dart';
-import 'package:pragatix/features/teacher/pages/teacher_student_detail.dart';
 import 'package:pragatix/features/teacher/pages/cc_student_profile_page.dart';
 import 'package:pragatix/core/di/service_locator.dart';
 import 'package:pragatix/core/utils/string_utils.dart';
@@ -432,12 +431,7 @@ class _StudentsTabState extends State<StudentsTab> {
       }
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Registration Failed: $e'),
-          backgroundColor: Colors.redAccent,
-        ),
-      );
+      ErrorHandler.showSnackBar(context, e);
       setState(() {
         isLoading = false;
       });
@@ -908,6 +902,7 @@ class _StudentsTabState extends State<StudentsTab> {
                                 return SharedStudentCard(
                                   name: name,
                                   themeColor: const Color(0xFF11998e),
+                                  gender: (s['gender'] ?? s['genderName'])?.toString(),
                                   subtitle:
                                       'Reg No: $sId • SPR: $spr$yearStr$sectionStr\nDept: $deptName',
                                   score: score,
@@ -1109,13 +1104,9 @@ class _BulkVerificationScreenState extends State<BulkVerificationScreen> {
         );
       }
     } catch (e) {
+      if (!mounted) return;
       setState(() => _isImporting = false);
-      messenger.showSnackBar(
-        SnackBar(
-          content: Text('Network/Server error: $e'),
-          backgroundColor: Colors.redAccent,
-        ),
-      );
+      ErrorHandler.showSnackBar(context, e);
     }
   }
 
@@ -1143,16 +1134,8 @@ class _BulkVerificationScreenState extends State<BulkVerificationScreen> {
       ),
       body: _isImporting
           ? const Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  PragatiXLoader(),
-                  SizedBox(height: 16),
-                  Text(
-                    'Saving selected students into database...',
-                    style: TextStyle(fontWeight: FontWeight.w500),
-                  ),
-                ],
+              child: PragatiXLoader(
+                message: 'Saving selected students into database...',
               ),
             )
           : Padding(

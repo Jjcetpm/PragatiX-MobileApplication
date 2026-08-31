@@ -5,9 +5,8 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:pragatix/features/team/services/team_proxy_service.dart';
 import 'package:pragatix/core/di/service_locator.dart';
-import 'package:pragatix/shared/widgets/student_search/student_search_field.dart';
-
 import 'package:pragatix/features/team/pages/team_details_page.dart';
+import 'package:pragatix/features/team/pages/create_team_page.dart';
 import 'package:pragatix/features/admin/pages/captain_reward_settings_page.dart';
 import 'package:pragatix/features/admin/pages/captain_reward_year_selection_page.dart';
 
@@ -127,6 +126,14 @@ class _TeamGroupManagementTabState extends State<TeamGroupManagementTab> {
       }
 
       if (!mounted) return;
+
+      if (isAdmin && !isSuperAdmin) {
+        final String? adminYear = currentUser?['academicYear']?.toString() ??
+            currentUser?['adminDetails']?['academicYear']?.toString();
+        if (adminYear != null) {
+          selectedYear = _mapYearToEnumName(adminYear) ?? adminYear;
+        }
+      }
 
       if (isCC || isHOD) {
         final String? userDeptName =
@@ -341,6 +348,39 @@ class _TeamGroupManagementTabState extends State<TeamGroupManagementTab> {
     }
   }
 
+  Widget _buildHeaderActionButton({
+    required IconData icon,
+    required String tooltip,
+    required VoidCallback onPressed,
+    Color iconColor = const Color(0xFF334155),
+  }) {
+    return Container(
+      width: 38,
+      height: 38,
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.90),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: const Color(0xFFE2E8F0),
+          width: 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: IconButton(
+        padding: EdgeInsets.zero,
+        icon: Icon(icon, color: iconColor, size: 20),
+        tooltip: tooltip,
+        onPressed: onPressed,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     if (!canManage) {
@@ -400,384 +440,500 @@ class _TeamGroupManagementTabState extends State<TeamGroupManagementTab> {
     }
 
     return Scaffold(
-      backgroundColor: Colors.transparent,
-      appBar: AppBar(
-        title: const Text('View Groups'),
-        backgroundColor: Colors.indigo,
-        actions: [
-          if (isSuperAdmin || isAdmin)
-            IconButton(
-              icon: const Icon(Icons.military_tech_rounded, color: Colors.amber),
-              tooltip: 'Captain & Vice Captain Rewards',
-              onPressed: () {
-                final auth = Provider.of<AuthProvider>(context, listen: false);
-                if (auth.isSuperAdmin) {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const CaptainRewardYearSelectionPage(),
-                    ),
-                  );
-                } else {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const CaptainRewardSettingsPage(),
-                    ),
-                  );
-                }
-              },
+      backgroundColor: const Color(0xFFF4F7FB),
+      body: Stack(
+        children: [
+          // Background mesh subtle gradient
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            height: 240,
+            child: Container(
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    Color(0xFFDCE8F6),
+                    Color(0xFFE8EFF9),
+                    Color(0xFFF4F7FB),
+                  ],
+                ),
+              ),
             ),
-          IconButton(icon: const Icon(Icons.refresh), onPressed: _fetchGroups),
-        ],
-      ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _errorMessage != null
-              ? Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(24.0),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Icon(
-                          Icons.error_outline_rounded,
-                          size: 64,
-                          color: Colors.redAccent,
+          ),
+          SafeArea(
+            child: Column(
+              children: [
+                // Top Header
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(18, 10, 16, 12),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: const [
+                            Text(
+                              'Teams & Groups',
+                              style: TextStyle(
+                                fontSize: 19,
+                                fontWeight: FontWeight.w800,
+                                color: Color(0xFF0F172A),
+                                letterSpacing: -0.4,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            SizedBox(height: 2),
+                            Text(
+                              'Manage student teams, sections & captain rewards',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w500,
+                                color: Color(0xFF64748B),
+                              ),
+                            ),
+                          ],
                         ),
-                        const SizedBox(height: 12),
-                        Text(
-                          _errorMessage!,
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(
-                            color: Colors.black87,
-                            fontSize: 15,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        ElevatedButton.icon(
-                          onPressed: _fetchGroups,
-                          icon: const Icon(Icons.refresh),
-                          label: const Text('Retry'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.indigo,
-                            foregroundColor: Colors.white,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                )
-              : Column(
-                  children: [
-                    // FILTERS
-                    Container(
-                      padding: const EdgeInsets.all(8.0),
-                      color: Colors.indigo.shade50,
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      ),
+                      const SizedBox(width: 8),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
                         children: [
-                          if (isSuperAdmin || isHOD)
-                            _buildDropdown<String>(
-                              'Year',
-                              _academicYears.map((y) => y['yearName'].toString()).toList(),
-                              (y) => y,
-                              selectedYear,
-                              (val) {
-                                setState(() {
-                                  selectedYear = val;
-                                  selectedDeptId = null;
-                                  selectedSectionId = null;
-                                  _sections = [];
-                                });
-                                _fetchStages();
-                                _fetchGroups();
-                              },
-                            ),
-                          if (isSuperAdmin || isAdmin)
-                            _buildDropdown<int>(
-                              'Dept',
-                              _departments,
-                              (d) =>
-                                  d['deptCode'] ??
-                                  d['dept_code'] ??
-                                  d['code'] ??
-                                  d['name'] ??
-                                  d['deptName'],
-                              selectedDeptId,
-                              (val) async {
-                                setState(() {
-                                  selectedDeptId = val;
-                                  selectedSectionId = null;
-                                });
-                                if (val != null) {
-                                  await _fetchSectionsForDept(val);
+                          if (isSuperAdmin || isAdmin) ...[
+                            _buildHeaderActionButton(
+                              icon: Icons.military_tech_rounded,
+                              tooltip: 'Captain & Vice Captain Rewards',
+                              iconColor: const Color(0xFFD97706),
+                              onPressed: () {
+                                final auth = Provider.of<AuthProvider>(context, listen: false);
+                                if (auth.isSuperAdmin) {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) => const CaptainRewardYearSelectionPage(),
+                                    ),
+                                  );
                                 } else {
-                                  setState(() {
-                                    _sections = [];
-                                  });
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) => const CaptainRewardSettingsPage(),
+                                    ),
+                                  );
                                 }
-                                _fetchGroups();
                               },
                             ),
-                          if (isSuperAdmin || isAdmin || isHOD || (isCC && filteredSections.length > 1))
-                            _buildDropdown<int>(
-                              'Section',
-                              filteredSections,
-                              (s) => s['sectionName'],
-                              selectedSectionId,
-                              (val) {
-                                setState(() {
-                                  selectedSectionId = val;
-                                });
-                                _fetchGroups();
-                              },
-                            ),
-                          _buildDropdown<int>(
-                            'Stage',
-                            _stages,
-                            (s) => s['name'] ?? 'Stage ${s['id']}',
-                            selectedStage,
-                            (val) {
-                              setState(() {
-                                selectedStage = val;
-                              });
-                            },
+                            const SizedBox(width: 6),
+                          ],
+                          _buildHeaderActionButton(
+                            icon: Icons.refresh_rounded,
+                            tooltip: 'Refresh',
+                            onPressed: _fetchGroups,
                           ),
                         ],
                       ),
-                    ),
-                    if (canManage)
-                      Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16.0,
-                          vertical: 8.0,
+                    ],
+                  ),
+                ),
+
+                // Filters card
+                Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 4.0),
+                  padding: const EdgeInsets.all(12.0),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: const Color(0xFFE2E8F0)),
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFF64748B).withValues(alpha: 0.06),
+                        blurRadius: 10,
+                        offset: const Offset(0, 3),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      if (isSuperAdmin || isHOD)
+                        _buildDropdown<String>(
+                          'Year',
+                          _academicYears.map((y) => y['yearName'].toString()).toList(),
+                          (y) => y,
+                          selectedYear,
+                          (val) {
+                            setState(() {
+                              selectedYear = val;
+                              selectedDeptId = null;
+                              selectedSectionId = null;
+                              _sections = [];
+                            });
+                            _fetchStages();
+                            _fetchGroups();
+                          },
                         ),
-                        child: SizedBox(
-                          width: double.infinity,
-                          child: ElevatedButton.icon(
-                            onPressed: _showCreateGroupDialog,
-                            icon: const Icon(Icons.add_circle_outline),
-                            label: const Text(
-                              'Create Team',
-                              style: TextStyle(fontWeight: FontWeight.bold),
+                      if (isSuperAdmin || isAdmin)
+                        _buildDropdown<int>(
+                          'Dept',
+                          _departments,
+                          (d) =>
+                              d['deptCode'] ??
+                              d['dept_code'] ??
+                              d['code'] ??
+                              d['name'] ??
+                              d['deptName'],
+                          selectedDeptId,
+                          (val) async {
+                            setState(() {
+                              selectedDeptId = val;
+                              selectedSectionId = null;
+                            });
+                            if (val != null) {
+                              await _fetchSectionsForDept(val);
+                            } else {
+                              setState(() {
+                                _sections = [];
+                              });
+                            }
+                            _fetchGroups();
+                          },
+                        ),
+                      if (isSuperAdmin || isAdmin || isHOD || (isCC && filteredSections.length > 1))
+                        _buildDropdown<int>(
+                          'Section',
+                          filteredSections,
+                          (s) => s['sectionName'],
+                          selectedSectionId,
+                          (val) {
+                            setState(() {
+                              selectedSectionId = val;
+                            });
+                            _fetchGroups();
+                          },
+                        ),
+                      _buildDropdown<int>(
+                        'Stage',
+                        _stages,
+                        (s) => s['name'] ?? 'Stage ${s['id']}',
+                        selectedStage,
+                        (val) {
+                          setState(() {
+                            selectedStage = val;
+                          });
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+
+                if (canManage)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 6.0),
+                    child: SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        onPressed: () async {
+                          final created = await Navigator.push<bool>(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const CreateTeamPage(),
                             ),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.indigo,
-                              foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(vertical: 12),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                            ),
+                          );
+                          if (created == true) {
+                            _fetchGroups();
+                          }
+                        },
+                        icon: const Icon(Icons.add_circle_outline, size: 18),
+                        label: const Text(
+                          'Create Team',
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF2563EB),
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
                           ),
+                          elevation: 2,
                         ),
                       ),
-                    // GROUPS LIST
-                    Expanded(
-                      child: Builder(
-                        builder: (context) {
-                          final displayGroups = _groups.where((g) {
-                            if (selectedStage != null) {
-                              final stageMatches = _stages.where((s) => s['id'] == selectedStage).toList();
-                              final targetOrder = stageMatches.isNotEmpty
-                                  ? (stageMatches.first['displayOrder'] ?? stageMatches.first['id'])
-                                  : selectedStage;
-                              int currentStage = 1;
-                              if (g['currentStage'] != null && g['currentStage'] is int && (g['currentStage'] as int) > 0) {
-                                currentStage = g['currentStage'];
-                              } else if ((g['teamMembers'] as List?)?.isNotEmpty == true) {
-                                final memberStage = g['teamMembers'][0]['currentStage'];
-                                if (memberStage is int && memberStage > 0) {
-                                  currentStage = memberStage;
-                                }
-                              }
-                              return currentStage == targetOrder;
-                            }
-                            return true;
-                          }).toList();
+                    ),
+                  ),
 
-                          if (displayGroups.isEmpty) {
-                            return Center(
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  const Icon(
-                                    Icons.group_off_rounded,
-                                    size: 64,
-                                    color: Colors.grey,
-                                  ),
-                                  const SizedBox(height: 12),
-                                  const Text(
-                                    'No groups found',
-                                    style: TextStyle(color: Colors.grey),
-                                  ),
-                                  const SizedBox(height: 12),
-                                  ElevatedButton.icon(
-                                    onPressed: _fetchGroups,
-                                    icon: const Icon(Icons.refresh),
-                                    label: const Text('Refresh'),
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: Colors.indigo,
+                // GROUPS LIST
+                Expanded(
+                  child: _isLoading
+                      ? const Center(child: CircularProgressIndicator())
+                      : _errorMessage != null
+                          ? Center(
+                              child: Padding(
+                                padding: const EdgeInsets.all(24.0),
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    const Icon(
+                                      Icons.error_outline_rounded,
+                                      size: 52,
+                                      color: Colors.redAccent,
                                     ),
-                                  ),
-                                ],
-                              ),
-                            );
-                          }
-
-                          return ListView.builder(
-                            padding: const EdgeInsets.symmetric(vertical: 8),
-                            itemCount: displayGroups.length,
-                            itemBuilder: (context, index) {
-                              final g = displayGroups[index];
-                            final captainName = g['captainName'] ?? 'No Captain';
-                            final viceCaptainName = g['viceCaptainName'] ?? 'No Vice Captain';
-                            final memberCount =
-                                (g['teamMembers'] as List?)?.length ?? 0;
-                            final groupName = g['teamName'] ?? 'Group';
-                            final size = g['teamCapacity'] ?? 0;
-
-                            int currentStage = 1;
-                            if (g['currentStage'] != null && g['currentStage'] is int && (g['currentStage'] as int) > 0) {
-                              currentStage = g['currentStage'];
-                            } else if ((g['teamMembers'] as List?)?.isNotEmpty == true) {
-                              final memberStage = g['teamMembers'][0]['currentStage'];
-                              if (memberStage is int && memberStage > 0) {
-                                currentStage = memberStage;
-                              }
-                            }
-
-                            return Card(
-                              margin: const EdgeInsets.symmetric(
-                                horizontal: 16,
-                                vertical: 8,
-                              ),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              elevation: 3,
-                              child: InkWell(
-                                borderRadius: BorderRadius.circular(12),
-                                onTap: () async {
-                                  final result = await Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (context) => TeamDetailsPage(
-                                        teamId: g['teamId'] ?? g['id'],
-                                        canManage: canManage,
+                                    const SizedBox(height: 12),
+                                    Text(
+                                      _errorMessage!,
+                                      textAlign: TextAlign.center,
+                                      style: const TextStyle(
+                                        color: Color(0xFF0F172A),
+                                        fontSize: 15,
+                                        fontWeight: FontWeight.w500,
                                       ),
                                     ),
-                                  );
-                                  // Refresh if a team was deleted or changed
-                                  if (result == true) {
-                                    _fetchGroups();
-                                  }
-                                },
-                                child: Padding(
-                                  padding: const EdgeInsets.all(16.0),
-                                  child: Row(
-                                    children: [
-                                      CircleAvatar(
-                                        backgroundColor: Colors.indigo
-                                            .withValues(alpha: 0.1),
-                                        child: const Icon(
-                                          Icons.groups_rounded,
-                                          color: Colors.indigo,
+                                    const SizedBox(height: 16),
+                                    ElevatedButton.icon(
+                                      onPressed: _fetchGroups,
+                                      icon: const Icon(Icons.refresh),
+                                      label: const Text('Retry'),
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: const Color(0xFF2563EB),
+                                        foregroundColor: Colors.white,
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(12),
                                         ),
                                       ),
-                                      const SizedBox(width: 16),
-                                      Expanded(
-                                        child: Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            Text(
-                                              groupName,
-                                              style: const TextStyle(
-                                                fontWeight: FontWeight.bold,
-                                                fontSize: 16,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            )
+                          : Builder(
+                              builder: (context) {
+                                final displayGroups = _groups.where((g) {
+                                  if (selectedStage != null) {
+                                    final stageMatches = _stages.where((s) => s['id'] == selectedStage).toList();
+                                    final targetOrder = stageMatches.isNotEmpty
+                                        ? (stageMatches.first['displayOrder'] ?? stageMatches.first['id'])
+                                        : selectedStage;
+                                    int currentStage = 1;
+                                    if (g['currentStage'] != null && g['currentStage'] is int && (g['currentStage'] as int) > 0) {
+                                      currentStage = g['currentStage'];
+                                    } else if ((g['teamMembers'] as List?)?.isNotEmpty == true) {
+                                      final memberStage = g['teamMembers'][0]['currentStage'];
+                                      if (memberStage is int && memberStage > 0) {
+                                        currentStage = memberStage;
+                                      }
+                                    }
+                                    return currentStage == targetOrder;
+                                  }
+                                  return true;
+                                }).toList();
+
+                                if (displayGroups.isEmpty) {
+                                  return Center(
+                                    child: Column(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        Container(
+                                          padding: const EdgeInsets.all(18),
+                                          decoration: BoxDecoration(
+                                            color: const Color(0xFFEFF6FF),
+                                            borderRadius: BorderRadius.circular(24),
+                                          ),
+                                          child: const Icon(
+                                            Icons.groups_rounded,
+                                            size: 48,
+                                            color: Color(0xFF2563EB),
+                                          ),
+                                        ),
+                                        const SizedBox(height: 16),
+                                        const Text(
+                                          'No Groups Found',
+                                          style: TextStyle(
+                                            fontSize: 18,
+                                            fontWeight: FontWeight.w700,
+                                            color: Color(0xFF0F172A),
+                                          ),
+                                        ),
+                                        const SizedBox(height: 6),
+                                        const Text(
+                                          'No groups match the selected filters.',
+                                          style: TextStyle(color: Color(0xFF64748B), fontSize: 13),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                }
+
+                                return ListView.builder(
+                                  padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
+                                  itemCount: displayGroups.length,
+                                  itemBuilder: (context, index) {
+                                    final g = displayGroups[index];
+                                    final captainName = g['captainName'] ?? 'No Captain';
+                                    final viceCaptainName = g['viceCaptainName'] ?? 'No Vice Captain';
+                                    final memberCount =
+                                        (g['teamMembers'] as List?)?.length ?? 0;
+                                    final groupName = g['teamName'] ?? 'Group';
+                                    final size = g['teamCapacity'] ?? 0;
+
+                                    int currentStage = 1;
+                                    if (g['currentStage'] != null && g['currentStage'] is int && (g['currentStage'] as int) > 0) {
+                                      currentStage = g['currentStage'];
+                                    } else if ((g['teamMembers'] as List?)?.isNotEmpty == true) {
+                                      final memberStage = g['teamMembers'][0]['currentStage'];
+                                      if (memberStage is int && memberStage > 0) {
+                                        currentStage = memberStage;
+                                      }
+                                    }
+
+                                    return Container(
+                                      margin: const EdgeInsets.only(bottom: 12),
+                                      decoration: BoxDecoration(
+                                        color: Colors.white,
+                                        borderRadius: BorderRadius.circular(18),
+                                        border: Border.all(
+                                          color: const Color(0xFFE2E8F0),
+                                          width: 1,
+                                        ),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: const Color(0xFF64748B).withValues(alpha: 0.06),
+                                            blurRadius: 14,
+                                            offset: const Offset(0, 4),
+                                          ),
+                                        ],
+                                      ),
+                                      child: Material(
+                                        color: Colors.transparent,
+                                        borderRadius: BorderRadius.circular(18),
+                                        child: InkWell(
+                                          borderRadius: BorderRadius.circular(18),
+                                          onTap: () async {
+                                            final result = await Navigator.push(
+                                              context,
+                                              MaterialPageRoute(
+                                                builder: (context) => TeamDetailsPage(
+                                                  teamId: g['teamId'] ?? g['id'],
+                                                  canManage: canManage,
+                                                ),
                                               ),
-                                            ),
-                                            const SizedBox(height: 4),
-                                            Text(
-                                              'Captain: $captainName  •  Vice: $viceCaptainName  •  $memberCount/$size members',
-                                              overflow: TextOverflow.ellipsis,
-                                              maxLines: 1,
-                                              softWrap: false,
-                                              style: const TextStyle(
-                                                fontSize: 12,
-                                                color: Colors.grey,
-                                              ),
-                                            ),
-                                            const SizedBox(height: 8),
-                                            Row(
+                                            );
+                                            if (result == true) {
+                                              _fetchGroups();
+                                            }
+                                          },
+                                          child: Padding(
+                                            padding: const EdgeInsets.all(16.0),
+                                            child: Row(
                                               children: [
-                                                const Icon(
-                                                  Icons.location_on_outlined,
-                                                  size: 14,
-                                                  color: Colors.grey,
-                                                ),
-                                                const SizedBox(width: 4),
-                                                Expanded(
-                                                  child: Text(
-                                                    "${g['departmentName'] ?? '-'} • ${g['year'] ?? '-'} - ${g['sectionName'] ?? '-'}",
-                                                    overflow: TextOverflow.ellipsis,
-                                                    maxLines: 1,
-                                                    softWrap: false,
-                                                    style: const TextStyle(
-                                                      fontSize: 11,
-                                                      color: Colors.grey,
-                                                    ),
-                                                  ),
-                                                ),
-                                                const SizedBox(width: 12),
                                                 Container(
-                                                  padding:
-                                                      const EdgeInsets.symmetric(
-                                                        horizontal: 6,
-                                                        vertical: 2,
-                                                      ),
+                                                  width: 48,
+                                                  height: 48,
                                                   decoration: BoxDecoration(
-                                                    color: Colors.amber.shade50,
-                                                    borderRadius:
-                                                        BorderRadius.circular(
-                                                          6,
-                                                        ),
-                                                  ),
-                                                  child: Text(
-                                                    'Stage $currentStage',
-                                                    style: TextStyle(
-                                                      color:
-                                                          Colors.amber.shade800,
-                                                      fontSize: 10,
-                                                      fontWeight:
-                                                          FontWeight.bold,
+                                                    gradient: const LinearGradient(
+                                                      colors: [Color(0xFF3B82F6), Color(0xFF2563EB)],
                                                     ),
+                                                    borderRadius: BorderRadius.circular(14),
+                                                    boxShadow: [
+                                                      BoxShadow(
+                                                        color: const Color(0xFF3B82F6).withValues(alpha: 0.28),
+                                                        blurRadius: 10,
+                                                        offset: const Offset(0, 4),
+                                                      ),
+                                                    ],
                                                   ),
+                                                  child: const Icon(
+                                                    Icons.groups_rounded,
+                                                    color: Colors.white,
+                                                    size: 24,
+                                                  ),
+                                                ),
+                                                const SizedBox(width: 14),
+                                                Expanded(
+                                                  child: Column(
+                                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                                    children: [
+                                                      Row(
+                                                        children: [
+                                                          Expanded(
+                                                            child: Text(
+                                                              groupName,
+                                                              style: const TextStyle(
+                                                                fontWeight: FontWeight.w700,
+                                                                fontSize: 16,
+                                                                color: Color(0xFF0F172A),
+                                                              ),
+                                                            ),
+                                                          ),
+                                                          Container(
+                                                            padding: const EdgeInsets.symmetric(
+                                                              horizontal: 8,
+                                                              vertical: 2.5,
+                                                            ),
+                                                            decoration: BoxDecoration(
+                                                              color: const Color(0xFFFEF3C7),
+                                                              borderRadius: BorderRadius.circular(6),
+                                                              border: Border.all(color: const Color(0xFFFDE68A)),
+                                                            ),
+                                                            child: Text(
+                                                              'Stage $currentStage',
+                                                              style: const TextStyle(
+                                                                color: Color(0xFFB45309),
+                                                                fontSize: 11,
+                                                                fontWeight: FontWeight.w700,
+                                                              ),
+                                                            ),
+                                                          ),
+                                                        ],
+                                                      ),
+                                                      const SizedBox(height: 5),
+                                                      Text(
+                                                        '👑 $captainName • $memberCount/$size members',
+                                                        overflow: TextOverflow.ellipsis,
+                                                        maxLines: 1,
+                                                        style: const TextStyle(
+                                                          fontSize: 12.5,
+                                                          fontWeight: FontWeight.w500,
+                                                          color: Color(0xFF64748B),
+                                                        ),
+                                                      ),
+                                                      const SizedBox(height: 4),
+                                                      Text(
+                                                        "${g['departmentName'] ?? '-'} • ${g['year'] ?? '-'} - ${g['sectionName'] ?? '-'}",
+                                                        overflow: TextOverflow.ellipsis,
+                                                        maxLines: 1,
+                                                        style: const TextStyle(
+                                                          fontSize: 11.5,
+                                                          color: Color(0xFF94A3B8),
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                ),
+                                                const SizedBox(width: 8),
+                                                const Icon(
+                                                  Icons.chevron_right_rounded,
+                                                  color: Color(0xFF94A3B8),
+                                                  size: 20,
                                                 ),
                                               ],
                                             ),
-                                          ],
+                                          ),
                                         ),
                                       ),
-                                      const Icon(
-                                        Icons.chevron_right,
-                                        color: Colors.grey,
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            );
-                          },
-                        );
-                      },
-                    ),
-                  ),
-                ],
-              ),
+                                    );
+                                  },
+                                );
+                              },
+                            ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -820,159 +976,5 @@ class _TeamGroupManagementTabState extends State<TeamGroupManagementTab> {
       ),
     );
   }
-
-  Future<void> _createGroup(
-    String name,
-    int limit,
-    String captainStudentId,
-  ) async {
-    try {
-      final body = jsonEncode({
-        'name': name,
-        'size': limit,
-        'captainStudentId': captainStudentId,
-      });
-
-      final response = await getIt<TeamProxyService>().post(
-        Uri.parse('${ApiConfig.baseUrl}/api/v1/teams'),
-        headers: {
-          'Authorization': 'Bearer ${context.read<AuthProvider>().token!}',
-          'Content-Type': 'application/json',
-        },
-        body: body,
-      );
-
-      final data = json.decode(response.body);
-      if (!mounted) return;
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        if (data['success'] == true) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Team created successfully!'),
-              backgroundColor: Colors.green,
-            ),
-          );
-          _fetchGroups();
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(data['message'] ?? 'Failed to create team'),
-              backgroundColor: Colors.redAccent,
-            ),
-          );
-        }
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(data['message'] ?? 'Failed to create team'),
-            backgroundColor: Colors.redAccent,
-          ),
-        );
-      }
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e'), backgroundColor: Colors.orange),
-      );
-    }
-  }
-
-  void _showCreateGroupDialog() {
-    final nameCtrl = TextEditingController();
-    final limitCtrl = TextEditingController(text: "5");
-    Map<String, dynamic>? selectedCaptain;
-
-    showDialog(
-      context: context,
-      builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setState) {
-            return AlertDialog(
-              title: const Text('Create New Team'),
-              content: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    TextField(
-                      controller: nameCtrl,
-                      decoration: const InputDecoration(
-                        labelText: 'Team Name',
-                        border: OutlineInputBorder(),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    TextField(
-                      controller: limitCtrl,
-                      decoration: const InputDecoration(
-                        labelText: 'Max Size Limit',
-                        border: OutlineInputBorder(),
-                      ),
-                      keyboardType: TextInputType.number,
-                    ),
-                    const SizedBox(height: 12),
-                    StudentSearchField(
-                      selectedStudent: selectedCaptain,
-                      unassignedOnly: true,
-                      onStudentSelected: (student) {
-                        setState(() {
-                          selectedCaptain = student;
-                        });
-                      },
-                    ),
-                  ],
-                ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text('Cancel'),
-                ),
-                ElevatedButton(
-                  onPressed: () {
-                    final name = nameCtrl.text.trim();
-                    final limit = int.tryParse(limitCtrl.text) ?? 5;
-
-                    if (name.isEmpty) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Team Name is required'),
-                          backgroundColor: Colors.redAccent,
-                        ),
-                      );
-                      return;
-                    }
-                    if (limit < 1) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Team Capacity must be at least 1'),
-                          backgroundColor: Colors.redAccent,
-                        ),
-                      );
-                      return;
-                    }
-                    if (selectedCaptain == null) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Captain is required'),
-                          backgroundColor: Colors.redAccent,
-                        ),
-                      );
-                      return;
-                    }
-
-                    Navigator.pop(context);
-                    _createGroup(name, limit, selectedCaptain!['regNo']);
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.indigo,
-                  ),
-                  child: const Text('Create'),
-                ),
-              ],
-            );
-          },
-        );
-      },
-    );
-  }
 }
+

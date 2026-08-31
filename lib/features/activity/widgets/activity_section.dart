@@ -9,7 +9,7 @@ class ActivitySection extends StatelessWidget {
   final String title;
   final Widget child;
 
-  static const Color _primary = Color(0xFFEA4335);
+  static const Color _primary = Color(0xFF2563EB);
   static const Color _dark = Color(0xFF1E293B);
 
   const ActivitySection({

@@ -176,7 +176,7 @@ class TeamMemberCard extends StatelessWidget {
                       ),
                       const SizedBox(width: 4),
                       Text(
-                        "${member['currentXp'] ?? member['totalXp'] ?? member['score'] ?? 0} XP",
+                        "${member['totalXp'] ?? member['currentXp'] ?? 0} XP",
                         style: const TextStyle(
                           fontWeight: FontWeight.bold,
                           color: Colors.amber,

@@ -29,7 +29,7 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
   bool _isLoading = false;
 
   // Theme constants
-  static const Color _primary = Color(0xFF1E3A8A);
+  static const Color _primary = Color(0xFF2563EB);
   static const Color _dark = Color(0xFF0F172A);
   static const Color _bg = Color(0xFFF8FAFC);
 

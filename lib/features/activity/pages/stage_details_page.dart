@@ -42,7 +42,7 @@ class _StageDetailsPageState extends State<StageDetailsPage> {
   int _individualThreshold = 0;
   int _groupThreshold = 0;
 
-  static const Color _primary = Color(0xFFEA4335);
+  static const Color _primary = Color(0xFF2563EB);
   static const Color _dark = Color(0xFF1E293B);
 
   @override
@@ -154,7 +154,7 @@ class _StageDetailsPageState extends State<StageDetailsPage> {
             color: Colors.white,
           ),
         ),
-        backgroundColor: _dark,
+        backgroundColor: _primary,
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.white),
@@ -212,8 +212,10 @@ class _StageDetailsPageState extends State<StageDetailsPage> {
                                 child: _ThresholdCard(
                                   title: 'Must',
                                   value: _mustThreshold,
-                                  color: Colors.red,
-                                  icon: Icons.star,
+                                  bgColor: const Color(0xFFFEF2F2),
+                                  borderColor: const Color(0xFFFECACA),
+                                  textColor: const Color(0xFFDC2626),
+                                  icon: Icons.star_rounded,
                                 ),
                               ),
                               const SizedBox(width: 8),
@@ -221,8 +223,10 @@ class _StageDetailsPageState extends State<StageDetailsPage> {
                                 child: _ThresholdCard(
                                   title: 'Individual',
                                   value: _individualThreshold,
-                                  color: Colors.blue,
-                                  icon: Icons.person,
+                                  bgColor: const Color(0xFFEFF6FF),
+                                  borderColor: const Color(0xFFBFDBFE),
+                                  textColor: const Color(0xFF1D4ED8),
+                                  icon: Icons.person_rounded,
                                 ),
                               ),
                             ],
@@ -231,8 +235,10 @@ class _StageDetailsPageState extends State<StageDetailsPage> {
                           _ThresholdCard(
                             title: 'Group',
                             value: _groupThreshold,
-                            color: Colors.green,
-                            icon: Icons.group,
+                            bgColor: const Color(0xFFF0FDF4),
+                            borderColor: const Color(0xFFBBF7D0),
+                            textColor: const Color(0xFF16A34A),
+                            icon: Icons.groups_rounded,
                           ),
                         ],
                       ),
@@ -300,13 +306,30 @@ class _StageDetailsPageState extends State<StageDetailsPage> {
                                     ),
                                     child: Row(
                                       children: [
-                                        Icon(
-                                          catVal == 'must'
-                                              ? Icons.star_border
-                                              : (catVal == 'group'
-                                                    ? Icons.groups_outlined
-                                                    : Icons.person_outline),
-                                          color: _dark,
+                                        Container(
+                                          width: 40,
+                                          height: 40,
+                                          decoration: BoxDecoration(
+                                            color: catVal == 'must'
+                                                ? const Color(0xFFFEF2F2)
+                                                : (catVal == 'group'
+                                                    ? const Color(0xFFF0FDF4)
+                                                    : const Color(0xFFEFF6FF)),
+                                            borderRadius: BorderRadius.circular(10),
+                                          ),
+                                          child: Icon(
+                                            catVal == 'must'
+                                                ? Icons.star_rounded
+                                                : (catVal == 'group'
+                                                    ? Icons.groups_rounded
+                                                    : Icons.person_rounded),
+                                            color: catVal == 'must'
+                                                ? const Color(0xFFDC2626)
+                                                : (catVal == 'group'
+                                                    ? const Color(0xFF16A34A)
+                                                    : const Color(0xFF2563EB)),
+                                            size: 22,
+                                          ),
                                         ),
                                         const SizedBox(width: 16),
                                         Expanded(
@@ -315,12 +338,13 @@ class _StageDetailsPageState extends State<StageDetailsPage> {
                                             style: const TextStyle(
                                               fontWeight: FontWeight.bold,
                                               fontSize: 16,
+                                              color: Color(0xFF0F172A),
                                             ),
                                           ),
                                         ),
                                         const Icon(
-                                          Icons.chevron_right,
-                                          color: Colors.grey,
+                                          Icons.chevron_right_rounded,
+                                          color: Color(0xFF94A3B8),
                                         ),
                                       ],
                                     ),
@@ -340,13 +364,17 @@ class _StageDetailsPageState extends State<StageDetailsPage> {
 class _ThresholdCard extends StatelessWidget {
   final String title;
   final int value;
-  final Color color;
+  final Color bgColor;
+  final Color borderColor;
+  final Color textColor;
   final IconData icon;
 
   const _ThresholdCard({
     required this.title,
     required this.value,
-    required this.color,
+    required this.bgColor,
+    required this.borderColor,
+    required this.textColor,
     required this.icon,
   });
 
@@ -355,13 +383,13 @@ class _ThresholdCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: bgColor,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withOpacity(0.3)),
+        border: Border.all(color: borderColor),
       ),
       child: Row(
         children: [
-          Icon(icon, color: color, size: 24),
+          Icon(icon, color: textColor, size: 24),
           const SizedBox(width: 12),
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -370,7 +398,7 @@ class _ThresholdCard extends StatelessWidget {
                 title,
                 style: TextStyle(
                   fontSize: 12,
-                  color: color,
+                  color: textColor,
                   fontWeight: FontWeight.bold,
                 ),
               ),
@@ -379,7 +407,7 @@ class _ThresholdCard extends StatelessWidget {
                 style: const TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
-                  color: Colors.black87,
+                  color: Color(0xFF0F172A),
                 ),
               ),
             ],

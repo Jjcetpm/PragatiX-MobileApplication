@@ -9,8 +9,9 @@ class StudentFab extends StatelessWidget {
   Widget build(BuildContext context) {
     return FloatingActionButton(
       onPressed: onPressed,
-      backgroundColor: const Color(0xFFEA4335),
-      child: const Icon(Icons.add, color: Colors.white),
+      backgroundColor: const Color(0xFF2563EB),
+      elevation: 4,
+      child: const Icon(Icons.add_rounded, color: Colors.white),
     );
   }
 }

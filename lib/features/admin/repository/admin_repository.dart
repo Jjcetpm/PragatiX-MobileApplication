@@ -44,6 +44,68 @@ class AdminRepository {
     throw Exception('Failed to load years');
   }
 
+  Future<List<dynamic>> getAssignedYears() async {
+    try {
+      final years = await getYears();
+      final admins = await getYearAdmins();
+
+      final Set<String> assignedYearKeys = {};
+      for (var a in admins) {
+        if (a is Map) {
+          final yId = a['assignedYearId']?.toString().trim();
+          final yName = (a['assignedYearName'] ?? '').toString().trim().toLowerCase();
+          if (yId != null && yId.isNotEmpty) assignedYearKeys.add(yId);
+          if (yName.isNotEmpty && yName != 'null' && yName != 'not assigned') {
+            assignedYearKeys.add(yName);
+            if (yName.contains('first') || yName.contains('1')) {
+              assignedYearKeys.add('1');
+              assignedYearKeys.add('first year');
+              assignedYearKeys.add('first_year');
+            }
+            if (yName.contains('second') || yName.contains('2')) {
+              assignedYearKeys.add('2');
+              assignedYearKeys.add('second year');
+              assignedYearKeys.add('second_year');
+            }
+            if (yName.contains('third') || yName.contains('3')) {
+              assignedYearKeys.add('3');
+              assignedYearKeys.add('third year');
+              assignedYearKeys.add('third_year');
+            }
+            if (yName.contains('fourth') || yName.contains('4')) {
+              assignedYearKeys.add('4');
+              assignedYearKeys.add('fourth year');
+              assignedYearKeys.add('fourth_year');
+            }
+          }
+        }
+      }
+
+      if (assignedYearKeys.isEmpty) {
+        return years;
+      }
+
+      final filtered = years.where((y) {
+        if (y is Map) {
+          final idStr = y['id']?.toString().trim();
+          final noStr = y['yearNo']?.toString().trim();
+          final nameStr = (y['yearName'] ?? '').toString().trim().toLowerCase();
+          final enumStr = nameStr.replaceAll(' ', '_');
+
+          return (idStr != null && assignedYearKeys.contains(idStr)) ||
+              (noStr != null && assignedYearKeys.contains(noStr)) ||
+              (nameStr.isNotEmpty && assignedYearKeys.contains(nameStr)) ||
+              (enumStr.isNotEmpty && assignedYearKeys.contains(enumStr));
+        }
+        return false;
+      }).toList();
+
+      return filtered.isNotEmpty ? filtered : years;
+    } catch (_) {
+      return getYears();
+    }
+  }
+
   Future<List<dynamic>> getSemesters() async {
     final response = await _adminService.get('/api/v1/admin/semesters');
     if (response.statusCode == 200) {
@@ -220,7 +282,7 @@ class AdminRepository {
   // GET ALL TEACHERS / USERS
   Future<List<dynamic>> getTeachers({int? departmentId, String? keyword}) async {
     String url = '/api/v1/admin/users';
-    List<String> queryParams = [];
+    final List<String> queryParams = [];
     if (departmentId != null) {
       queryParams.add('departmentId=$departmentId');
     }
@@ -238,6 +300,18 @@ class AdminRepository {
       }
     }
     throw Exception('Failed to load teachers');
+  }
+
+  // GET TEACHER PROFILE & POINTS AWARDED HISTORY
+  Future<Map<String, dynamic>> getTeacherPointsHistory(dynamic teacherId) async {
+    final response = await _adminService.get('/api/v1/admin/users/$teacherId/points-history');
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      if (data['success'] == true && data['data'] != null) {
+        return Map<String, dynamic>.from(data['data']);
+      }
+    }
+    throw Exception('Failed to load teacher points history');
   }
 
   // USERS
@@ -411,6 +485,34 @@ class AdminRepository {
     return _handleResponse(response);
   }
 
+  Future<Map<String, dynamic>> batchUpdateStudents({
+    required List<int> studentIds,
+    int? departmentId,
+    int? yearId,
+    String? year,
+    int? semesterId,
+    String? semester,
+    int? sectionId,
+    int? academicYearId,
+    String? academicYear,
+  }) async {
+    final response = await _adminService.put(
+      '/api/v1/students/batch-update',
+      {
+        'studentIds': studentIds,
+        if (departmentId != null) 'departmentId': departmentId,
+        if (yearId != null) 'yearId': yearId,
+        if (year != null) 'year': year,
+        if (semesterId != null) 'semesterId': semesterId,
+        if (semester != null) 'semester': semester,
+        if (sectionId != null) 'sectionId': sectionId,
+        if (academicYearId != null) 'academicYearId': academicYearId,
+        if (academicYear != null) 'academicYear': academicYear,
+      },
+    );
+    return _handleResponse(response);
+  }
+
   Future<void> deleteStudent(int id) async {
     final response = await _adminService.delete('/api/v1/students/$id');
     _handleResponse(response);
@@ -532,6 +634,34 @@ class AdminRepository {
     );
     final data = _handleResponse(response);
     return data['data'] ?? {};
+  }
+
+  // LEVELS MANAGEMENT
+  Future<List<dynamic>> getLevels({String? academicYear}) async {
+    String endpoint = '/api/admin/levels';
+    if (academicYear != null && academicYear.isNotEmpty) {
+      endpoint += '?academicYear=$academicYear';
+    }
+    final response = await _adminService.get(endpoint);
+    final data = _handleResponse(response);
+    return data['data'] ?? [];
+  }
+
+  Future<dynamic> createLevel(Map<String, dynamic> body) async {
+    final response = await _adminService.post('/api/admin/levels', body);
+    final data = _handleResponse(response);
+    return data['data'];
+  }
+
+  Future<dynamic> updateLevel(int id, Map<String, dynamic> body) async {
+    final response = await _adminService.put('/api/admin/levels/$id', body);
+    final data = _handleResponse(response);
+    return data['data'];
+  }
+
+  Future<void> deleteLevel(int id) async {
+    final response = await _adminService.delete('/api/admin/levels/$id');
+    _handleResponse(response);
   }
 
   // Generic handler for JSON response mapping

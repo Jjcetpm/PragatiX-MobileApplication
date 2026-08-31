@@ -58,7 +58,7 @@ class _CCActivityListPageState extends State<CCActivityListPage> {
       );
       if (mounted) {
         setState(() {
-          _activities = list;
+          _activities = list.where((a) => !a.attendanceEngineEnabled).toList();
           _isLoading = false;
         });
         _filterActivities();

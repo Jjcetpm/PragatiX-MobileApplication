@@ -40,16 +40,27 @@ void setupTestGetIt({
   MockActivityRepository? activityRepo,
   MockAuthRepository? authRepo,
 }) {
-  getIt.reset();
+  if (getIt.isRegistered<AdminRepository>()) {
+    getIt.unregister<AdminRepository>();
+  }
   if (adminRepo != null) {
-    getIt.registerLazySingleton<AdminRepository>(() => adminRepo);
+    getIt.registerSingleton<AdminRepository>(adminRepo);
+  }
+
+  if (getIt.isRegistered<ActivityRepository>()) {
+    getIt.unregister<ActivityRepository>();
   }
   if (activityRepo != null) {
-    getIt.registerLazySingleton<ActivityRepository>(() => activityRepo);
+    getIt.registerSingleton<ActivityRepository>(activityRepo);
+  }
+
+  if (getIt.isRegistered<AuthRepository>()) {
+    getIt.unregister<AuthRepository>();
   }
   if (authRepo != null) {
-    getIt.registerLazySingleton<AuthRepository>(() => authRepo);
+    getIt.registerSingleton<AuthRepository>(authRepo);
   }
+
   // Register fallback values for mocktail
   registerFallbackValues();
 }

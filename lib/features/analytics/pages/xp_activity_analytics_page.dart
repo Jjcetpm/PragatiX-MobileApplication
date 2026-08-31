@@ -3,6 +3,7 @@ import 'package:pragatix/features/analytics/services/xp_analytics_service.dart';
 import 'package:pragatix/core/di/service_locator.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:shimmer/shimmer.dart';
+import 'package:pragatix/core/utils/error_handler.dart';
 
 class XpActivityAnalyticsPage extends StatefulWidget {
   const XpActivityAnalyticsPage({Key? key}) : super(key: key);
@@ -15,6 +16,7 @@ class _XpActivityAnalyticsPageState extends State<XpActivityAnalyticsPage> {
   bool _isLoading = true;
   List<dynamic> _allData = [];
   String? _error;
+  dynamic _rawError;
   int _limit = 10;
 
   @override
@@ -24,6 +26,11 @@ class _XpActivityAnalyticsPageState extends State<XpActivityAnalyticsPage> {
   }
 
   Future<void> _fetchData() async {
+    setState(() {
+      _isLoading = true;
+      _error = null;
+      _rawError = null;
+    });
     try {
       final service = getIt<XpAnalyticsService>();
       final result = await service.getActivityXpContribution({});
@@ -37,7 +44,8 @@ class _XpActivityAnalyticsPageState extends State<XpActivityAnalyticsPage> {
       });
     } catch (e) {
       setState(() {
-        _error = e.toString();
+        _rawError = e;
+        _error = ErrorHandler.getErrorMessage(e);
         _isLoading = false;
       });
     }
@@ -91,7 +99,7 @@ class _XpActivityAnalyticsPageState extends State<XpActivityAnalyticsPage> {
         child: _isLoading
             ? _buildSkeletonLoader()
             : _error != null
-                ? Center(child: Text('Error: $_error'))
+                ? ErrorHandler.buildErrorWidget(_rawError ?? _error, onRetry: _fetchData)
                 : _allData.isEmpty
                     ? _buildEmptyState()
                     : _buildChartContent(),

@@ -16,7 +16,7 @@ class OwnerSelector extends StatelessWidget {
   final bool showError;
   final bool showTeacher;
 
-  static const Color _primary = Color(0xFFEA4335);
+  static const Color _primary = Color(0xFF2563EB);
   static const Color _dark = Color(0xFF1E293B);
 
   const OwnerSelector({

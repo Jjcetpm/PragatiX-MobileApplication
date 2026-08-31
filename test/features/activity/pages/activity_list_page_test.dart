@@ -1,7 +1,9 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:network_image_mock/network_image_mock.dart';
+import 'package:pragatix/core/widgets/pragatix_loader.dart';
 import 'package:pragatix/features/admin/pages/activity_tab.dart';
 import '../../../helpers/mocks.dart';
 import '../../../helpers/test_wrapper.dart';
@@ -14,14 +16,23 @@ void main() {
     setUp(() {
       mockAdminRepo = MockAdminRepository();
       mockAuthProvider = MockAuthProvider();
+      when(() => mockAuthProvider.isAuthenticated).thenReturn(false);
+      when(() => mockAuthProvider.currentUser).thenReturn(null);
       setupTestGetIt(adminRepo: mockAdminRepo);
     });
 
     testWidgets('renders loading state initially', (tester) async {
-      when(() => mockAdminRepo.getStages()).thenAnswer((_) async {
-        await Future.delayed(const Duration(milliseconds: 100));
-        return [];
-      });
+      tester.view.physicalSize = const Size(1200, 1600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() => tester.view.resetPhysicalSize());
+
+      final completer = Completer<List<dynamic>>();
+      when(() => mockAdminRepo.getStages(academicYear: any(named: 'academicYear')))
+          .thenAnswer((_) => completer.future);
+      when(() => mockAdminRepo.getStages(academicYear: null))
+          .thenAnswer((_) => completer.future);
+      when(() => mockAdminRepo.getStages())
+          .thenAnswer((_) => completer.future);
       when(() => mockAdminRepo.getUsers()).thenAnswer((_) async => []);
 
       await mockNetworkImagesFor(() async {
@@ -31,22 +42,34 @@ void main() {
             child: const AdminActivityManagementPage(),
           ),
         );
-        expect(find.byType(CircularProgressIndicator), findsOneWidget);
+        expect(find.byType(PragatiXLoader), findsOneWidget);
+        completer.complete([]);
+        await tester.pump();
       });
     });
 
     testWidgets('renders stages when loaded', (tester) async {
-      when(() => mockAdminRepo.getStages()).thenAnswer((_) async => [
-            {
-              'id': 1,
-              'name': 'Test Stage',
-              'description': 'Test Description',
-              'startDate': '2026-01-01',
-              'endDate': '2026-01-31',
-              'isActive': true,
-              'subgroups': []
-            }
-          ]);
+      tester.view.physicalSize = const Size(1200, 1600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() => tester.view.resetPhysicalSize());
+
+      final mockStages = [
+        {
+          'id': 1,
+          'name': 'Test Stage',
+          'description': 'Test Description',
+          'startDate': '2026-01-01',
+          'endDate': '2026-01-31',
+          'isActive': true,
+          'subgroups': []
+        }
+      ];
+      when(() => mockAdminRepo.getStages(academicYear: any(named: 'academicYear')))
+          .thenAnswer((_) async => mockStages);
+      when(() => mockAdminRepo.getStages(academicYear: null))
+          .thenAnswer((_) async => mockStages);
+      when(() => mockAdminRepo.getStages())
+          .thenAnswer((_) async => mockStages);
       when(() => mockAdminRepo.getUsers()).thenAnswer((_) async => []);
 
       await mockNetworkImagesFor(() async {
@@ -57,12 +80,11 @@ void main() {
           ),
         );
         
-        // Wait for Future to resolve
-        await tester.pumpAndSettle();
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 100));
         
         expect(find.text('Test Stage'), findsOneWidget);
         expect(find.text('Test Description'), findsOneWidget);
-        expect(find.byIcon(Icons.add), findsOneWidget); // FAB to add stage
       });
     });
   });

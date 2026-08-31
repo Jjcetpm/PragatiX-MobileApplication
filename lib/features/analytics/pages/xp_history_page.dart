@@ -4,6 +4,7 @@ import 'package:pragatix/features/analytics/services/xp_analytics_service.dart';
 import 'package:pragatix/core/di/service_locator.dart';
 import 'package:pragatix/features/auth/providers/auth_provider.dart';
 import 'package:pragatix/core/utils/export_utils.dart';
+import 'package:pragatix/core/utils/error_handler.dart';
 
 class XpHistoryPage extends StatefulWidget {
   const XpHistoryPage({Key? key}) : super(key: key);
@@ -19,6 +20,7 @@ class _XpHistoryPageState extends State<XpHistoryPage> {
   int _currentPage = 0;
   final int _pageSize = 20;
   String? _error;
+  dynamic _rawError;
 
   @override
   void initState() {
@@ -27,7 +29,11 @@ class _XpHistoryPageState extends State<XpHistoryPage> {
   }
 
   Future<void> _fetchData({int page = 0}) async {
-    setState(() => _isLoading = true);
+    setState(() {
+      _isLoading = true;
+      _error = null;
+      _rawError = null;
+    });
     try {
       final service = getIt<XpAnalyticsService>();
       final result = await service.getXpHistory({
@@ -42,7 +48,8 @@ class _XpHistoryPageState extends State<XpHistoryPage> {
       });
     } catch (e) {
       setState(() {
-        _error = e.toString();
+        _rawError = e;
+        _error = ErrorHandler.getErrorMessage(e);
         _isLoading = false;
       });
     }
@@ -68,7 +75,7 @@ class _XpHistoryPageState extends State<XpHistoryPage> {
       body: _isLoading && _data.isEmpty
         ? const Center(child: PragatiXLoader(fullScreen: false))
         : _error != null && _data.isEmpty
-          ? Center(child: Text('Error: $_error'))
+          ? ErrorHandler.buildErrorWidget(_rawError ?? _error, onRetry: () => _fetchData(page: _currentPage))
           : Column(
               children: [
                 Expanded(

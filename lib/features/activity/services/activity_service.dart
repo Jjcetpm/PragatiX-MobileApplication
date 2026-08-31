@@ -471,4 +471,108 @@ class ActivityService {
     }
     throw Exception(data['message'] ?? 'Failed to award XP');
   }
+
+  Future<List<dynamic>> fetchCategories() async {
+    final response = await http.get(
+      Uri.parse('${ActivityConstants.baseUrl}/categories'),
+      headers: _authHeaders,
+    );
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      if (data['success'] == true) {
+        return (data['data'] as List?) ?? [];
+      }
+    }
+    throw Exception('Failed to fetch categories');
+  }
+
+  Future<Map<String, dynamic>> createCategory(Map<String, dynamic> body) async {
+    final response = await http.post(
+      Uri.parse('${ActivityConstants.baseUrl}/categories'),
+      headers: _jsonHeaders,
+      body: jsonEncode(body),
+    );
+    final data = jsonDecode(response.body) as Map<String, dynamic>;
+    if (response.statusCode == 200 && data['success'] == true) {
+      return (data['data'] as Map<String, dynamic>?) ?? {};
+    }
+    throw Exception(data['message'] ?? 'Failed to create category');
+  }
+
+  Future<Map<String, dynamic>> updateCategory(int id, Map<String, dynamic> body) async {
+    final response = await http.put(
+      Uri.parse('${ActivityConstants.baseUrl}/categories/$id'),
+      headers: _jsonHeaders,
+      body: jsonEncode(body),
+    );
+    final data = jsonDecode(response.body) as Map<String, dynamic>;
+    if (response.statusCode == 200 && data['success'] == true) {
+      return (data['data'] as Map<String, dynamic>?) ?? {};
+    }
+    throw Exception(data['message'] ?? 'Failed to update category');
+  }
+
+  Future<void> deleteCategory(int id) async {
+    final response = await http.delete(
+      Uri.parse('${ActivityConstants.baseUrl}/categories/$id'),
+      headers: _authHeaders,
+    );
+    if (response.statusCode != 200) {
+      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      throw Exception(data['message'] ?? 'Failed to delete category');
+    }
+  }
+
+  // ── EVIDENCE TYPES ──────────────────────────────────────────────────────────
+
+  Future<List<dynamic>> fetchEvidenceTypes() async {
+    final response = await http.get(
+      Uri.parse('${ActivityConstants.baseUrl}/evidence'),
+      headers: _authHeaders,
+    );
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      if (data['success'] == true) {
+        return (data['data'] as List?) ?? [];
+      }
+    }
+    throw Exception('Failed to fetch evidence types');
+  }
+
+  Future<Map<String, dynamic>> createEvidenceType(Map<String, dynamic> body) async {
+    final response = await http.post(
+      Uri.parse('${ActivityConstants.baseUrl}/evidence'),
+      headers: _jsonHeaders,
+      body: jsonEncode(body),
+    );
+    final data = jsonDecode(response.body) as Map<String, dynamic>;
+    if (response.statusCode == 200 && data['success'] == true) {
+      return (data['data'] as Map<String, dynamic>?) ?? {};
+    }
+    throw Exception(data['message'] ?? 'Failed to create evidence type');
+  }
+
+  Future<Map<String, dynamic>> updateEvidenceType(int id, Map<String, dynamic> body) async {
+    final response = await http.put(
+      Uri.parse('${ActivityConstants.baseUrl}/evidence/$id'),
+      headers: _jsonHeaders,
+      body: jsonEncode(body),
+    );
+    final data = jsonDecode(response.body) as Map<String, dynamic>;
+    if (response.statusCode == 200 && data['success'] == true) {
+      return (data['data'] as Map<String, dynamic>?) ?? {};
+    }
+    throw Exception(data['message'] ?? 'Failed to update evidence type');
+  }
+
+  Future<void> deleteEvidenceType(int id) async {
+    final response = await http.delete(
+      Uri.parse('${ActivityConstants.baseUrl}/evidence/$id'),
+      headers: _authHeaders,
+    );
+    if (response.statusCode != 200) {
+      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      throw Exception(data['message'] ?? 'Failed to delete evidence type');
+    }
+  }
 }

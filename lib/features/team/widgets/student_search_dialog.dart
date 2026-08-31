@@ -7,6 +7,7 @@ import 'package:pragatix/core/config/api_config.dart';
 import 'package:pragatix/features/team/services/team_proxy_service.dart';
 import 'package:pragatix/core/di/service_locator.dart';
 import 'package:pragatix/core/widgets/pragatix_loader.dart';
+import 'package:pragatix/core/utils/error_handler.dart';
 
 class StudentSearchDTO {
   final int id;
@@ -131,7 +132,7 @@ class _StudentSearchDialogState extends State<StudentSearchDialog> {
         setState(() => _errorMsg = 'Server error: ${response.statusCode}');
       }
     } catch (e) {
-      setState(() => _errorMsg = 'Network error: $e');
+      setState(() => _errorMsg = ErrorHandler.getErrorMessage(e));
     } finally {
       setState(() => _isLoading = false);
     }

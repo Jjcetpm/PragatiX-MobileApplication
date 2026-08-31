@@ -1,6 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
-import 'package:http/http.dart' as standard_http;
+import 'package:pragatix/core/utils/api_client.dart' as standard_http;
 import 'package:pragatix/core/config/api_config.dart';
 import 'package:pragatix/features/admin/services/admin_service.dart';
 import 'package:pragatix/features/enrollment/models/enrollment_model.dart';

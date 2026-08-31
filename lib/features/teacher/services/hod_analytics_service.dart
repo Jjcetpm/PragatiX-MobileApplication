@@ -1,5 +1,5 @@
 import 'dart:convert';
-import 'package:http/http.dart' as http;
+import 'package:pragatix/core/utils/api_client.dart' as http;
 import 'package:pragatix/core/config/api_config.dart';
 
 class HodAnalyticsService {

@@ -128,9 +128,13 @@ class AttendanceSettingsService {
     throw Exception('Failed to get engine status');
   }
 
-  Future<Map<String, dynamic>> runDailyEngine({String? academicYear}) async {
-    String url = '${ApiConfig.baseUrl}/api/v1/attendance-engine/run-daily';
-    if (academicYear != null) url += '?academicYear=$academicYear';
+  Future<Map<String, dynamic>> runDailyEngine({String? academicYear, String? date}) async {
+    String url = '${ApiConfig.baseUrl}/api/v1/attendance-engine/run-daily?';
+    final List<String> params = [];
+    if (academicYear != null) params.add('academicYear=$academicYear');
+    if (date != null) params.add('date=$date');
+    url += params.join('&');
+
     final response = await http.post(Uri.parse(url), headers: await _getHeaders());
     if (response.statusCode == 200) {
       return jsonDecode(response.body)['data'] ?? {};
@@ -138,9 +142,14 @@ class AttendanceSettingsService {
     throw Exception('Failed to run daily engine: ${response.body}');
   }
 
-  Future<Map<String, dynamic>> runWeeklyEngine({String? academicYear}) async {
-    String url = '${ApiConfig.baseUrl}/api/v1/attendance-engine/run-weekly';
-    if (academicYear != null) url += '?academicYear=$academicYear';
+  Future<Map<String, dynamic>> runWeeklyEngine({String? academicYear, String? startDate, String? endDate}) async {
+    String url = '${ApiConfig.baseUrl}/api/v1/attendance-engine/run-weekly?';
+    final List<String> params = [];
+    if (academicYear != null) params.add('academicYear=$academicYear');
+    if (startDate != null) params.add('startDate=$startDate');
+    if (endDate != null) params.add('endDate=$endDate');
+    url += params.join('&');
+
     final response = await http.post(Uri.parse(url), headers: await _getHeaders());
     if (response.statusCode == 200) {
       return jsonDecode(response.body)['data'] ?? {};
@@ -156,6 +165,16 @@ class AttendanceSettingsService {
       return jsonDecode(response.body)['data'] ?? {};
     }
     throw Exception('Failed to run both engines: ${response.body}');
+  }
+
+  Future<List<dynamic>> getExecutionHistory({String? academicYear}) async {
+    String url = '${ApiConfig.baseUrl}/api/v1/attendance-engine/history';
+    if (academicYear != null) url += '?academicYear=$academicYear';
+    final response = await http.get(Uri.parse(url), headers: await _getHeaders());
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body)['data'] ?? [];
+    }
+    throw Exception('Failed to get execution history');
   }
 
   Future<Map<String, dynamic>> resetEngineState({String? academicYear}) async {

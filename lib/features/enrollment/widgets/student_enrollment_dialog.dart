@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:pragatix/core/di/service_locator.dart';
+import 'package:pragatix/core/utils/error_handler.dart';
 import 'package:pragatix/features/enrollment/models/enrollment_model.dart';
 import 'package:pragatix/features/enrollment/repository/enrollment_repository.dart';
 
@@ -64,7 +65,7 @@ class _StudentEnrollmentDialogState extends State<StudentEnrollmentDialog> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _errorMessage = e.toString().replaceAll('Exception: ', '');
+        _errorMessage = ErrorHandler.getErrorMessage(e);
         _isLoading = false;
       });
     }
@@ -106,7 +107,7 @@ class _StudentEnrollmentDialogState extends State<StudentEnrollmentDialog> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _errorMessage = e.toString().replaceAll('Exception: ', '');
+        _errorMessage = ErrorHandler.getErrorMessage(e);
         _isLoading = false;
       });
     }
@@ -131,7 +132,7 @@ class _StudentEnrollmentDialogState extends State<StudentEnrollmentDialog> {
       if (!mounted) return;
       setState(() {
         _isSubmitting = false;
-        _errorMessage = e.toString().replaceAll('Exception: ', '');
+        _errorMessage = ErrorHandler.getErrorMessage(e);
       });
     }
   }
@@ -140,7 +141,7 @@ class _StudentEnrollmentDialogState extends State<StudentEnrollmentDialog> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-    final primaryColor = const Color(0xFFEA4335);
+    final primaryColor = const Color(0xFF2563EB);
 
     return Container(
       height: MediaQuery.of(context).size.height * 0.85,
@@ -325,12 +326,21 @@ class _StudentEnrollmentDialogState extends State<StudentEnrollmentDialog> {
           ),
           child: ListTile(
             contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            leading: CircleAvatar(
-              backgroundColor: const Color(0xFFEA4335).withOpacity(0.12),
+            leading: Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: isDark ? const Color(0xFF334155) : const Color(0xFFEFF6FF),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(
+                  color: isDark ? const Color(0xFF475569) : const Color(0xFFDBEAFE),
+                ),
+              ),
+              alignment: Alignment.center,
               child: Text(
                 dept.deptCode.isNotEmpty ? dept.deptCode.substring(0, 1) : 'D',
                 style: const TextStyle(
-                  color: Color(0xFFEA4335),
+                  color: Color(0xFF2563EB),
                   fontWeight: FontWeight.bold,
                 ),
               ),
@@ -679,7 +689,7 @@ class _StudentEnrollmentDialogState extends State<StudentEnrollmentDialog> {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        Icon(icon, size: 20, color: const Color(0xFFEA4335)),
+        Icon(icon, size: 20, color: const Color(0xFF2563EB)),
         const SizedBox(width: 12),
         Expanded(
           child: Column(

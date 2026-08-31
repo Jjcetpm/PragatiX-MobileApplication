@@ -91,6 +91,38 @@ class ActivityRepository {
     return _service.createCustomFrequency(body);
   }
 
+  Future<List<dynamic>> getCategories() async {
+    return _service.fetchCategories();
+  }
+
+  Future<Map<String, dynamic>> createCategory(Map<String, dynamic> body) async {
+    return _service.createCategory(body);
+  }
+
+  Future<Map<String, dynamic>> updateCategory(int id, Map<String, dynamic> body) async {
+    return _service.updateCategory(id, body);
+  }
+
+  Future<void> deleteCategory(int id) async {
+    await _service.deleteCategory(id);
+  }
+
+  Future<List<dynamic>> getEvidenceTypes() async {
+    return _service.fetchEvidenceTypes();
+  }
+
+  Future<Map<String, dynamic>> createEvidenceType(Map<String, dynamic> body) async {
+    return _service.createEvidenceType(body);
+  }
+
+  Future<Map<String, dynamic>> updateEvidenceType(int id, Map<String, dynamic> body) async {
+    return _service.updateEvidenceType(id, body);
+  }
+
+  Future<void> deleteEvidenceType(int id) async {
+    await _service.deleteEvidenceType(id);
+  }
+
   Future<ActivityModel> create(
     Map<String, dynamic> body, {
     int? stageId,

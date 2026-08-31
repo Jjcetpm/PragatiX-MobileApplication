@@ -18,6 +18,7 @@ import 'package:pragatix/features/attendance/providers/attendance_provider.dart'
 import 'package:pragatix/features/analytics/providers/xp_analytics_provider.dart';
 import 'package:pragatix/features/penalty/providers/penalty_provider.dart';
 import 'package:pragatix/features/admin/providers/department_provider.dart';
+import 'package:pragatix/core/widgets/security_gate.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -54,8 +55,9 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       navigatorKey: NavigatorService.navigatorKey,
       debugShowCheckedModeBanner: false,
-      title: 'pragatiX â€“ Track. Learn. Grow.',
+      title: 'pragatiX – Track. Learn. Grow.',
       theme: AppTheme.light(),
+      builder: (context, child) => SecurityGate(child: child ?? const SizedBox.shrink()),
       home: Consumer<AuthProvider>(
         builder: (context, auth, _) {
           if (auth.isAuthenticated) {

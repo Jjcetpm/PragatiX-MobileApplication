@@ -9,6 +9,7 @@ import 'package:pragatix/features/xp/providers/xp_provider.dart';
 import 'package:pragatix/features/student/pages/activity_streaks_page.dart';
 import 'package:pragatix/features/student/pages/leaderboard_tab.dart';
 import 'package:pragatix/features/profile/pages/profile_page.dart';
+import 'package:pragatix/features/student/pages/level_progression_page.dart';
 import 'package:pragatix/core/di/service_locator.dart';
 import 'package:pragatix/features/team/services/team_proxy_service.dart';
 
@@ -28,7 +29,7 @@ class _DashboardTabState extends State<DashboardTab> {
   String section = '';
   String year = '';
   String gender = '';
-  int score = 95; // Discipline points
+  int score = 0; // Discipline points
   int rank = 1;
   int currentStage = 1;
   bool isCaptain = false;
@@ -107,16 +108,18 @@ class _DashboardTabState extends State<DashboardTab> {
           final List<dynamic> stagesList = data['data'] ?? [];
           stagesList.sort((a, b) => ((a['displayOrder'] ?? 0) as int)
               .compareTo((b['displayOrder'] ?? 0) as int));
-          final active = stagesList.firstWhere(
-            (s) => s['isActive'] == true || s['active'] == true,
-            orElse: () => null,
+          final stageForStudent = stagesList.firstWhere(
+            (s) => (s['displayOrder'] ?? s['order']) == currentStage,
+            orElse: () => stagesList.firstWhere(
+              (s) => s['isActive'] == true || s['active'] == true,
+              orElse: () => null,
+            ),
           );
           if (mounted) {
             setState(() {
               allStages = stagesList;
-              if (active != null) {
-                activeStageDetails = active;
-                currentStage = active['displayOrder'] ?? 1;
+              if (stageForStudent != null) {
+                activeStageDetails = stageForStudent;
               }
             });
           }
@@ -199,12 +202,15 @@ class _DashboardTabState extends State<DashboardTab> {
           if (mounted) {
             setState(() {
               studentName = resData['fullName'] ?? '';
-              regNo = resData['username'] ?? '';
+              regNo = resData['username'] ?? resData['regNo'] ?? '';
               section = resData['section'] ?? '';
               year = resData['year'] ?? '';
               department = resData['department'] ?? '';
               gender = resolvedGender;
-              score = resData['score'] ?? 0;
+              final rawXp = resData['totalXp'] as int?;
+              final rawScore = resData['score'] as int?;
+              // Remove 100 extra offset so dashboard displays student's actual current XP
+              score = rawXp ?? (rawScore != null && rawScore >= 100 ? rawScore - 100 : (rawScore ?? 0));
               rank = resData['rank'] != null && resData['rank'] > 0
                   ? resData['rank']
                   : 1;
@@ -212,8 +218,10 @@ class _DashboardTabState extends State<DashboardTab> {
               isViceCaptain = resData['isViceCaptain'] == true;
               isMember = resData['isMember'] == true;
               teamName = resData['teamName'] ?? '';
-              if (resData['stage'] != null && activeStageDetails == null) {
+              if (resData['stage'] != null && resData['stage'] > 0) {
                 currentStage = resData['stage'];
+              } else if (resData['currentStage'] != null && resData['currentStage'] > 0) {
+                currentStage = resData['currentStage'];
               }
             });
           }
@@ -326,7 +334,7 @@ class _DashboardTabState extends State<DashboardTab> {
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 20),
                   child: _buildDisciplineScoreCard(
-                    totalXp: totalXp,
+                    score: totalXp > 0 ? totalXp : (score >= 100 ? score - 100 : score),
                     levelProgress: levelProgress,
                   ),
                 ),
@@ -584,7 +592,7 @@ class _DashboardTabState extends State<DashboardTab> {
   // ── Discipline Score Card with Dynamic Stage Dots ────────────────────────────
 
   Widget _buildDisciplineScoreCard({
-    required int totalXp,
+    required int score,
     required double levelProgress,
   }) {
     final bool isFemale = gender.trim().toLowerCase().startsWith('f');
@@ -684,7 +692,7 @@ class _DashboardTabState extends State<DashboardTab> {
 
                   // Points
                   Text(
-                    '$totalXp',
+                    '$score',
                     style: const TextStyle(
                       fontSize: 34,
                       fontWeight: FontWeight.w900,
@@ -705,7 +713,7 @@ class _DashboardTabState extends State<DashboardTab> {
 
                   // Dynamic Stage Dots Progress Bar
                   _buildDynamicStageDots(
-                    totalStages: allStages.isNotEmpty ? allStages.length : 5,
+                    totalStages: allStages.isNotEmpty ? allStages.length : 3,
                     currentStage: currentStage,
                     levelProgress: levelProgress,
                   ),
@@ -747,7 +755,7 @@ class _DashboardTabState extends State<DashboardTab> {
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
-                          Text(
+                            Text(
                             'Section & Year',
                             style: TextStyle(
                               fontSize: 11.5,
@@ -776,29 +784,124 @@ class _DashboardTabState extends State<DashboardTab> {
     );
   }
 
-  // ── Dynamic Stage Dots Progress Bar ──────────────────────────────────────────
+  // ── Dynamic Stage Dots Progress Bar with "You are here" marker ──────────────
 
   Widget _buildDynamicStageDots({
     required int totalStages,
     required int currentStage,
     required double levelProgress,
   }) {
-    final int stageCount = totalStages < 2 ? 2 : totalStages;
+    // Stage count + 1 so progress towards future/highest stage has a milestone ahead
+    final int baseCount = totalStages < 2 ? 3 : totalStages;
+    final int stageCount = baseCount + 1;
     final int activeIdx = (currentStage - 1).clamp(0, stageCount - 1);
-    final double fillRatio = (activeIdx / (stageCount - 1)).clamp(0.0, 1.0);
+
+    double currentProgressRatio = 0.0;
+    if (stageCount > 1) {
+      final double baseRatio = activeIdx / (stageCount - 1);
+      final double step = 1.0 / (stageCount - 1);
+      // Smooth intermediate position along the line between current stage and next
+      final double fractional = (activeIdx < stageCount - 1)
+          ? (levelProgress.clamp(0.0, 1.0) * step * 0.45)
+          : 0.0;
+      currentProgressRatio = (baseRatio + fractional).clamp(0.0, 1.0);
+    }
+
+    final bool isFemale = gender.trim().toUpperCase() == 'FEMALE';
 
     return LayoutBuilder(
       builder: (context, constraints) {
         final double totalWidth = constraints.maxWidth;
+        const double dotRadius = 11.0;
+        final double trackWidth = totalWidth - (dotRadius * 2);
+        final double targetCenterX = dotRadius + (trackWidth * currentProgressRatio);
+        const double tagWidth = 96.0;
+        final double tagLeft = (targetCenterX - (tagWidth / 2)).clamp(0.0, totalWidth - tagWidth);
+
         return SizedBox(
-          height: 32,
+          height: 48,
           child: Stack(
-            alignment: Alignment.center,
+            clipBehavior: Clip.none,
             children: [
+              // "You are here" Floating Marker Badge with Avatar
+              Positioned(
+                top: 0,
+                left: tagLeft,
+                child: SizedBox(
+                  width: tagWidth,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            colors: [Color(0xFF38BDF8), Color(0xFF818CF8)],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                          borderRadius: BorderRadius.circular(10),
+                          boxShadow: [
+                            BoxShadow(
+                              color: const Color(0xFF818CF8).withValues(alpha: 0.5),
+                              blurRadius: 6,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            // Gender Avatar Circle
+                            ClipOval(
+                              child: Container(
+                                width: 13,
+                                height: 13,
+                                decoration: const BoxDecoration(
+                                  color: Colors.white,
+                                  shape: BoxShape.circle,
+                                ),
+                                child: Image.asset(
+                                  isFemale
+                                      ? 'assets/images/avatar_female.png'
+                                      : 'assets/images/avatar_male.png',
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (context, error, stackTrace) => const Icon(
+                                    Icons.person_rounded,
+                                    size: 10,
+                                    color: Color(0xFF4F46E5),
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 3),
+                            const Text(
+                              'You are here',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 8.2,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: 0.2,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const CustomPaint(
+                        size: Size(8, 4),
+                        painter: _StageTrianglePainter(color: Color(0xFF818CF8)),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
               // Inactive track line
               Positioned(
-                left: 12,
-                right: 12,
+                top: 32,
+                left: dotRadius,
+                right: dotRadius,
                 child: Container(
                   height: 3,
                   decoration: BoxDecoration(
@@ -807,11 +910,13 @@ class _DashboardTabState extends State<DashboardTab> {
                   ),
                 ),
               ),
+
               // Active filled progress line
               Positioned(
-                left: 12,
+                top: 32,
+                left: dotRadius,
                 child: Container(
-                  width: (totalWidth - 24) * fillRatio,
+                  width: trackWidth * currentProgressRatio,
                   height: 3.5,
                   decoration: BoxDecoration(
                     gradient: const LinearGradient(
@@ -832,79 +937,117 @@ class _DashboardTabState extends State<DashboardTab> {
                   ),
                 ),
               ),
+
               // Stage Dots Row
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: List.generate(stageCount, (index) {
-                  final int stageNum = index + 1;
-                  final bool isPast = stageNum < currentStage;
-                  final bool isCurrent = stageNum == currentStage;
+              Positioned(
+                top: 22,
+                left: 0,
+                right: 0,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: List.generate(stageCount, (index) {
+                    final int stageNum = index + 1;
+                    final bool isFinalMilestone = index == stageCount - 1;
+                    final bool isPast = stageNum < currentStage;
+                    final bool isCurrent = stageNum == currentStage;
 
-                  Color dotColor;
-                  Color borderColor;
-                  double dotSize = 22;
+                    Color dotColor;
+                    Color borderColor;
+                    double dotSize = 22;
 
-                  if (isCurrent) {
-                    dotColor = const Color(0xFF818CF8);
-                    borderColor = Colors.white;
-                    dotSize = 24;
-                  } else if (isPast) {
-                    dotColor = const Color(0xFF38BDF8);
-                    borderColor = Colors.white.withValues(alpha: 0.9);
-                  } else {
-                    dotColor = const Color(0xFF1E2258).withValues(alpha: 0.7);
-                    borderColor = Colors.white.withValues(alpha: 0.25);
-                  }
-
-                  return Container(
-                    width: dotSize,
-                    height: dotSize,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: dotColor,
-                      border: Border.all(
-                        color: borderColor,
-                        width: isCurrent ? 2.5 : 1.5,
-                      ),
-                      boxShadow: isCurrent
-                          ? [
-                              BoxShadow(
-                                color: const Color(0xFF818CF8).withValues(alpha: 0.7),
-                                blurRadius: 10,
-                                spreadRadius: 1,
-                              ),
-                            ]
+                    if (isFinalMilestone) {
+                      dotSize = 26;
+                      dotColor = isCurrent
+                          ? const Color(0xFF818CF8)
                           : (isPast
-                              ? [
-                                  BoxShadow(
-                                    color: const Color(0xFF38BDF8).withValues(alpha: 0.4),
-                                    blurRadius: 4,
+                              ? const Color(0xFF38BDF8)
+                              : const Color(0xFF1E2258).withValues(alpha: 0.85));
+                      borderColor = isCurrent || isPast
+                          ? const Color(0xFFFBBF24)
+                          : const Color(0xFFF59E0B).withValues(alpha: 0.7);
+                    } else if (isCurrent) {
+                      dotColor = const Color(0xFF818CF8);
+                      borderColor = Colors.white;
+                      dotSize = 24;
+                    } else if (isPast) {
+                      dotColor = const Color(0xFF38BDF8);
+                      borderColor = Colors.white.withValues(alpha: 0.9);
+                    } else {
+                      dotColor = const Color(0xFF1E2258).withValues(alpha: 0.7);
+                      borderColor = Colors.white.withValues(alpha: 0.25);
+                    }
+
+                    return Container(
+                      width: dotSize,
+                      height: dotSize,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: dotColor,
+                        border: Border.all(
+                          color: borderColor,
+                          width: isCurrent || isFinalMilestone ? 2.0 : 1.5,
+                        ),
+                        boxShadow: isFinalMilestone
+                            ? [
+                                BoxShadow(
+                                  color: const Color(0xFFF59E0B).withValues(alpha: 0.5),
+                                  blurRadius: 8,
+                                  spreadRadius: 1,
+                                ),
+                              ]
+                            : (isCurrent
+                                ? [
+                                    BoxShadow(
+                                      color: const Color(0xFF818CF8).withValues(alpha: 0.7),
+                                      blurRadius: 10,
+                                      spreadRadius: 1,
+                                    ),
+                                  ]
+                                : (isPast
+                                    ? [
+                                        BoxShadow(
+                                          color: const Color(0xFF38BDF8).withValues(alpha: 0.4),
+                                          blurRadius: 4,
+                                        ),
+                                      ]
+                                    : null)),
+                      ),
+                      child: Center(
+                        child: isFinalMilestone
+                            ? Padding(
+                                padding: const EdgeInsets.all(2.5),
+                                child: Image.asset(
+                                  'assets/images/treasure_chest.png',
+                                  fit: BoxFit.contain,
+                                  errorBuilder: (context, error, stackTrace) => const Icon(
+                                    Icons.inventory_2_rounded,
+                                    size: 13,
+                                    color: Color(0xFFF59E0B),
                                   ),
-                                ]
-                              : null),
-                    ),
-                    child: Center(
-                      child: isPast
-                          ? const Icon(
-                              Icons.check,
-                              size: 13,
-                              color: Colors.white,
-                            )
-                          : Text(
-                              '$stageNum',
-                              style: TextStyle(
-                                fontSize: 10.5,
-                                fontWeight: FontWeight.w800,
-                                color: isCurrent
-                                    ? Colors.white
-                                    : (isPast
-                                        ? Colors.white
-                                        : Colors.white.withValues(alpha: 0.45)),
-                              ),
-                            ),
-                    ),
-                  );
-                }),
+                                ),
+                              )
+                            : (isPast
+                                ? const Icon(
+                                    Icons.check,
+                                    size: 13,
+                                    color: Colors.white,
+                                  )
+                                : Text(
+                                    '$stageNum',
+                                    style: TextStyle(
+                                      fontSize: 10.5,
+                                      fontWeight: FontWeight.w800,
+                                      color: isCurrent
+                                          ? Colors.white
+                                          : (isPast
+                                              ? Colors.white
+                                              : Colors.white.withValues(alpha: 0.45)),
+                                    ),
+                                  )),
+                      ),
+                    );
+                  }),
+                ),
               ),
             ],
           ),
@@ -926,182 +1069,213 @@ class _DashboardTabState extends State<DashboardTab> {
     final int nextLevelNum = levelNum + 1;
     final int progressPercent = (levelProgress * 100).toInt().clamp(0, 100);
 
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: const Color(0xFFF1F5F9), width: 1.5),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFF0F172A).withValues(alpha: 0.04),
-            blurRadius: 16,
-            offset: const Offset(0, 4),
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const LevelProgressionPage(),
+            ),
+          );
+        },
+        child: Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(color: const Color(0xFFF1F5F9), width: 1.5),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFF0F172A).withValues(alpha: 0.04),
+                blurRadius: 16,
+                offset: const Offset(0, 4),
+              ),
+            ],
           ),
-        ],
-      ),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(20, 18, 16, 18),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Top Row: Hexagon Compass Icon + Level Texts + Chevron button
-            Row(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 18, 16, 18),
+            child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Purple Rounded Hexagon Badge
-                Container(
-                  width: 44,
-                  height: 44,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFEEF2FF),
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: const Color(0xFFE0E7FF), width: 1.5),
-                  ),
-                  child: Center(
-                    child: Container(
-                      width: 32,
-                      height: 32,
+                // Top Row: Hexagon Compass Icon + Level Texts + Chevron button
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Purple Rounded Hexagon Badge
+                    Container(
+                      width: 44,
+                      height: 44,
                       decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                          colors: [Color(0xFF6366F1), Color(0xFF4F46E5)],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                        ),
-                        borderRadius: BorderRadius.circular(10),
+                        color: const Color(0xFFEEF2FF),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: const Color(0xFFE0E7FF), width: 1.5),
                       ),
-                      child: const Icon(
-                        Icons.explore_rounded,
-                        color: Colors.white,
-                        size: 20,
+                      child: Center(
+                        child: Container(
+                          width: 32,
+                          height: 32,
+                          decoration: BoxDecoration(
+                            gradient: const LinearGradient(
+                              colors: [Color(0xFF6366F1), Color(0xFF4F46E5)],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: const Icon(
+                            Icons.explore_rounded,
+                            color: Colors.white,
+                            size: 20,
+                          ),
+                        ),
                       ),
                     ),
-                  ),
-                ),
-                const SizedBox(width: 14),
+                    const SizedBox(width: 14),
 
-                // Level Name & XP Helper
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Current Level',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Color(0xFF64748B),
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        'Level $levelNum — $levelTitle',
-                        style: const TextStyle(
-                          fontSize: 17,
-                          fontWeight: FontWeight.w900,
-                          color: Color(0xFF0F172A),
-                          letterSpacing: -0.4,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        remainingXp > 0
-                            ? 'Earn $remainingXp XP to reach Level $nextLevelNum'
-                            : 'Maximum level reached!',
-                        style: const TextStyle(
-                          fontSize: 12.5,
-                          color: Color(0xFF64748B),
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
-                // Chevron Button
-                Container(
-                  width: 36,
-                  height: 36,
-                  decoration: const BoxDecoration(
-                    color: Color(0xFFF1F5F9),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(
-                    Icons.chevron_right_rounded,
-                    color: Color(0xFF64748B),
-                    size: 22,
-                  ),
-                ),
-              ],
-            ),
-
-            const SizedBox(height: 16),
-
-            // Bottom Section: Progress Bar & Info on Left, 3D Treasure Chest on Right
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                // Left: Progress bar + 0 / 100 XP + 0%
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Smooth Progress Track
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(8),
-                        child: LinearProgressIndicator(
-                          value: levelProgress.clamp(0.0, 1.0),
-                          minHeight: 10,
-                          backgroundColor: const Color(0xFFEEF2FF),
-                          valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF6366F1)),
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    // Level Name & XP Helper
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            '$totalXp / $maxXp XP',
-                            style: const TextStyle(
-                              fontSize: 12.5,
-                              fontWeight: FontWeight.w700,
+                          const Text(
+                            'Current Level',
+                            style: TextStyle(
+                              fontSize: 12,
                               color: Color(0xFF64748B),
+                              fontWeight: FontWeight.w600,
                             ),
                           ),
+                          const SizedBox(height: 2),
                           Text(
-                            '$progressPercent%',
+                            'Level $levelNum — $levelTitle',
                             style: const TextStyle(
-                              fontSize: 15,
+                              fontSize: 17,
                               fontWeight: FontWeight.w900,
-                              color: Color(0xFF4F46E5),
+                              color: Color(0xFF0F172A),
+                              letterSpacing: -0.4,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            remainingXp > 0
+                                ? 'Earn $remainingXp XP to reach Level $nextLevelNum'
+                                : 'Maximum level reached!',
+                            style: const TextStyle(
+                              fontSize: 12.5,
+                              color: Color(0xFF64748B),
+                              fontWeight: FontWeight.w500,
                             ),
                           ),
                         ],
                       ),
-                    ],
-                  ),
+                    ),
+
+                    // Chevron Button
+                    Container(
+                      width: 36,
+                      height: 36,
+                      decoration: const BoxDecoration(
+                        color: Color(0xFFF1F5F9),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.chevron_right_rounded,
+                        color: Color(0xFF64748B),
+                        size: 22,
+                      ),
+                    ),
+                  ],
                 ),
 
-                const SizedBox(width: 14),
+                const SizedBox(height: 16),
 
-                // Right: 3D Treasure Chest Image
-                SizedBox(
-                  width: 92,
-                  height: 80,
-                  child: Image.asset(
-                    'assets/images/treasure_chest.png',
-                    fit: BoxFit.contain,
-                    errorBuilder: (context, error, stackTrace) => const Icon(
-                      Icons.inventory_2_rounded,
-                      size: 55,
-                      color: Color(0xFFF59E0B),
+                // Bottom Section: Progress Bar & Info on Left, 3D Treasure Chest on Right
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    // Left: Progress bar + 0 / 100 XP + 0%
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Pill Track Progress Bar
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(99),
+                            child: Stack(
+                              children: [
+                                Container(
+                                  height: 8,
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFEEF2FF),
+                                    borderRadius: BorderRadius.circular(99),
+                                  ),
+                                ),
+                                FractionallySizedBox(
+                                  widthFactor: levelProgress.clamp(0.0, 1.0),
+                                  child: Container(
+                                    height: 8,
+                                    decoration: BoxDecoration(
+                                      gradient: const LinearGradient(
+                                        colors: [Color(0xFF818CF8), Color(0xFF6366F1)],
+                                      ),
+                                      borderRadius: BorderRadius.circular(99),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                '$totalXp / $maxXp XP',
+                                style: const TextStyle(
+                                  fontSize: 12.5,
+                                  fontWeight: FontWeight.w700,
+                                  color: Color(0xFF64748B),
+                                ),
+                              ),
+                              Text(
+                                '$progressPercent%',
+                                style: const TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w900,
+                                  color: Color(0xFF4F46E5),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
+
+                    const SizedBox(width: 14),
+
+                    // Right: 3D Treasure Chest Image
+                    SizedBox(
+                      width: 92,
+                      height: 80,
+                      child: Image.asset(
+                        'assets/images/treasure_chest.png',
+                        fit: BoxFit.contain,
+                        errorBuilder: (context, error, stackTrace) => const Icon(
+                          Icons.inventory_2_rounded,
+                          size: 55,
+                          color: Color(0xFFF59E0B),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
-          ],
+          ),
         ),
       ),
     );
@@ -1131,7 +1305,9 @@ class _DashboardTabState extends State<DashboardTab> {
             MaterialPageRoute(
               builder: (context) => const LeaderboardTab(),
             ),
-          );
+          ).then((_) {
+            if (mounted) _fetchProfileData();
+          });
         },
         child: Container(
           decoration: BoxDecoration(
@@ -2100,6 +2276,13 @@ class _DashboardTabState extends State<DashboardTab> {
       }
     }
 
+    final bool hasCaptain = captain.trim().isNotEmpty &&
+        captain.trim().toUpperCase() != 'N/A' &&
+        captain.trim().toUpperCase() != 'NONE';
+    final bool hasViceCaptain = viceCaptain.trim().isNotEmpty &&
+        viceCaptain.trim().toUpperCase() != 'N/A' &&
+        viceCaptain.trim().toUpperCase() != 'NONE';
+
     final bool isCaptainFemale = captainGender == 'female' || captainGender == 'f';
     final String captainAvatar = isCaptainFemale
         ? 'assets/images/avatar_female.png'
@@ -2213,26 +2396,34 @@ class _DashboardTabState extends State<DashboardTab> {
                     children: [
                       CircleAvatar(
                         radius: 19,
-                        backgroundColor: isCaptainFemale
-                            ? const Color(0xFFFCE7F3)
-                            : const Color(0xFFDCFCE7),
-                        child: ClipOval(
-                          child: Image.asset(
-                            captainAvatar,
-                            fit: BoxFit.cover,
-                            width: 38,
-                            height: 38,
-                            errorBuilder: (context, error, stackTrace) => Icon(
-                              isCaptainFemale
-                                  ? Icons.person_2_rounded
-                                  : Icons.person_rounded,
-                              size: 22,
-                              color: isCaptainFemale
-                                  ? const Color(0xFFDB2777)
-                                  : const Color(0xFF16A34A),
-                            ),
-                          ),
-                        ),
+                        backgroundColor: hasCaptain
+                            ? (isCaptainFemale
+                                ? const Color(0xFFFCE7F3)
+                                : const Color(0xFFDCFCE7))
+                            : const Color(0xFFF1F5F9),
+                        child: hasCaptain
+                            ? ClipOval(
+                                child: Image.asset(
+                                  captainAvatar,
+                                  fit: BoxFit.cover,
+                                  width: 38,
+                                  height: 38,
+                                  errorBuilder: (context, error, stackTrace) => Icon(
+                                    isCaptainFemale
+                                        ? Icons.person_2_rounded
+                                        : Icons.person_rounded,
+                                    size: 22,
+                                    color: isCaptainFemale
+                                        ? const Color(0xFFDB2777)
+                                        : const Color(0xFF16A34A),
+                                  ),
+                                ),
+                              )
+                            : const Icon(
+                                Icons.person_outline_rounded,
+                                size: 20,
+                                color: Color(0xFF94A3B8),
+                              ),
                       ),
                       const SizedBox(width: 10),
                       Expanded(
@@ -2249,11 +2440,11 @@ class _DashboardTabState extends State<DashboardTab> {
                             ),
                             const SizedBox(height: 2),
                             Text(
-                              captain,
-                              style: const TextStyle(
+                              hasCaptain ? captain : 'Not Assigned',
+                              style: TextStyle(
                                 fontSize: 13,
-                                fontWeight: FontWeight.w800,
-                                color: Color(0xFF0F172A),
+                                fontWeight: hasCaptain ? FontWeight.w800 : FontWeight.w600,
+                                color: hasCaptain ? const Color(0xFF0F172A) : const Color(0xFF94A3B8),
                               ),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
@@ -2279,26 +2470,34 @@ class _DashboardTabState extends State<DashboardTab> {
                     children: [
                       CircleAvatar(
                         radius: 19,
-                        backgroundColor: isVcMale
-                            ? const Color(0xFFDCFCE7)
-                            : const Color(0xFFE0F2FE),
-                        child: ClipOval(
-                          child: Image.asset(
-                            viceCaptainAvatar,
-                            fit: BoxFit.cover,
-                            width: 38,
-                            height: 38,
-                            errorBuilder: (context, error, stackTrace) => Icon(
-                              isVcMale
-                                  ? Icons.person_rounded
-                                  : Icons.person_2_rounded,
-                              size: 22,
-                              color: isVcMale
-                                  ? const Color(0xFF16A34A)
-                                  : const Color(0xFF0284C7),
-                            ),
-                          ),
-                        ),
+                        backgroundColor: hasViceCaptain
+                            ? (isVcMale
+                                ? const Color(0xFFDCFCE7)
+                                : const Color(0xFFFCE7F3))
+                            : const Color(0xFFF1F5F9),
+                        child: hasViceCaptain
+                            ? ClipOval(
+                                child: Image.asset(
+                                  viceCaptainAvatar,
+                                  fit: BoxFit.cover,
+                                  width: 38,
+                                  height: 38,
+                                  errorBuilder: (context, error, stackTrace) => Icon(
+                                    isVcMale
+                                        ? Icons.person_rounded
+                                        : Icons.person_2_rounded,
+                                    size: 22,
+                                    color: isVcMale
+                                        ? const Color(0xFF16A34A)
+                                        : const Color(0xFFDB2777),
+                                  ),
+                                ),
+                              )
+                            : const Icon(
+                                Icons.person_outline_rounded,
+                                size: 20,
+                                color: Color(0xFF94A3B8),
+                              ),
                       ),
                       const SizedBox(width: 10),
                       Expanded(
@@ -2315,11 +2514,11 @@ class _DashboardTabState extends State<DashboardTab> {
                             ),
                             const SizedBox(height: 2),
                             Text(
-                              viceCaptain,
-                              style: const TextStyle(
+                              hasViceCaptain ? viceCaptain : 'Not Assigned',
+                              style: TextStyle(
                                 fontSize: 13,
-                                fontWeight: FontWeight.w800,
-                                color: Color(0xFF0F172A),
+                                fontWeight: hasViceCaptain ? FontWeight.w800 : FontWeight.w600,
+                                color: hasViceCaptain ? const Color(0xFF0F172A) : const Color(0xFF94A3B8),
                               ),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
@@ -2576,5 +2775,23 @@ class _ConcentricHubArcsPainter extends CustomPainter {
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
+class _StageTrianglePainter extends CustomPainter {
+  final Color color;
+  const _StageTrianglePainter({required this.color});
 
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.fill;
+    final path = Path()
+      ..moveTo(0, 0)
+      ..lineTo(size.width / 2, size.height)
+      ..lineTo(size.width, 0)
+      ..close();
+    canvas.drawPath(path, paint);
+  }
 
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}

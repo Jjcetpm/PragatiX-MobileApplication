@@ -49,8 +49,8 @@ class ActivityListPage extends StatefulWidget {
 }
 
 class _ActivityListPageState extends State<ActivityListPage> {
-  static const Color _primary = Color(0xFFEA4335);
-  static const Color _dark = Color(0xFF2B4598);
+  static const Color _primary = Color(0xFF2563EB);
+  static const Color _dark = Color(0xFF1E293B);
 
   late final ActivityProvider _provider;
 
@@ -352,7 +352,7 @@ class _ActivityListPageState extends State<ActivityListPage> {
                 style: const TextStyle(
                     fontWeight: FontWeight.bold, color: Colors.white),
               ),
-              backgroundColor: _dark,
+              backgroundColor: _primary,
               elevation: 0,
               leading: Navigator.canPop(context)
                   ? IconButton(
@@ -666,7 +666,7 @@ class GroupedActivitySelectionDialog extends StatelessWidget {
                               color: Colors.grey.shade100,
                               child: Row(
                                 children: [
-                                  Icon(icon, size: 20, color: const Color(0xFFEA4335)),
+                                  Icon(icon, size: 20, color: const Color(0xFF2563EB)),
                                   const SizedBox(width: 8),
                                   Expanded(
                                     child: Text(

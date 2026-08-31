@@ -54,7 +54,7 @@ class _CaptainRewardSettingsPageState extends State<CaptainRewardSettingsPage> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error loading settings: $e')),
+          SnackBar(content: Text('Error loading settings: $e'), backgroundColor: Colors.redAccent),
         );
       }
     } finally {
@@ -79,13 +79,16 @@ class _CaptainRewardSettingsPageState extends State<CaptainRewardSettingsPage> {
       await _repository.updateCaptainRewardSettings(yearParam, _settings);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Settings saved successfully')),
+          const SnackBar(
+            content: Text('Settings saved successfully'),
+            backgroundColor: Colors.green,
+          ),
         );
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error saving settings: $e')),
+          SnackBar(content: Text('Error saving settings: $e'), backgroundColor: Colors.redAccent),
         );
       }
     } finally {

@@ -11,7 +11,7 @@ class StickyBottomButtons extends StatelessWidget {
   final VoidCallback onCancel;
   final bool isSaving;
 
-  static const Color _primary = Color(0xFFEA4335);
+  static const Color _primary = Color(0xFF2563EB);
 
   const StickyBottomButtons({
     super.key,

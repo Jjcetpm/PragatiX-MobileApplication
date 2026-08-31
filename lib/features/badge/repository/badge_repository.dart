@@ -204,7 +204,7 @@ class BadgeRepository {
   Future<Map<String, dynamic>> getMyRequests(String token) async {
     try {
       final response = await http.get(
-        Uri.parse('${ApiConfig.baseUrl}/api/badge-requests/my?_t=\${DateTime.now().millisecondsSinceEpoch}'),
+        Uri.parse('${ApiConfig.baseUrl}/api/badge-requests/my?_t=${DateTime.now().millisecondsSinceEpoch}'),
         headers: {'Authorization': 'Bearer $token'},
       );
       if (response.statusCode == 200) {
@@ -229,7 +229,7 @@ class BadgeRepository {
   Future<Map<String, dynamic>> getAdminRequests(String token) async {
     try {
       final response = await http.get(
-        Uri.parse('${ApiConfig.baseUrl}/api/admin/badge-requests?_t=\${DateTime.now().millisecondsSinceEpoch}'),
+        Uri.parse('${ApiConfig.baseUrl}/api/admin/badge-requests?_t=${DateTime.now().millisecondsSinceEpoch}'),
         headers: {'Authorization': 'Bearer $token'},
       );
       if (response.statusCode == 200) {
@@ -254,7 +254,7 @@ class BadgeRepository {
   Future<Map<String, dynamic>> getCCRequests(String token) async {
     try {
       final response = await http.get(
-        Uri.parse('${ApiConfig.baseUrl}/api/cc/badge-requests?_t=\${DateTime.now().millisecondsSinceEpoch}'),
+        Uri.parse('${ApiConfig.baseUrl}/api/cc/badge-requests?_t=${DateTime.now().millisecondsSinceEpoch}'),
         headers: {'Authorization': 'Bearer $token'},
       );
       if (response.statusCode == 200) {
@@ -282,7 +282,7 @@ class BadgeRepository {
     String role,
   ) async {
     try {
-      String endpoint = role == 'ADMIN' ? 'admin' : 'cc';
+      final String endpoint = role == 'ADMIN' ? 'admin' : 'cc';
       final response = await http.put(
         Uri.parse(
           '${ApiConfig.baseUrl}/api/$endpoint/badge-requests/$requestId/approve',
@@ -309,7 +309,7 @@ class BadgeRepository {
     String? remarks,
   }) async {
     try {
-      String endpoint = role == 'ADMIN' ? 'admin' : 'cc';
+      final String endpoint = role == 'ADMIN' ? 'admin' : 'cc';
       final bodyStr = remarks != null ? jsonEncode({'remarks': remarks}) : null;
       final response = await http.put(
         Uri.parse(
@@ -333,4 +333,115 @@ class BadgeRepository {
       return {'success': false, 'message': e.toString()};
     }
   }
+
+  Future<Map<String, dynamic>> fetchAdminBadges(String token) async {
+    try {
+      final response = await http.get(
+        Uri.parse(
+          '${ApiConfig.baseUrl}/api/admin/badges?_t=${DateTime.now().millisecondsSinceEpoch}',
+        ),
+        headers: {'Authorization': 'Bearer $token'},
+      );
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (data['success'] == true) {
+          return {'success': true, 'data': data['data'] ?? []};
+        }
+        return {
+          'success': false,
+          'message': data['message'] ?? 'Failed to load badges',
+        };
+      }
+      return {
+        'success': false,
+        'message': 'Server error: ${response.statusCode}',
+      };
+    } catch (e) {
+      return {'success': false, 'message': e.toString()};
+    }
+  }
+
+  Future<Map<String, dynamic>> createBadge(
+    String token,
+    Map<String, dynamic> data,
+  ) async {
+    try {
+      final response = await http.post(
+        Uri.parse('${ApiConfig.baseUrl}/api/admin/badges'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode(data),
+      );
+      final resData = jsonDecode(response.body);
+      if (response.statusCode == 200 && resData['success'] == true) {
+        return {
+          'success': true,
+          'message': resData['message'] ?? 'Badge created successfully',
+          'data': resData['data'],
+        };
+      }
+      return {
+        'success': false,
+        'message': resData['message'] ?? 'Failed to create badge',
+      };
+    } catch (e) {
+      return {'success': false, 'message': 'Connection error: $e'};
+    }
+  }
+
+  Future<Map<String, dynamic>> updateBadge(
+    String token,
+    int id,
+    Map<String, dynamic> data,
+  ) async {
+    try {
+      final response = await http.put(
+        Uri.parse('${ApiConfig.baseUrl}/api/admin/badges/$id'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode(data),
+      );
+      final resData = jsonDecode(response.body);
+      if (response.statusCode == 200 && resData['success'] == true) {
+        return {
+          'success': true,
+          'message': resData['message'] ?? 'Badge updated successfully',
+          'data': resData['data'],
+        };
+      }
+      return {
+        'success': false,
+        'message': resData['message'] ?? 'Failed to update badge',
+      };
+    } catch (e) {
+      return {'success': false, 'message': 'Connection error: $e'};
+    }
+  }
+
+  Future<Map<String, dynamic>> deleteBadge(String token, int id) async {
+    try {
+      final response = await http.delete(
+        Uri.parse('${ApiConfig.baseUrl}/api/admin/badges/$id'),
+        headers: {'Authorization': 'Bearer $token'},
+      );
+      final resData = jsonDecode(response.body);
+      if (response.statusCode == 200 && resData['success'] == true) {
+        return {
+          'success': true,
+          'message': resData['message'] ?? 'Badge moved to Recycle Bin',
+        };
+      }
+      return {
+        'success': false,
+        'message': resData['message'] ?? 'Failed to delete badge',
+      };
+    } catch (e) {
+      return {'success': false, 'message': 'Connection error: $e'};
+    }
+  }
 }
+

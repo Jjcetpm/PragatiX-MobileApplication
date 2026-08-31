@@ -6,6 +6,7 @@ import 'package:pragatix/core/config/api_config.dart';
 import 'package:pragatix/core/di/service_locator.dart';
 import 'package:pragatix/features/auth/providers/auth_provider.dart';
 import 'package:pragatix/features/team/services/team_proxy_service.dart';
+import 'package:pragatix/core/utils/error_handler.dart';
 
 class StudentTeamDetailsPage extends StatefulWidget {
   const StudentTeamDetailsPage({super.key});
@@ -18,6 +19,7 @@ class _StudentTeamDetailsPageState extends State<StudentTeamDetailsPage> {
   bool _isLoading = true;
   Map<String, dynamic>? _teamData;
   String? _errorMessage;
+  dynamic _rawError;
 
   @override
   void initState() {
@@ -29,6 +31,7 @@ class _StudentTeamDetailsPageState extends State<StudentTeamDetailsPage> {
     setState(() {
       _isLoading = true;
       _errorMessage = null;
+      _rawError = null;
     });
     try {
       final response = await getIt<TeamProxyService>().get(
@@ -60,7 +63,8 @@ class _StudentTeamDetailsPageState extends State<StudentTeamDetailsPage> {
       }
     } catch (e) {
       setState(() {
-        _errorMessage = 'Error loading team: $e';
+        _rawError = e;
+        _errorMessage = ErrorHandler.getErrorMessage(e);
         _isLoading = false;
       });
     }
@@ -226,16 +230,19 @@ class _StudentTeamDetailsPageState extends State<StudentTeamDetailsPage> {
   }
 
   Widget _buildRoleInfo(String role, String name) {
+    final bool isAssigned = name.trim().isNotEmpty &&
+        name.trim().toUpperCase() != 'N/A' &&
+        name.trim().toUpperCase() != 'NONE';
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(role, style: const TextStyle(color: Colors.white70, fontSize: 12)),
         const SizedBox(height: 2),
         Text(
-          name,
-          style: const TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.w600,
+          isAssigned ? name : 'Not Assigned',
+          style: TextStyle(
+            color: isAssigned ? Colors.white : Colors.white60,
+            fontWeight: isAssigned ? FontWeight.w600 : FontWeight.w400,
             fontSize: 14,
           ),
         ),
@@ -403,23 +410,62 @@ class _StudentTeamDetailsPageState extends State<StudentTeamDetailsPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFFF8FAFC),
       appBar: AppBar(
-        title: const Text('My Team Leaderboard'),
-        centerTitle: true,
+        title: const Text(
+          'My Group',
+          style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
+        ),
+        backgroundColor: const Color(0xFF1E293B),
+        elevation: 0,
       ),
       body: _isLoading
           ? const Center(child: PragatiXLoader())
-          : _errorMessage != null
+          : _rawError != null
+              ? ErrorHandler.buildErrorWidget(
+                  _rawError,
+                  onRetry: _fetchTeamDetails,
+                )
+              : _teamData == null
           ? Center(
-              child: Text(
-                _errorMessage!,
-                style: const TextStyle(color: Colors.red),
+              child: Padding(
+                padding: const EdgeInsets.all(24.0),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(
+                      Icons.group_off_rounded,
+                      size: 72,
+                      color: Colors.grey,
+                    ),
+                    const SizedBox(height: 16),
+                    const Text(
+                      'No Team Assigned',
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      _errorMessage ?? 'You are not assigned to any group yet.',
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(color: Colors.grey),
+                    ),
+                    const SizedBox(height: 16),
+                    ElevatedButton.icon(
+                      onPressed: _fetchTeamDetails,
+                      icon: const Icon(Icons.refresh),
+                      label: const Text('Refresh'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF4F46E5),
+                        foregroundColor: Colors.white,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             )
-          : _teamData == null
-          ? const Center(child: Text('No team data found'))
           : RefreshIndicator(
               onRefresh: _fetchTeamDetails,
+              color: const Color(0xFF4F46E5),
               child: ListView(
                 padding: const EdgeInsets.all(16),
                 children: [
@@ -427,7 +473,7 @@ class _StudentTeamDetailsPageState extends State<StudentTeamDetailsPage> {
                   const SizedBox(height: 24),
                   const Text(
                     'Team Leaderboard',
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF1E293B)),
                   ),
                   const SizedBox(height: 12),
                   if (_teamData!['members'] != null)

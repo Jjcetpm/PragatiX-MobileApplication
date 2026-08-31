@@ -52,7 +52,7 @@ void main() {
 
       expect(result['success'], true);
       expect(result['data']['name'], 'IT');
-      verify(() => mockAdminService.post('/api/v1/admin/departments', {'name': 'IT', 'code': 'IT', 'supportsSections': false})).called(1);
+      verify(() => mockAdminService.post('/api/v1/admin/departments', {'name': 'IT', 'code': 'IT', 'departmentType': 'MAIN', 'supportsSections': false})).called(1);
     });
   });
 }

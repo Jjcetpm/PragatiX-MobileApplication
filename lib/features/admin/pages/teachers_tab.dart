@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:async';
-import 'package:http/http.dart' as http;
+import 'package:pragatix/core/utils/api_client.dart' as http;
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:file_picker/file_picker.dart';
@@ -14,6 +14,7 @@ import 'package:pragatix/core/utils/error_handler.dart';
 import 'package:pragatix/features/admin/repository/admin_repository.dart';
 import 'package:pragatix/core/di/service_locator.dart';
 import 'package:pragatix/core/utils/string_utils.dart';
+import 'admin_teacher_detail.dart';
 
 Future<List<dynamic>> _apiGetDepartments(String token) async {
   try {
@@ -186,14 +187,32 @@ class _TeachersTabState extends State<TeachersTab> {
       return;
     }
 
-    if (selectedSubRoles.contains('CC') &&
-        (selectedYear == null || selectedYear!.isEmpty)) {
+    if (selectedSubRoles.contains('HOD') && selectedDeptId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Please select a Year for Class Coordinator (CC).'),
+          content: Text('Please select a Department for HOD.'),
         ),
       );
       return;
+    }
+
+    if (selectedSubRoles.contains('CC')) {
+      if (selectedDeptId == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Please select a Department for Class Coordinator (CC).'),
+          ),
+        );
+        return;
+      }
+      if (selectedYear == null || selectedYear!.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Please select a Year for Class Coordinator (CC).'),
+          ),
+        );
+        return;
+      }
     }
 
     try {
@@ -233,14 +252,31 @@ class _TeachersTabState extends State<TeachersTab> {
       );
       return;
     }
-    if (selectedSubRoles.contains('CC') &&
-        (selectedYear == null || selectedYear!.isEmpty)) {
+    if (selectedSubRoles.contains('HOD') && selectedDeptId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Please select a Year for Class Coordinator (CC).'),
+          content: Text('Please select a Department for HOD.'),
         ),
       );
       return;
+    }
+    if (selectedSubRoles.contains('CC')) {
+      if (selectedDeptId == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Please select a Department for Class Coordinator (CC).'),
+          ),
+        );
+        return;
+      }
+      if (selectedYear == null || selectedYear!.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Please select a Year for Class Coordinator (CC).'),
+          ),
+        );
+        return;
+      }
     }
     try {
       await getIt<AdminRepository>().updateUser(id, {
@@ -1677,239 +1713,424 @@ class _TeachersTabState extends State<TeachersTab> {
     super.dispose();
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text(
-          'Teacher Directory',
-          style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
+  Widget _buildHeaderActionButton({
+    required IconData icon,
+    required String tooltip,
+    required VoidCallback onPressed,
+    Color iconColor = const Color(0xFF334155),
+  }) {
+    return Container(
+      width: 38,
+      height: 38,
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.90),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: const Color(0xFFE2E8F0),
+          width: 1,
         ),
-        backgroundColor: const Color(0xFF1E293B),
-        elevation: 0,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh, color: Colors.white),
-            onPressed: () {
-              setState(() => isLoading = true);
-              _fetchTeachers();
-            },
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
           ),
         ],
       ),
-      body: isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 16.0),
-                    child: TextField(
-                      controller: _searchController,
-                      decoration: InputDecoration(
-                        labelText: 'Search Teacher (Name, Email, Username)',
-                        prefixIcon: const Icon(Icons.search),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
+      child: IconButton(
+        padding: EdgeInsets.zero,
+        icon: Icon(icon, color: iconColor, size: 20),
+        tooltip: tooltip,
+        onPressed: onPressed,
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFF4F7FB),
+      floatingActionButton: FloatingActionButton(
+        onPressed: _showAddTeacherSelection,
+        backgroundColor: const Color(0xFF2563EB),
+        elevation: 4,
+        child: const Icon(Icons.add_rounded, color: Colors.white),
+      ),
+      body: Stack(
+        children: [
+          // Background mesh subtle gradient
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            height: 240,
+            child: Container(
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    Color(0xFFDCE8F6),
+                    Color(0xFFE8EFF9),
+                    Color(0xFFF4F7FB),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          SafeArea(
+            child: Column(
+              children: [
+                // Top Header
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
+                  child: Row(
+                    children: [
+                      if (Navigator.canPop(context)) ...[
+                        _buildHeaderActionButton(
+                          icon: Icons.arrow_back_ios_new_rounded,
+                          tooltip: 'Back',
+                          iconColor: const Color(0xFF4B5563),
+                          onPressed: () => Navigator.pop(context),
                         ),
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                      ),
-                      onChanged: (value) {
-                        if (_debounce?.isActive ?? false) _debounce!.cancel();
-                        _debounce = Timer(const Duration(milliseconds: 500), () {
-                          setState(() {
-                            _searchQuery = value;
-                            isLoading = true;
-                          });
-                          _fetchTeachers();
-                        });
-                      },
-                    ),
-                  ),
-                  if (departments.isNotEmpty)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 16.0),
-                      child: DropdownButtonFormField<int?>(
-                        isExpanded: true,
-                        decoration: InputDecoration(
-                          labelText: 'Filter by Department',
-                          prefixIcon: const Icon(Icons.filter_list),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                        ),
-                        value: filterDeptId,
-                        items: [
-                          const DropdownMenuItem<int?>(
-                            value: null,
-                            child: Text('All Departments'),
-                          ),
-                          ...departments.where((d) => d['id'] != null).map((d) {
-                            final dId = int.tryParse(d['id'].toString());
-                            return DropdownMenuItem<int?>(
-                              value: dId,
-                              child: Text(
-                                (d['name'] ?? d['code'] ?? d['deptName'] ?? d['deptCode'] ?? '').toString(),
+                        const SizedBox(width: 10),
+                      ],
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Text(
+                              'Teacher Directory',
+                              style: TextStyle(
+                                fontSize: 19,
+                                fontWeight: FontWeight.w800,
+                                color: Color(0xFF0F172A),
+                                letterSpacing: -0.4,
                               ),
-                            );
-                          }),
-                        ],
-                        onChanged: (value) {
-                          setState(() {
-                            filterDeptId = value;
-                            isLoading = true;
-                          });
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              !isLoading && usersList.isNotEmpty
+                                  ? 'Showing ${usersList.length} faculty profiles'
+                                  : 'Faculty profiles & department assignments',
+                              style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w500,
+                                color: Color(0xFF64748B),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      _buildHeaderActionButton(
+                        icon: Icons.refresh_rounded,
+                        tooltip: 'Refresh',
+                        onPressed: () {
+                          setState(() => isLoading = true);
                           _fetchTeachers();
                         },
                       ),
-                    ),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: ElevatedButton.icon(
-                          onPressed: _showAddTeacherSelection,
-                          icon: const Icon(
-                            Icons.add,
-                            color: Colors.white,
-                            size: 18,
-                          ),
-                          label: const Text(
-                            'Add Teacher',
-                            style: TextStyle(color: Colors.white),
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFFEA4335),
-                          ),
-                        ),
-                      ),
                     ],
                   ),
-                  const SizedBox(height: 16),
-                  Expanded(
-                    child: ListView.builder(
-                      itemCount: usersList.length,
-                      itemBuilder: (context, index) {
-                        final t = usersList[index];
-                        final String name = t['fullName'] ?? '';
-                        final String email = t['email'] ?? '';
-                        final String deptName =
-                            t['departmentName'] ?? 'No Department';
-                        final List<dynamic> rolesList = t['roles'] ?? [];
-                        final rolesStr = rolesList
-                            .map((e) => e.toString().replaceAll('ROLE_', ''))
-                            .join(', ');
-                        final List<dynamic> subRolesList = t['subRoles'] ?? [];
-                        String subRolesStr = '';
-                        if (subRolesList.isNotEmpty) {
-                          final List<String> mappedSubs = [];
-                          for (var r in subRolesList) {
-                            if (r.toString() == 'CC') {
-                              String ccDetails = 'CC';
-                              final List<String> ccParts = [];
-                              if (t['year'] != null &&
-                                  t['year'].toString().isNotEmpty) {
-                                ccParts.add("Year: ${t["year"]}");
-                              }
-                              if (t['section'] != null &&
-                                  t['section'].toString().isNotEmpty) {
-                                ccParts.add("Section: ${t["section"]}");
-                              }
-                              if (ccParts.isNotEmpty) {
-                                ccDetails += " (${ccParts.join(" | ")})";
-                              }
-                              mappedSubs.add(ccDetails);
-                            } else {
-                              mappedSubs.add(r.toString());
-                            }
-                          }
-                          subRolesStr =
-                              " | Sub-roles: ${mappedSubs.join(", ")}";
-                        }
+                ),
 
-                        return Card(
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          margin: const EdgeInsets.only(bottom: 12),
-                          elevation: 2,
-                          child: ListTile(
-                            leading: CircleAvatar(
-                              backgroundColor: Colors.green.withValues(
-                                alpha: 0.1,
-                              ),
-                              child: const Icon(
-                                Icons.assignment_ind,
-                                color: Colors.green,
-                              ),
-                            ),
-                            title: Text(
-                              name,
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            subtitle: Text(
-                              'Email: $email\nDept: $deptName\nRole: $rolesStr$subRolesStr',
-                            ),
-                            trailing: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                IconButton(
-                                  icon: const Icon(
-                                    Icons.edit_outlined,
-                                    color: Colors.blue,
+                Expanded(
+                  child: isLoading
+                      ? const Center(child: CircularProgressIndicator())
+                      : Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 4.0),
+                          child: Column(
+                            children: [
+                              Padding(
+                                padding: const EdgeInsets.only(bottom: 10.0),
+                                child: TextField(
+                                  controller: _searchController,
+                                  style: const TextStyle(color: Color(0xFF0F172A)),
+                                  decoration: InputDecoration(
+                                    labelText: 'Search Teacher (Name, Email, Username)',
+                                    prefixIcon: const Icon(Icons.search_rounded, color: Color(0xFF6C5CE7)),
+                                    filled: true,
+                                    fillColor: Colors.white,
+                                    border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(14),
+                                      borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
+                                    ),
+                                    enabledBorder: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(14),
+                                      borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
+                                    ),
+                                    focusedBorder: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(14),
+                                      borderSide: const BorderSide(color: Color(0xFF6C5CE7), width: 1.5),
+                                    ),
+                                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                                   ),
-                                  onPressed: () => _showEditTeacherDialog(t),
+                                  onChanged: (value) {
+                                    if (_debounce?.isActive ?? false) _debounce!.cancel();
+                                    _debounce = Timer(const Duration(milliseconds: 500), () {
+                                      setState(() {
+                                        _searchQuery = value;
+                                        isLoading = true;
+                                      });
+                                      _fetchTeachers();
+                                    });
+                                  },
                                 ),
-                                IconButton(
-                                  icon: const Icon(
-                                    Icons.delete_outline,
-                                    color: Colors.red,
-                                  ),
-                                  onPressed: () {
-                                    showDialog(
-                                      context: context,
-                                      builder: (context) => AlertDialog(
-                                        title: const Text('Delete Teacher'),
-                                        content: Text(
-                                          'Are you sure you want to move teacher $name to the Recycle Bin?',
-                                        ),
-                                        actions: [
-                                          TextButton(
-                                            onPressed: () =>
-                                                Navigator.pop(context),
-                                            child: const Text('Cancel'),
+                              ),
+                              if (departments.isNotEmpty)
+                                Padding(
+                                  padding: const EdgeInsets.only(bottom: 10.0),
+                                  child: DropdownButtonFormField<int?>(
+                                    isExpanded: true,
+                                    decoration: InputDecoration(
+                                      labelText: 'Filter by Department',
+                                      prefixIcon: const Icon(Icons.filter_list_rounded, color: Color(0xFF4B5563)),
+                                      filled: true,
+                                      fillColor: Colors.white,
+                                      border: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(14),
+                                        borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
+                                      ),
+                                      enabledBorder: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(14),
+                                        borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
+                                      ),
+                                      focusedBorder: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(14),
+                                        borderSide: const BorderSide(color: Color(0xFF6C5CE7), width: 1.5),
+                                      ),
+                                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                    ),
+                                    value: filterDeptId,
+                                    items: [
+                                      const DropdownMenuItem<int?>(
+                                        value: null,
+                                        child: Text('All Departments'),
+                                      ),
+                                      ...departments.where((d) => d['id'] != null).map((d) {
+                                        final dId = int.tryParse(d['id'].toString());
+                                        return DropdownMenuItem<int?>(
+                                          value: dId,
+                                          child: Text(
+                                            (d['name'] ?? d['code'] ?? d['deptName'] ?? d['deptCode'] ?? '').toString(),
                                           ),
-                                          TextButton(
-                                            onPressed: () {
-                                              Navigator.pop(context);
-                                              _deleteTeacher(t['id']);
-                                            },
-                                            child: const Text(
-                                              'Delete',
-                                              style: TextStyle(
-                                                color: Colors.red,
-                                              ),
-                                            ),
+                                        );
+                                      }),
+                                    ],
+                                    onChanged: (value) {
+                                      setState(() {
+                                        filterDeptId = value;
+                                        isLoading = true;
+                                      });
+                                      _fetchTeachers();
+                                    },
+                                  ),
+                                ),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: ElevatedButton.icon(
+                                      onPressed: _showAddTeacherSelection,
+                                      icon: const Icon(
+                                        Icons.add_rounded,
+                                        color: Colors.white,
+                                        size: 18,
+                                      ),
+                                      label: const Text(
+                                        '+ Add Teacher',
+                                        style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: const Color(0xFF2563EB),
+                                        padding: const EdgeInsets.symmetric(vertical: 13),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(14),
+                                        ),
+                                        elevation: 2,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 12),
+                              Expanded(
+                                child: ListView.builder(
+                                  itemCount: usersList.length,
+                                  itemBuilder: (context, index) {
+                                    final t = usersList[index];
+                                    final String name = t['fullName'] ?? '';
+                                    final String email = t['email'] ?? '';
+                                    final String deptName =
+                                        t['departmentName'] ?? 'No Department';
+                                    final List<dynamic> rolesList = t['roles'] ?? [];
+                                    final rolesStr = rolesList
+                                        .map((e) => e.toString().replaceAll('ROLE_', ''))
+                                        .join(', ');
+                                    final List<dynamic> subRolesList = t['subRoles'] ?? [];
+                                    String subRolesStr = '';
+                                    if (subRolesList.isNotEmpty) {
+                                      final List<String> mappedSubs = [];
+                                      for (var r in subRolesList) {
+                                        if (r.toString() == 'CC') {
+                                          String ccDetails = 'CC';
+                                          final List<String> ccParts = [];
+                                          if (t['year'] != null &&
+                                              t['year'].toString().isNotEmpty) {
+                                            ccParts.add("Year: ${t["year"]}");
+                                          }
+                                          if (t['section'] != null &&
+                                              t['section'].toString().isNotEmpty) {
+                                            ccParts.add("Section: ${t["section"]}");
+                                          }
+                                          if (ccParts.isNotEmpty) {
+                                            ccDetails += " (${ccParts.join(" | ")})";
+                                          }
+                                          mappedSubs.add(ccDetails);
+                                        } else {
+                                          mappedSubs.add(r.toString());
+                                        }
+                                      }
+                                      subRolesStr =
+                                          " | Sub-roles: ${mappedSubs.join(", ")}";
+                                    }
+
+                                    return Container(
+                                      margin: const EdgeInsets.only(bottom: 12),
+                                      decoration: BoxDecoration(
+                                        color: Colors.white,
+                                        borderRadius: BorderRadius.circular(18),
+                                        border: Border.all(
+                                          color: const Color(0xFFE2E8F0),
+                                          width: 1,
+                                        ),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: const Color(0xFF64748B).withValues(alpha: 0.06),
+                                            blurRadius: 14,
+                                            offset: const Offset(0, 4),
                                           ),
                                         ],
+                                      ),
+                                      child: ListTile(
+                                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                        onTap: () {
+                                          Navigator.push(
+                                            context,
+                                            MaterialPageRoute(
+                                              builder: (_) => AdminTeacherDetail(teacher: t),
+                                            ),
+                                          );
+                                        },
+                                        leading: Container(
+                                          width: 46,
+                                          height: 46,
+                                          decoration: BoxDecoration(
+                                            gradient: const LinearGradient(
+                                              colors: [Color(0xFF3B82F6), Color(0xFF2563EB)],
+                                            ),
+                                            borderRadius: BorderRadius.circular(14),
+                                            boxShadow: [
+                                              BoxShadow(
+                                                color: const Color(0xFF3B82F6).withValues(alpha: 0.28),
+                                                blurRadius: 8,
+                                                offset: const Offset(0, 3),
+                                              ),
+                                            ],
+                                          ),
+                                          child: const Icon(
+                                            Icons.assignment_ind_rounded,
+                                            color: Colors.white,
+                                            size: 22,
+                                          ),
+                                        ),
+                                        title: Text(
+                                          name,
+                                          style: const TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 15,
+                                            color: Color(0xFF0F172A),
+                                          ),
+                                        ),
+                                        subtitle: Padding(
+                                          padding: const EdgeInsets.only(top: 4.0),
+                                          child: Text(
+                                            'Email: $email\nDept: $deptName\nRole: $rolesStr$subRolesStr',
+                                            style: const TextStyle(
+                                              fontSize: 12,
+                                              color: Color(0xFF64748B),
+                                              height: 1.35,
+                                            ),
+                                          ),
+                                        ),
+                                        trailing: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            IconButton(
+                                              icon: const Icon(
+                                                Icons.edit_outlined,
+                                                color: Color(0xFF2563EB),
+                                                size: 20,
+                                              ),
+                                              onPressed: () => _showEditTeacherDialog(t),
+                                            ),
+                                            IconButton(
+                                              icon: const Icon(
+                                                Icons.delete_outline_rounded,
+                                                color: Color(0xFFEF4444),
+                                                size: 20,
+                                              ),
+                                              onPressed: () {
+                                                showDialog(
+                                                  context: context,
+                                                  builder: (context) => AlertDialog(
+                                                    title: const Text('Delete Teacher'),
+                                                    content: Text(
+                                                      'Are you sure you want to move teacher $name to the Recycle Bin?',
+                                                    ),
+                                                    actions: [
+                                                      TextButton(
+                                                        onPressed: () =>
+                                                            Navigator.pop(context),
+                                                        child: const Text('Cancel'),
+                                                      ),
+                                                      TextButton(
+                                                        onPressed: () {
+                                                          Navigator.pop(context);
+                                                          _deleteTeacher(t['id']);
+                                                        },
+                                                        child: const Text(
+                                                          'Delete',
+                                                          style: TextStyle(
+                                                            color: Colors.red,
+                                                          ),
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                );
+                                              },
+                                            ),
+                                          ],
+                                        ),
                                       ),
                                     );
                                   },
                                 ),
-                              ],
-                            ),
+                              ),
+                            ],
                           ),
-                        );
-                      },
-                    ),
-                  ),
-                ],
-              ),
+                        ),
+                ),
+              ],
             ),
+          ),
+        ],
+      ),
     );
   }
 }

@@ -10,6 +10,8 @@ import 'package:provider/provider.dart';
 import 'package:pragatix/features/auth/providers/auth_provider.dart';
 
 
+import 'package:pragatix/features/badge/providers/badge_provider.dart';
+
 class AdminDashboard extends StatefulWidget {
   const AdminDashboard({super.key});
 
@@ -23,6 +25,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
 
   @override
   void initState() {
+    super.initState();
     _tabs = [
       const OverviewTab(),
       const AdminActivityManagementPage(),
@@ -31,6 +34,14 @@ class _AdminDashboardState extends State<AdminDashboard> {
       const AdminBadgeRequestsPage(),
       const ProfilePage(),
     ];
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final token = context.read<AuthProvider>().token;
+      final role = context.read<AuthProvider>().role ?? 'ADMIN';
+      if (token != null && token.isNotEmpty) {
+        context.read<BadgeProvider>().fetchAdminCCBadgeRequests(token, role);
+      }
+    });
   }
 
   @override
@@ -43,28 +54,42 @@ class _AdminDashboardState extends State<AdminDashboard> {
         selectedItemColor: const Color(0xFFEA4335),
         unselectedItemColor: Colors.grey,
         type: BottomNavigationBarType.fixed,
-        items: const [
-          BottomNavigationBarItem(
+        items: [
+          const BottomNavigationBarItem(
             icon: Icon(Icons.dashboard_rounded),
             label: 'Overview',
           ),
-          BottomNavigationBarItem(
+          const BottomNavigationBarItem(
             icon: Icon(Icons.local_activity_rounded),
             label: 'Activity',
           ),
-          BottomNavigationBarItem(
+          const BottomNavigationBarItem(
             icon: Icon(Icons.co_present_rounded),
             label: 'Attendance',
           ),
-          BottomNavigationBarItem(
+          const BottomNavigationBarItem(
             icon: Icon(Icons.groups_rounded),
             label: 'Groups',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.workspace_premium),
+            icon: Consumer<BadgeProvider>(
+              builder: (context, badgeProvider, _) => Badge(
+                isLabelVisible: badgeProvider.pendingAdminCCRequestsCount > 0,
+                label: Text(
+                  badgeProvider.pendingAdminCCRequestsCount.toString(),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                backgroundColor: const Color(0xFFEA4335),
+                child: const Icon(Icons.workspace_premium),
+              ),
+            ),
             label: 'Requests',
           ),
-          BottomNavigationBarItem(
+          const BottomNavigationBarItem(
             icon: Icon(Icons.admin_panel_settings_rounded),
             label: 'Profile',
           ),

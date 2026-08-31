@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:pragatix/core/widgets/pragatix_loader.dart';
 import 'package:pragatix/core/utils/error_handler.dart';
 import 'package:pragatix/features/admin/repository/admin_repository.dart';
-import 'package:intl/intl.dart';
 import 'package:pragatix/features/activity/pages/stage_details_page.dart';
 import 'package:pragatix/features/activity/pages/create_stage_page.dart';
 import 'package:pragatix/features/activity/pages/edit_stage_page.dart';
@@ -30,7 +29,7 @@ class _AdminActivityManagementPageState
   List<dynamic> _teachersList = [];
   bool _isLoading = true;
 
-  static const Color _primary = Color(0xFFEA4335);
+  static const Color _primary = Color(0xFF2563EB);
   static const Color _dark = Color(0xFF1E293B);
 
   @override
@@ -68,7 +67,9 @@ class _AdminActivityManagementPageState
       return;
     } catch (e) {
       if (!mounted) return;
-      ErrorHandler.showSnackBar(context, e);
+      try {
+        ErrorHandler.showSnackBar(context, e);
+      } catch (_) {}
       setState(() {
         _stagesList = [];
         _isLoading = false;
@@ -105,7 +106,7 @@ class _AdminActivityManagementPageState
           'Activity & Thresholds',
           style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
         ),
-        backgroundColor: _dark,
+        backgroundColor: _primary,
         elevation: 0,
         actions: [
           IconButton(
@@ -157,16 +158,24 @@ class _AdminActivityManagementPageState
                               });
                             },
                             icon: const Icon(
-                              Icons.list_alt,
-                              color: Colors.white,
+                              Icons.list_alt_rounded,
+                              color: Color(0xFF1D4ED8),
                               size: 18,
                             ),
                             label: const Text(
                               'All Activities',
-                              style: TextStyle(color: Colors.white),
+                              style: TextStyle(
+                                color: Color(0xFF1D4ED8),
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.blue,
+                              backgroundColor: const Color(0xFFEFF6FF),
+                              elevation: 0,
+                              side: const BorderSide(color: Color(0xFFBFDBFE)),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
                             ),
                           ),
                           ElevatedButton.icon(
@@ -186,16 +195,23 @@ class _AdminActivityManagementPageState
                               });
                             },
                             icon: const Icon(
-                              Icons.add,
+                              Icons.add_rounded,
                               color: Colors.white,
                               size: 18,
                             ),
                             label: const Text(
                               'Add Stage',
-                              style: TextStyle(color: Colors.white),
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: _primary,
+                              elevation: 2,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
                             ),
                           ),
                         ],
@@ -430,7 +446,8 @@ class _AdminActivityManagementPageState
                                       IconButton(
                                         icon: const Icon(
                                           Icons.edit_outlined,
-                                          color: Colors.blue,
+                                          color: Color(0xFF2563EB),
+                                          size: 20,
                                         ),
                                         onPressed: () {
                                           Navigator.push(
@@ -449,8 +466,9 @@ class _AdminActivityManagementPageState
                                       ),
                                       IconButton(
                                         icon: const Icon(
-                                          Icons.delete_outline,
-                                          color: Colors.red,
+                                          Icons.delete_outline_rounded,
+                                          color: Color(0xFFEF4444),
+                                          size: 20,
                                         ),
                                         onPressed: () {
                                           showDialog<void>(
@@ -476,7 +494,8 @@ class _AdminActivityManagementPageState
                                                   child: const Text(
                                                     'Delete',
                                                     style: TextStyle(
-                                                      color: Colors.red,
+                                                      color: Color(0xFFEF4444),
+                                                      fontWeight: FontWeight.bold,
                                                     ),
                                                   ),
                                                 ),

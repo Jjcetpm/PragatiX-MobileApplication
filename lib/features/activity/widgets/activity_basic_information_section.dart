@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:pragatix/features/activity/dialogs/manage_categories_dialog.dart';
+import 'package:pragatix/features/activity/providers/activity_provider.dart';
 import '../utils/validators.dart';
 
 class ActivityBasicInformationSection extends StatelessWidget {
+  final ActivityProvider? provider;
   final TextEditingController nameCtrl;
   final TextEditingController descCtrl;
   final TextEditingController displayOrderCtrl;
@@ -16,6 +20,7 @@ class ActivityBasicInformationSection extends StatelessWidget {
 
   const ActivityBasicInformationSection({
     super.key,
+    this.provider,
     required this.nameCtrl,
     required this.descCtrl,
     required this.displayOrderCtrl,
@@ -29,11 +34,11 @@ class ActivityBasicInformationSection extends StatelessWidget {
     this.onSubgroupChanged,
   });
 
-  static const Color _primary = Color(0xFFEA4335);
+  static const Color _primary = Color(0xFF2563EB);
   static const Color _dark = Color(0xFF1E293B);
   static const Color _surface = Color(0xFFF8FAFC);
 
-  static const List<String> _xpCategories = [
+  static const List<String> _defaultCategories = [
     'Academic',
     'Skill',
     'Communication',
@@ -77,8 +82,53 @@ class ActivityBasicInformationSection extends StatelessWidget {
     );
   }
 
+  void _openManageCategories(BuildContext context) async {
+    final chosen = await ManageCategoriesDialog.show(
+      context,
+      provider: provider,
+      onCategorySelected: (cat) {
+        onXpCategoryChanged(cat);
+      },
+    );
+    if (chosen != null) {
+      onXpCategoryChanged(chosen);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    ActivityProvider? activityProvider = provider;
+    if (activityProvider == null) {
+      try {
+        activityProvider = context.watch<ActivityProvider>();
+      } catch (_) {
+        activityProvider = null;
+      }
+    }
+    final List<String> activeCategories = (activityProvider != null && activityProvider.xpCategories.isNotEmpty)
+        ? activityProvider.xpCategories
+        : _defaultCategories;
+
+    // Normalize or match selected value so DropdownButton never throws
+    String? matchedCategoryValue;
+    if (selectedXpCategory != null) {
+      for (final cat in activeCategories) {
+        if (cat.toLowerCase() == selectedXpCategory!.trim().toLowerCase()) {
+          matchedCategoryValue = cat;
+          break;
+        }
+      }
+      // If not in the list, keep it in the dropdown list dynamically
+      if (matchedCategoryValue == null && selectedXpCategory!.trim().isNotEmpty) {
+        matchedCategoryValue = selectedXpCategory!.trim();
+      }
+    }
+
+    final Set<String> dropdownItems = {
+      ...activeCategories,
+      ?matchedCategoryValue,
+    };
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -89,15 +139,31 @@ class ActivityBasicInformationSection extends StatelessWidget {
           validator: ActivityValidators.validateName,
         ),
         const SizedBox(height: 16),
+
+        // ── XP CATEGORY WITH MANAGE ACTION ───────────────────────────────────
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Text(
+              'XP Category *',
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.bold,
+                color: _dark,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 6),
         InputDecorator(
-          decoration: _deco('XP Category', Icons.category_rounded).copyWith(
+          decoration: _deco('Select Category', Icons.category_rounded).copyWith(
             errorText: (submitted && selectedXpCategory == null)
                 ? 'XP Category is required'
                 : null,
           ),
           child: DropdownButton<String>(
             dropdownColor: Colors.white,
-            value: _xpCategories.contains(selectedXpCategory) ? selectedXpCategory : null,
+            value: matchedCategoryValue,
             isExpanded: true,
             underline: const SizedBox.shrink(),
             icon: const Icon(Icons.expand_more_rounded, color: _primary),
@@ -105,16 +171,37 @@ class ActivityBasicInformationSection extends StatelessWidget {
               'Select XP Category',
               style: TextStyle(fontSize: 14),
             ),
-            items: _xpCategories.toSet().map((c) {
-              return DropdownMenuItem<String>(
-                value: c,
-                child: Text(
-                  c,
-                  style: const TextStyle(fontSize: 14, color: _dark),
+            items: [
+              ...dropdownItems.map((c) {
+                return DropdownMenuItem<String>(
+                  value: c,
+                  child: Text(
+                    c,
+                    style: const TextStyle(fontSize: 14, color: _dark),
+                  ),
+                );
+              }),
+              const DropdownMenuItem<String>(
+                value: '__MANAGE__',
+                child: Row(
+                  children: [
+                    Icon(Icons.add_circle_outline_rounded, size: 16, color: _primary),
+                    SizedBox(width: 8),
+                    Text(
+                      '+ Add / Manage Categories...',
+                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: _primary),
+                    ),
+                  ],
                 ),
-              );
-            }).toList(),
-            onChanged: onXpCategoryChanged,
+              ),
+            ],
+            onChanged: (val) {
+              if (val == '__MANAGE__') {
+                _openManageCategories(context);
+              } else {
+                onXpCategoryChanged(val);
+              }
+            },
           ),
         ),
         if (isEdit) ...[
@@ -137,7 +224,7 @@ class ActivityBasicInformationSection extends StatelessWidget {
                 'Select Subgroup',
                 style: TextStyle(fontSize: 14),
               ),
-              items: ['Must', 'Individual', 'Group'].toSet().map((s) {
+              items: {'Must', 'Individual', 'Group'}.map((s) {
                 return DropdownMenuItem<String>(
                   value: s,
                   child: Text(
@@ -160,7 +247,6 @@ class ActivityBasicInformationSection extends StatelessWidget {
             Icons.notes_rounded,
             alignHint: true,
           ),
-          // No validator — description is optional.
         ),
         const SizedBox(height: 16),
         TextFormField(
@@ -169,9 +255,12 @@ class ActivityBasicInformationSection extends StatelessWidget {
           style: const TextStyle(color: _dark, fontSize: 15),
           decoration: _deco('Display Order', Icons.sort_rounded),
           validator: (val) {
-            if (val == null || val.trim().isEmpty)
+            if (val == null || val.trim().isEmpty) {
               return 'Display order is required';
-            if (int.tryParse(val) == null) return 'Must be a valid integer';
+            }
+            if (int.tryParse(val) == null) {
+              return 'Must be a valid integer';
+            }
             return null;
           },
         ),
@@ -184,7 +273,7 @@ class ActivityBasicInformationSection extends StatelessWidget {
             isExpanded: true,
             underline: const SizedBox.shrink(),
             icon: const Icon(Icons.expand_more_rounded, color: _primary),
-            items: ['ACTIVE', 'INACTIVE'].toSet().map((s) {
+            items: {'ACTIVE', 'INACTIVE'}.map((s) {
               return DropdownMenuItem<String>(
                 value: s,
                 child: Text(

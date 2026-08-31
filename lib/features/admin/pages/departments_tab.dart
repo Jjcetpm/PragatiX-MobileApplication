@@ -640,6 +640,38 @@ class _DepartmentsTabState extends State<DepartmentsTab> {
     );
   }
 
+  Widget _buildHeaderActionButton({
+    required IconData icon,
+    required String tooltip,
+    required VoidCallback onPressed,
+  }) {
+    return Container(
+      width: 38,
+      height: 38,
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.90),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: const Color(0xFFE2E8F0),
+          width: 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: IconButton(
+        padding: EdgeInsets.zero,
+        icon: Icon(icon, color: const Color(0xFF334155), size: 20),
+        tooltip: tooltip,
+        onPressed: onPressed,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final departmentProvider = context.watch<import_provider.DepartmentProvider>();
@@ -648,47 +680,119 @@ class _DepartmentsTabState extends State<DepartmentsTab> {
     final isLoading = departmentProvider.isLoading;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
-      appBar: AppBar(
-        title: const Text(
-          'Academic Departments',
-          style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
-        ),
-        backgroundColor: const Color(0xFF1E293B),
-        elevation: 0,
-      ),
-      body: isLoading && departments.isEmpty
-          ? const Center(child: PragatiXLoader())
-          : Column(
+      backgroundColor: const Color(0xFFF4F7FB),
+      body: Stack(
+        children: [
+          // Background mesh subtle gradient
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            height: 240,
+            child: Container(
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    Color(0xFFDCE8F6),
+                    Color(0xFFE8EFF9),
+                    Color(0xFFF4F7FB),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          SafeArea(
+            child: Column(
               children: [
+                // Top Header
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
+                  child: Row(
+                    children: [
+                      if (Navigator.canPop(context)) ...[
+                        _buildHeaderActionButton(
+                          icon: Icons.arrow_back_ios_new_rounded,
+                          tooltip: 'Back',
+                          onPressed: () => Navigator.pop(context),
+                        ),
+                        const SizedBox(width: 10),
+                      ],
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: const [
+                            Text(
+                              'Academic Departments',
+                              style: TextStyle(
+                                fontSize: 19,
+                                fontWeight: FontWeight.w800,
+                                color: Color(0xFF0F172A),
+                                letterSpacing: -0.4,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            SizedBox(height: 2),
+                            Text(
+                              'Manage faculties, courses & sections',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w500,
+                                color: Color(0xFF64748B),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      _buildHeaderActionButton(
+                        icon: Icons.refresh_rounded,
+                        tooltip: 'Refresh',
+                        onPressed: () => context.read<import_provider.DepartmentProvider>().fetchDepartments(),
+                      ),
+                    ],
+                  ),
+                ),
+
                 if (departmentProvider.error != null)
                   Container(
                     width: double.infinity,
-                    color: Colors.red.shade100,
-                    padding: const EdgeInsets.all(8),
+                    margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: Colors.red.shade50,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: Colors.red.shade200),
+                    ),
                     child: Text(
                       departmentProvider.error!,
-                      style: const TextStyle(color: Colors.red),
+                      style: TextStyle(color: Colors.red.shade800, fontSize: 13),
                       textAlign: TextAlign.center,
                     ),
                   ),
+
                 if (departments.isNotEmpty)
                   Padding(
-                    padding: const EdgeInsets.all(16.0),
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
                     child: TextField(
                       controller: searchController,
                       onChanged: (val) => setState(() => searchQuery = val),
+                      style: const TextStyle(color: Color(0xFF0F172A)),
                       decoration: InputDecoration(
                         hintText: 'Search departments...',
+                        hintStyle: const TextStyle(color: Color(0xFF94A3B8), fontSize: 13.5),
                         prefixIcon: const Icon(
-                          Icons.search,
-                          color: Colors.grey,
+                          Icons.search_rounded,
+                          color: Color(0xFF64748B),
                         ),
                         suffixIcon: searchController.text.isNotEmpty
                             ? IconButton(
                                 icon: const Icon(
-                                  Icons.clear,
-                                  color: Colors.grey,
+                                  Icons.clear_rounded,
+                                  color: Color(0xFF64748B),
                                 ),
                                 onPressed: () {
                                   searchController.clear();
@@ -699,20 +803,31 @@ class _DepartmentsTabState extends State<DepartmentsTab> {
                         filled: true,
                         fillColor: Colors.white,
                         border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide.none,
+                          borderRadius: BorderRadius.circular(14),
+                          borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(14),
+                          borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(14),
+                          borderSide: const BorderSide(color: Color(0xFF2563EB), width: 1.5),
                         ),
                         contentPadding: const EdgeInsets.symmetric(
-                          vertical: 0,
+                          vertical: 12,
                           horizontal: 16,
                         ),
                       ),
                     ),
                   ),
+
                 Expanded(
-                  child: RefreshIndicator(
-                    onRefresh: () => context.read<import_provider.DepartmentProvider>().fetchDepartments(),
-                    color: const Color(0xFF1E293B),
+                  child: isLoading && departments.isEmpty
+                      ? const Center(child: PragatiXLoader())
+                      : RefreshIndicator(
+                          onRefresh: () => context.read<import_provider.DepartmentProvider>().fetchDepartments(),
+                          color: const Color(0xFF2563EB),
                     child: filteredDepartments.isEmpty
                         ? ListView(
                             children: [
@@ -767,36 +882,50 @@ class _DepartmentsTabState extends State<DepartmentsTab> {
                             ),
                             itemBuilder: (context, index) {
                               final dept = filteredDepartments[index];
-                              return Card(
-                                elevation: 0,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                  side: BorderSide(
-                                    color: Colors.grey.shade200,
+                              return Container(
+                                margin: const EdgeInsets.only(bottom: 12),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(18),
+                                  border: Border.all(
+                                    color: const Color(0xFFE2E8F0),
                                     width: 1,
                                   ),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: const Color(0xFF64748B).withValues(alpha: 0.06),
+                                      blurRadius: 14,
+                                      offset: const Offset(0, 4),
+                                    ),
+                                  ],
                                 ),
-                                margin: const EdgeInsets.only(bottom: 12),
-                                color: Colors.white,
                                 child: Padding(
                                   padding: const EdgeInsets.all(16.0),
                                   child: Row(
                                     children: [
                                       Container(
-                                        padding: const EdgeInsets.all(10),
+                                        width: 46,
+                                        height: 46,
                                         decoration: BoxDecoration(
-                                          color: const Color(
-                                            0xFF1E293B,
-                                          ).withValues(alpha: 0.08),
-                                          shape: BoxShape.circle,
+                                          gradient: const LinearGradient(
+                                            colors: [Color(0xFF3B82F6), Color(0xFF2563EB)],
+                                          ),
+                                          borderRadius: BorderRadius.circular(14),
+                                          boxShadow: [
+                                            BoxShadow(
+                                              color: const Color(0xFF3B82F6).withValues(alpha: 0.28),
+                                              blurRadius: 8,
+                                              offset: const Offset(0, 3),
+                                            ),
+                                          ],
                                         ),
                                         child: const Icon(
-                                          Icons.account_balance,
-                                          color: Color(0xFF1E293B),
-                                          size: 24,
+                                          Icons.account_balance_rounded,
+                                          color: Colors.white,
+                                          size: 22,
                                         ),
                                       ),
-                                      const SizedBox(width: 16),
+                                      const SizedBox(width: 14),
                                       Expanded(
                                         child: Column(
                                           crossAxisAlignment:
@@ -959,10 +1088,14 @@ class _DepartmentsTabState extends State<DepartmentsTab> {
                 ),
               ],
             ),
+          ),
+        ],
+      ),
       floatingActionButton: FloatingActionButton(
         onPressed: _showAddDeptDialog,
-        backgroundColor: const Color(0xFF1E293B),
-        child: const Icon(Icons.add, color: Colors.white),
+        backgroundColor: const Color(0xFF2563EB),
+        elevation: 4,
+        child: const Icon(Icons.add_rounded, color: Colors.white),
       ),
     );
   }

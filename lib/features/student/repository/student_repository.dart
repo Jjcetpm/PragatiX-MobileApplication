@@ -37,8 +37,8 @@ class StudentRepository {
     if (response.statusCode == 200 && data['success'] == true) {
       final resData = data['data'];
       return {
-        'id': resData['username'] ?? '24CS036',
-        'name': resData['fullName'] ?? 'Sharugesh',
+        'id': (resData['username'] ?? resData['regNo'] ?? resData['sprNo'] ?? '').toString(),
+        'name': (resData['fullName'] ?? 'Student').toString(),
       };
     }
     return null;

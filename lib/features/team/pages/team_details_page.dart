@@ -9,6 +9,7 @@ import 'package:pragatix/features/team/models/team.dart';
 import 'package:pragatix/features/team/services/team_proxy_service.dart';
 import 'package:pragatix/features/team/widgets/team_member_card.dart';
 import 'package:pragatix/features/team/widgets/student_search_dialog.dart';
+import 'package:pragatix/core/utils/error_handler.dart';
 
 
 class TeamDetailsPage extends StatefulWidget {
@@ -118,10 +119,7 @@ class _TeamDetailsPageState extends State<TeamDetailsPage> {
       }
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-
-        SnackBar(content: Text('Error: $e'), backgroundColor: Colors.orange),
-      );
+      ErrorHandler.showSnackBar(context, e);
     }
   }
 
@@ -155,9 +153,7 @@ class _TeamDetailsPageState extends State<TeamDetailsPage> {
       }
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e'), backgroundColor: Colors.orange),
-      );
+      ErrorHandler.showSnackBar(context, e);
     }
   }
 
@@ -191,9 +187,7 @@ class _TeamDetailsPageState extends State<TeamDetailsPage> {
       }
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e'), backgroundColor: Colors.orange),
-      );
+      ErrorHandler.showSnackBar(context, e);
     }
   }
 
@@ -227,9 +221,7 @@ class _TeamDetailsPageState extends State<TeamDetailsPage> {
       }
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e'), backgroundColor: Colors.orange),
-      );
+      ErrorHandler.showSnackBar(context, e);
     }
   }
 
@@ -263,9 +255,7 @@ class _TeamDetailsPageState extends State<TeamDetailsPage> {
       }
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e'), backgroundColor: Colors.orange),
-      );
+      ErrorHandler.showSnackBar(context, e);
     }
   }
 
@@ -299,9 +289,7 @@ class _TeamDetailsPageState extends State<TeamDetailsPage> {
       }
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e'), backgroundColor: Colors.orange),
-      );
+      ErrorHandler.showSnackBar(context, e);
     }
   }
 
@@ -333,9 +321,7 @@ class _TeamDetailsPageState extends State<TeamDetailsPage> {
       }
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e'), backgroundColor: Colors.orange),
-      );
+      ErrorHandler.showSnackBar(context, e);
     }
   }
 
@@ -578,8 +564,8 @@ class _TeamDetailsPageState extends State<TeamDetailsPage> {
 
     final members = List<dynamic>.from(_team!.members ?? []);
     members.sort((a, b) {
-      final xpA = ((a['totalXp'] ?? a['currentXp'] ?? a['score'] ?? 0) as num).toInt();
-      final xpB = ((b['totalXp'] ?? b['currentXp'] ?? b['score'] ?? 0) as num).toInt();
+      final xpA = ((a['totalXp'] ?? a['currentXp'] ?? 0) as num).toInt();
+      final xpB = ((b['totalXp'] ?? b['currentXp'] ?? 0) as num).toInt();
       if (xpA != xpB) {
         return xpB.compareTo(xpA);
       }

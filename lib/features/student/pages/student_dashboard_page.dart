@@ -61,7 +61,7 @@ class _StudentDashboardPageState extends State<StudentDashboardPage> {
       ),
       const BottomNavigationBarItem(
         icon: Icon(Icons.military_tech_rounded),
-        label: 'Levels & Badges',
+        label: 'Badges',
       ),
       const BottomNavigationBarItem(
         icon: Icon(Icons.groups_rounded),

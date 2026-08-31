@@ -24,7 +24,7 @@ class _ActivityExecutionPageState extends State<ActivityExecutionPage> {
   final Set<int> _awardedStudentIds = {};
   int _totalSessionXpAwarded = 0;
 
-  static const Color _primary = Color(0xFFEA4335);
+  static const Color _primary = Color(0xFF2563EB);
   static const Color _dark = Color(0xFF1E293B);
 
   @override
@@ -317,7 +317,7 @@ class _ActivityExecutionPageState extends State<ActivityExecutionPage> {
           'Activity Execution',
           style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
         ),
-        backgroundColor: _dark,
+        backgroundColor: _primary,
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.white),
@@ -497,7 +497,7 @@ class _ActivityExecutionPageState extends State<ActivityExecutionPage> {
             CircleAvatar(
               backgroundColor: isAwarded
                   ? Colors.green.shade100
-                  : Colors.red.shade100,
+                  : const Color(0xFFEFF6FF),
               radius: 22,
               child: Icon(
                 Icons.person,

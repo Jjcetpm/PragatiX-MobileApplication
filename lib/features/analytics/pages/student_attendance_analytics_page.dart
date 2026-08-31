@@ -7,6 +7,7 @@ import 'package:intl/intl.dart';
 import 'package:pragatix/core/utils/export_utils.dart';
 import 'package:pragatix/features/auth/providers/auth_provider.dart';
 import 'package:pragatix/core/di/service_locator.dart';
+import 'package:pragatix/features/admin/repository/admin_repository.dart';
 
 class StudentAttendanceAnalyticsPage extends StatefulWidget {
   final bool isSuperAdmin;
@@ -18,11 +19,20 @@ class StudentAttendanceAnalyticsPage extends StatefulWidget {
 }
 
 class _StudentAttendanceAnalyticsPageState extends State<StudentAttendanceAnalyticsPage> {
+  List<Map<String, dynamic>> _assignedYears = [];
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       Provider.of<AttendanceAnalyticsProvider>(context, listen: false).fetchDashboardData();
+      getIt<AdminRepository>().getAssignedYears().then((years) {
+        if (mounted && years.isNotEmpty) {
+          setState(() {
+            _assignedYears = List<Map<String, dynamic>>.from(years.whereType<Map<String, dynamic>>());
+          });
+        }
+      });
     });
   }
 
@@ -246,20 +256,37 @@ class _StudentAttendanceAnalyticsPageState extends State<StudentAttendanceAnalyt
   }
 
   Widget _buildAcademicYearControl(AttendanceAnalyticsProvider provider) {
+    final List<DropdownMenuItem<String>> items = [
+      const DropdownMenuItem(value: '', child: Text('All Years')),
+    ];
+
+    if (_assignedYears.isNotEmpty) {
+      for (var y in _assignedYears) {
+        final val = y['yearNo']?.toString() ?? y['id']?.toString() ?? '';
+        final name = y['yearName']?.toString() ?? 'Year $val';
+        if (val.isNotEmpty) {
+          items.add(DropdownMenuItem(value: val, child: Text(name)));
+        }
+      }
+    } else {
+      items.addAll(const [
+        DropdownMenuItem(value: '1', child: Text('First Year')),
+        DropdownMenuItem(value: '2', child: Text('Second Year')),
+        DropdownMenuItem(value: '3', child: Text('Third Year')),
+        DropdownMenuItem(value: '4', child: Text('Fourth Year')),
+      ]);
+    }
+
+    final String selectedVal = provider.selectedAcademicYear ?? '';
+
     return _buildFilterControlWrapper(
       'Academic Year:',
       DropdownButton<String>(
         isExpanded: true,
-        value: provider.selectedAcademicYear,
+        value: items.any((it) => it.value == selectedVal) ? selectedVal : '',
         hint: const Text('All Years'),
-        items: const [
-          DropdownMenuItem(value: null, child: Text('All Years')),
-          DropdownMenuItem(value: '1', child: Text('First Year')),
-          DropdownMenuItem(value: '2', child: Text('Second Year')),
-          DropdownMenuItem(value: '3', child: Text('Third Year')),
-          DropdownMenuItem(value: '4', child: Text('Fourth Year')),
-        ],
-        onChanged: (val) => provider.setAcademicYear(val),
+        items: items,
+        onChanged: (val) => provider.setAcademicYear(val == null || val.isEmpty ? null : val),
       ),
     );
   }

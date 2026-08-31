@@ -519,7 +519,7 @@ class _QuickAssignActivityPickerState extends State<_QuickAssignActivityPicker> 
       final list = await widget.ccActivityService.fetchActivities(stageId: _selectedStageId);
       if (mounted) {
         setState(() {
-          _activities = list;
+          _activities = list.where((a) => !a.attendanceEngineEnabled).toList();
           _loading = false;
         });
       }

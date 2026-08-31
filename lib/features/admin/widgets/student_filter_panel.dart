@@ -44,10 +44,26 @@ class StudentFilterPanel extends StatelessWidget {
       children: [
         TextField(
           controller: searchController,
+          style: const TextStyle(color: Color(0xFF0F172A)),
           decoration: InputDecoration(
             hintText: 'Search by Register Number or name...',
-            prefixIcon: const Icon(Icons.search),
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+            hintStyle: const TextStyle(color: Color(0xFF94A3B8)),
+            prefixIcon: const Icon(Icons.search_rounded, color: Color(0xFF64748B)),
+            filled: true,
+            fillColor: Colors.white,
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(14),
+              borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(14),
+              borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(14),
+              borderSide: const BorderSide(color: Color(0xFF2563EB), width: 1.5),
+            ),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           ),
           onChanged: onSearchChanged,
           onSubmitted: onSearchSubmitted,
@@ -65,8 +81,22 @@ class StudentFilterPanel extends StatelessWidget {
                 child: DropdownButtonFormField<String?>(
                   decoration: InputDecoration(
                     labelText: 'Academic Year',
+                    labelStyle: const TextStyle(color: Color(0xFF4B5563)),
+                    filled: true,
+                    fillColor: Colors.white,
                     contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(color: Color(0xFF2563EB), width: 1.5),
+                    ),
                   ),
                   value: selectedYear,
                   items: () {
@@ -103,8 +133,22 @@ class StudentFilterPanel extends StatelessWidget {
               child: DropdownButtonFormField<int?>(
                 decoration: InputDecoration(
                   labelText: 'Department',
+                  labelStyle: const TextStyle(color: Color(0xFF4B5563)),
+                  filled: true,
+                  fillColor: Colors.white,
                   contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: Color(0xFF2563EB), width: 1.5),
+                  ),
                 ),
                 value: selectedDepartmentId,
                 selectedItemBuilder: (BuildContext context) {
@@ -154,8 +198,22 @@ class StudentFilterPanel extends StatelessWidget {
               child: DropdownButtonFormField<int?>(
                 decoration: InputDecoration(
                   labelText: 'Section',
+                  labelStyle: const TextStyle(color: Color(0xFF4B5563)),
+                  filled: true,
+                  fillColor: Colors.white,
                   contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: Color(0xFF2563EB), width: 1.5),
+                  ),
                 ),
                 value: selectedSectionId,
                 items: () {
@@ -185,9 +243,16 @@ class StudentFilterPanel extends StatelessWidget {
             ),
             TextButton.icon(
               onPressed: onReset,
-              icon: const Icon(Icons.refresh, size: 18),
-              label: const Text('Reset Filters'),
+              icon: const Icon(Icons.refresh_rounded, size: 18, color: Color(0xFF2563EB)),
+              label: const Text(
+                'Reset Filters',
+                style: TextStyle(
+                  color: Color(0xFF2563EB),
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
               style: TextButton.styleFrom(
+                foregroundColor: const Color(0xFF2563EB),
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               ),
             ),

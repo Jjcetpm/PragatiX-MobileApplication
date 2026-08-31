@@ -147,6 +147,7 @@ class _PragatiXLoaderState extends State<PragatiXLoader> with SingleTickerProvid
       return Material(
         color: Colors.transparent,
         child: Stack(
+          alignment: Alignment.center,
           children: [
             // Dark Blur Background
             Positioned.fill(
@@ -157,7 +158,11 @@ class _PragatiXLoaderState extends State<PragatiXLoader> with SingleTickerProvid
                 ),
               ),
             ),
-            loaderContent,
+            Positioned.fill(
+              child: Center(
+                child: loaderContent,
+              ),
+            ),
           ],
         ),
       );

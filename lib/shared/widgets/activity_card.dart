@@ -65,7 +65,7 @@ class ActivityCard extends StatelessWidget {
                       IconButton(
                         icon: const Icon(
                           Icons.assignment_ind_outlined,
-                          color: Colors.green,
+                          color: Color(0xFF0D9488),
                           size: 20,
                         ),
                         onPressed: onAssign,
@@ -77,7 +77,7 @@ class ActivityCard extends StatelessWidget {
                       IconButton(
                         icon: const Icon(
                           Icons.edit_outlined,
-                          color: Colors.blue,
+                          color: Color(0xFF2563EB),
                           size: 20,
                         ),
                         onPressed: onEdit,
@@ -89,7 +89,7 @@ class ActivityCard extends StatelessWidget {
                       IconButton(
                         icon: const Icon(
                           Icons.remove_circle_outline,
-                          color: Colors.orange,
+                          color: Color(0xFFD97706),
                           size: 20,
                         ),
                         onPressed: onRemoveFromStage,
@@ -101,8 +101,8 @@ class ActivityCard extends StatelessWidget {
                         (onRemoveFromStage == null && !isCc))
                       IconButton(
                         icon: const Icon(
-                          Icons.delete_outline,
-                          color: Colors.red,
+                          Icons.delete_outline_rounded,
+                          color: Color(0xFFEF4444),
                           size: 20,
                         ),
                         onPressed: onDelete,
@@ -119,8 +119,9 @@ class ActivityCard extends StatelessWidget {
                 const SizedBox(height: 4),
                 Text(
                   activity.description,
-                  style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
+                  style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
                 ),
+                const SizedBox(height: 8),
               ],
 
               const SizedBox(height: 10),
@@ -133,15 +134,15 @@ class ActivityCard extends StatelessWidget {
                 runSpacing: 6,
                 children: [
                   if (activity.awardEnabled)
-                    _Tag('Award: ${activity.awardXp}', Colors.green),
+                    _Tag('Award: ${activity.awardXp}', const Color(0xFF16A34A)),
                   if (activity.penaltyEnabled)
-                    _Tag('Penalty: ${activity.penaltyXp}', Colors.red),
-                  _Tag('Cap: ${activity.cap}', Colors.teal),
+                    _Tag('Penalty: ${activity.penaltyXp}', const Color(0xFFDC2626)),
+                  _Tag('Cap: ${activity.cap}', const Color(0xFF0D9488)),
                   _Tag(
                     'Freq: ${activity.awardFrequency}',
-                    Colors.amber.shade800,
+                    const Color(0xFFD97706),
                   ),
-                  _Tag('Type: ${activity.type}', Colors.purple),
+                  _Tag('Type: ${activity.type}', const Color(0xFF7C3AED)),
                 ],
               ),
 
@@ -154,7 +155,7 @@ class ActivityCard extends StatelessWidget {
                     const Icon(
                       Icons.assignment_ind_outlined,
                       size: 15,
-                      color: Colors.blue,
+                      color: Color(0xFF2563EB),
                     ),
                     const SizedBox(width: 6),
                     Expanded(
@@ -178,7 +179,7 @@ class ActivityCard extends StatelessWidget {
                         const Icon(
                           Icons.assignment_ind_outlined,
                           size: 15,
-                          color: Colors.blue,
+                          color: Color(0xFF2563EB),
                         ),
                         const SizedBox(width: 6),
                         Expanded(

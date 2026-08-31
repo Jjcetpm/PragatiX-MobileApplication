@@ -76,6 +76,7 @@ class TeacherActivityService {
           final List rawList = (data['data'] as List?) ?? [];
           return rawList
               .map((json) => ActivityModel.fromJson(json as Map<String, dynamic>))
+              .where((act) => !act.attendanceEngineEnabled)
               .toList();
         } else {
           throw Exception(data['message'] ?? 'Failed to load activities');

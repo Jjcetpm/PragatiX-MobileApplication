@@ -28,6 +28,7 @@ import 'package:pragatix/features/teacher/services/teacher_service.dart';
 import 'package:pragatix/features/team/services/team_proxy_service.dart';
 import 'package:pragatix/features/leaderboard/services/leaderboard_service.dart';
 import 'package:pragatix/features/analytics/services/xp_analytics_service.dart';
+import 'package:pragatix/core/services/production_security_service.dart';
 
 // Repositories
 import 'package:pragatix/features/activity/repository/activity_repository.dart';
@@ -71,6 +72,7 @@ void setupLocator() {
   getIt.registerLazySingleton(() => TeacherService(getIt<AuthProvider>()));
   getIt.registerLazySingleton(() => LeaderboardService(getIt<AuthProvider>()));
   getIt.registerLazySingleton(() => XpAnalyticsService());
+  getIt.registerLazySingleton(() => ProductionSecurityService());
 
   // Proxy Services
   getIt.registerLazySingleton(() => ActivityProxyService());

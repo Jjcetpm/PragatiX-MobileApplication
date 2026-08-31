@@ -563,7 +563,14 @@ class _EditStudentDialogState extends State<EditStudentDialog> {
                                 ? const Center(
                                     child: Padding(
                                       padding: EdgeInsets.all(8.0),
-                                      child: PragatiXLoader(),
+                                      child: SizedBox(
+                                        height: 24,
+                                        width: 24,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                          color: Color(0xFF2563EB),
+                                        ),
+                                      ),
                                     ),
                                   )
                                 : DropdownButtonFormField<int>(

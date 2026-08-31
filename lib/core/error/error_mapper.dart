@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:pragatix/core/error/error_type.dart';
 import 'package:pragatix/core/exceptions/api_exception.dart';
+import 'package:pragatix/core/utils/error_handler.dart';
 import 'package:pragatix/core/error/pages/no_internet_page.dart';
 import 'package:pragatix/core/error/pages/server_unavailable_page.dart';
 import 'package:pragatix/core/error/pages/request_timeout_page.dart';
@@ -20,15 +21,28 @@ class AppErrorMapper {
   /// Converts any Exception or Error into an AppErrorType
   static AppErrorType fromException(dynamic error) {
     if (error is SocketException) {
-      return AppErrorType.serverUnavailable; // Typically connection refused
+      final msg = error.message.toLowerCase();
+      if (msg.contains('connection refused')) {
+        return AppErrorType.serverUnavailable;
+      }
+      return AppErrorType.noInternet;
     }
 
     if (error is TimeoutException) {
       return AppErrorType.requestTimeout;
     }
 
-    if (error.toString().contains('SocketException') || error.toString().contains('Connection refused')) {
+    final errStr = error.toString().toLowerCase();
+    if (errStr.contains('connection refused')) {
       return AppErrorType.serverUnavailable;
+    }
+
+    if (errStr.contains('timeout')) {
+      return AppErrorType.requestTimeout;
+    }
+
+    if (ErrorHandler.isNetworkError(error)) {
+      return AppErrorType.noInternet;
     }
 
     if (error is ApiException) {
@@ -99,7 +113,6 @@ class AppErrorMapper {
       case AppErrorType.downloadError:
         return DownloadErrorPage(onRetry: onRetry, onBack: onBack);
       case AppErrorType.unexpected:
-      default:
         return UnexpectedErrorPage(onRetry: onRetry, onHome: onHome);
     }
   }

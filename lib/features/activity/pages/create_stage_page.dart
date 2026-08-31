@@ -3,7 +3,6 @@ import 'package:provider/provider.dart';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:pragatix/features/activity/services/activity_proxy_service.dart';
-import 'package:intl/intl.dart';
 import 'package:pragatix/core/config/api_config.dart';
 import 'package:pragatix/core/di/service_locator.dart';
 
@@ -29,7 +28,7 @@ class _CreateStagePageState extends State<CreateStagePage> {
   String? _selectedAcademicYear;
   bool _isSaving = false;
 
-  static const Color _primary = Color(0xFFEA4335);
+  static const Color _primary = Color(0xFF2563EB);
   static const Color _dark = Color(0xFF1E293B);
 
   @override
@@ -127,7 +126,7 @@ class _CreateStagePageState extends State<CreateStagePage> {
           'Create Stage',
           style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
         ),
-        backgroundColor: _dark,
+        backgroundColor: _primary,
         elevation: 0,
         iconTheme: const IconThemeData(color: Colors.white),
       ),

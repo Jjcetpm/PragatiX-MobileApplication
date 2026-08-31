@@ -1,30 +1,30 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For jjcet, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
-
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-
+import 'package:mocktail/mocktail.dart';
+import 'package:network_image_mock/network_image_mock.dart';
+import 'package:pragatix/features/auth/pages/login_page.dart';
 import 'package:pragatix/main.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'helpers/mocks.dart';
+import 'helpers/test_wrapper.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const MyApp());
+  testWidgets('App renders login page when unauthenticated', (WidgetTester tester) async {
+    SharedPreferences.setMockInitialValues({});
+    final mockAuth = MockAuthProvider();
+    final mockAuthRepo = MockAuthRepository();
+    when(() => mockAuth.isAuthenticated).thenReturn(false);
+    when(() => mockAuth.currentUser).thenReturn(null);
+    setupTestGetIt(authRepo: mockAuthRepo);
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
-
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
-
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+    await mockNetworkImagesFor(() async {
+      await tester.pumpWidget(
+        TestWrapper(
+          mockAuthProvider: mockAuth,
+          child: const MyApp(),
+        ),
+      );
+      await tester.pump();
+      expect(find.byType(LoginPage), findsOneWidget);
+    });
   });
 }

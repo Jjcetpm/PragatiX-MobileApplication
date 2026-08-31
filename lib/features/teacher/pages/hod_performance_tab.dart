@@ -273,16 +273,8 @@ class _HodPerformanceTabState extends State<HodPerformanceTab> with SingleTicker
       return const Scaffold(
         backgroundColor: Color(0xFF0F172A),
         body: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              PragatiXLoader(),
-              SizedBox(height: 16),
-              Text(
-                'Loading Department Analytics...',
-                style: TextStyle(color: Color(0xFF94A3B8), fontWeight: FontWeight.w600),
-              ),
-            ],
+          child: PragatiXLoader(
+            message: 'Loading Department Analytics...',
           ),
         ),
       );

@@ -8,7 +8,7 @@ class TypeSelector extends StatelessWidget {
   final String selected;
   final ValueChanged<String> onChanged;
 
-  static const Color _primary = Color(0xFFEA4335);
+  static const Color _primary = Color(0xFF2563EB);
   static const Color _dark = Color(0xFF1E293B);
 
   static const List<String> _types = ['Individual', 'Group'];

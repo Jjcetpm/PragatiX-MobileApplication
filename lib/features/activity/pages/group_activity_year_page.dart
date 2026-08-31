@@ -5,7 +5,6 @@ import 'package:flutter/material.dart';
 import 'package:pragatix/features/activity/services/activity_proxy_service.dart';
 import 'dart:convert';
 import 'package:pragatix/core/config/api_config.dart';
-
 import 'package:pragatix/features/activity/pages/group_activity_dept_page.dart';
 import 'package:pragatix/core/di/service_locator.dart';
 
@@ -29,7 +28,7 @@ class _GroupActivityYearPageState extends State<GroupActivityYearPage> {
   List<dynamic> _availableYearsList = [];
 
   // Theme constants
-  static const Color _primary = Color(0xFF1E3A8A); // Deep blue
+  static const Color _primary = Color(0xFF2563EB); // Modern Blue
   static const Color _bg = Color(0xFFF8FAFC);
   static const Color _dark = Color(0xFF0F172A);
 

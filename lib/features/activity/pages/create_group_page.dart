@@ -36,7 +36,7 @@ class _CreateGroupPageState extends State<CreateGroupPage> {
   final _searchController = TextEditingController();
 
   // Theme constants
-  static const Color _primary = Color(0xFF1E3A8A); // Deep blue
+  static const Color _primary = Color(0xFF2563EB); // Modern Blue
   static const Color _dark = Color(0xFF0F172A);
   static const Color _bg = Color(0xFFF8FAFC);
 

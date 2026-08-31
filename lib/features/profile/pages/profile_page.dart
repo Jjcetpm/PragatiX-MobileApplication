@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:http/http.dart' as http;
+import 'package:pragatix/core/utils/api_client.dart' as http;
 import 'dart:convert';
 import 'package:pragatix/core/config/api_config.dart';
 
@@ -10,6 +10,7 @@ import 'package:pragatix/shared/widgets/profile_header.dart';
 import 'package:pragatix/shared/widgets/shared_profile_card.dart';
 import 'package:pragatix/features/auth/providers/auth_provider.dart';
 import 'package:pragatix/features/attendance/providers/attendance_provider.dart';
+import 'package:pragatix/core/utils/error_handler.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -23,6 +24,7 @@ class _ProfilePageState extends State<ProfilePage> {
   ProfileResponse? _profile;
   bool _isLoading = true;
   String? _error;
+  dynamic _rawError;
 
   @override
   void initState() {
@@ -39,6 +41,7 @@ class _ProfilePageState extends State<ProfilePage> {
     setState(() {
       _isLoading = true;
       _error = null;
+      _rawError = null;
     });
     try {
       final token = context.read<AuthProvider>().token;
@@ -55,7 +58,8 @@ class _ProfilePageState extends State<ProfilePage> {
     } catch (e) {
       if (mounted) {
         setState(() {
-          _error = e.toString();
+          _rawError = e;
+          _error = ErrorHandler.getErrorMessage(e);
           _isLoading = false;
         });
       }
@@ -81,17 +85,36 @@ class _ProfilePageState extends State<ProfilePage> {
     }
 
     if (_error != null) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text('Error loading profile: $_error', textAlign: TextAlign.center),
-            const SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: _loadProfile,
-              child: const Text('Retry'),
+      return Scaffold(
+        backgroundColor: const Color(0xFFF8FAFC),
+        appBar: AppBar(
+          backgroundColor: Colors.white,
+          elevation: 0,
+          centerTitle: true,
+          leading: Navigator.canPop(context)
+              ? IconButton(
+                  icon: const Icon(
+                    Icons.arrow_back_ios_new_rounded,
+                    color: Color(0xFF0F172A),
+                    size: 20,
+                  ),
+                  onPressed: () => Navigator.pop(context),
+                )
+              : null,
+          title: const Text(
+            'Profile',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w800,
+              color: Color(0xFF0F172A),
             ),
-          ],
+          ),
+        ),
+        body: SafeArea(
+          child: ErrorHandler.buildErrorWidget(
+            _rawError ?? _error,
+            onRetry: _loadProfile,
+          ),
         ),
       );
     }
@@ -237,12 +260,7 @@ class _ProfilePageState extends State<ProfilePage> {
     } catch (e) {
       if (mounted) {
         Navigator.pop(context);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error: $e'),
-            backgroundColor: Colors.redAccent,
-          ),
-        );
+        ErrorHandler.showSnackBar(context, e);
       }
     }
   }

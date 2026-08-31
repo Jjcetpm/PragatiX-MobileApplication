@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:pragatix/features/badge/models/badge_item.dart';
 import 'package:pragatix/features/badge/repository/badge_repository.dart';
 
 class BadgeProvider extends ChangeNotifier {
@@ -13,7 +14,14 @@ class BadgeProvider extends ChangeNotifier {
   List<dynamic> _myBadgeRequests = [];
   List<dynamic> _adminCCBadgeRequests = [];
 
+  // ADMIN BADGE MANAGEMENT
+  List<BadgeItem> _adminBadges = [];
+  bool _isBadgeActionLoading = false;
   bool _isLoading = false;
+
+  int get pendingAdminCCRequestsCount => _adminCCBadgeRequests
+      .where((r) => (r['status'] ?? '').toString().toUpperCase() == 'PENDING')
+      .length;
 
   List<dynamic> get earnedBadges => _earnedBadges;
   List<dynamic> get pendingBadges => _pendingBadges;
@@ -21,7 +29,10 @@ class BadgeProvider extends ChangeNotifier {
   List<dynamic> get teacherPendingClaims => _teacherPendingClaims;
   List<dynamic> get myBadgeRequests => _myBadgeRequests;
   List<dynamic> get adminCCBadgeRequests => _adminCCBadgeRequests;
+  List<BadgeItem> get adminBadges => _adminBadges;
+  bool get isBadgeActionLoading => _isBadgeActionLoading;
   bool get isLoading => _isLoading;
+
 
   Future<void> fetchMyBadges(String token) async {
     _isLoading = true;
@@ -183,4 +194,73 @@ class BadgeProvider extends ChangeNotifier {
     }
     return response;
   }
+
+  // --- ADMIN BADGE MASTER MANAGEMENT ---
+
+  Future<void> fetchAdminBadges(String token) async {
+    _isLoading = true;
+    notifyListeners();
+
+    final response = await _repository.fetchAdminBadges(token);
+    if (response['success'] == true) {
+      final List<dynamic> list = response['data'] ?? [];
+      _adminBadges = list.map((json) => BadgeItem.fromJson(json)).toList();
+    }
+
+    _isLoading = false;
+    notifyListeners();
+  }
+
+  Future<Map<String, dynamic>> createBadge(
+    String token,
+    Map<String, dynamic> data,
+  ) async {
+    _isBadgeActionLoading = true;
+    notifyListeners();
+
+    final response = await _repository.createBadge(token, data);
+    if (response['success'] == true) {
+      await fetchAdminBadges(token);
+      await fetchAllBadges(token);
+    }
+
+    _isBadgeActionLoading = false;
+    notifyListeners();
+    return response;
+  }
+
+  Future<Map<String, dynamic>> updateBadge(
+    String token,
+    int id,
+    Map<String, dynamic> data,
+  ) async {
+    _isBadgeActionLoading = true;
+    notifyListeners();
+
+    final response = await _repository.updateBadge(token, id, data);
+    if (response['success'] == true) {
+      await fetchAdminBadges(token);
+      await fetchAllBadges(token);
+    }
+
+    _isBadgeActionLoading = false;
+    notifyListeners();
+    return response;
+  }
+
+  Future<Map<String, dynamic>> deleteBadge(String token, int id) async {
+    _isBadgeActionLoading = true;
+    notifyListeners();
+
+    final response = await _repository.deleteBadge(token, id);
+    if (response['success'] == true) {
+      _adminBadges.removeWhere((b) => b.id == id);
+      notifyListeners();
+    }
+
+    _isBadgeActionLoading = false;
+    notifyListeners();
+    return response;
+  }
 }
+

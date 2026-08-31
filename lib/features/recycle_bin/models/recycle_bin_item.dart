@@ -5,6 +5,8 @@ class RecycleBinItem {
   final DateTime? deletedAt;
   final DateTime? permanentDeleteAt;
   final String? deletedBy;
+  final String? originalLocation;
+  final String? description;
 
   RecycleBinItem({
     required this.id,
@@ -13,6 +15,8 @@ class RecycleBinItem {
     this.deletedAt,
     this.permanentDeleteAt,
     this.deletedBy,
+    this.originalLocation,
+    this.description,
   });
 
   factory RecycleBinItem.fromJson(Map<String, dynamic> json) {
@@ -23,6 +27,8 @@ class RecycleBinItem {
       deletedAt: json['deletedAt'] != null ? DateTime.parse(json['deletedAt']) : null,
       permanentDeleteAt: json['permanentDeleteAt'] != null ? DateTime.parse(json['permanentDeleteAt']) : null,
       deletedBy: json['deletedBy'],
+      originalLocation: json['originalLocation'],
+      description: json['description'],
     );
   }
 }

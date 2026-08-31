@@ -24,8 +24,14 @@ abstract final class AppColors {
   static const Color borderLight = Color(0xFFE2E8F0);
 
   // ── Role brand colors ──────────────────────────────────────────────────────
-  /// Admin feature primary — Google-red.
-  static const Color adminPrimary = Color(0xFFEA4335);
+  /// Unified Admin & Super Admin Theme Colors (Vibrant Blue & Gradient Squircle)
+  static const Color adminPrimary = Color(0xFF2563EB);
+  static const Color adminPrimaryLight = Color(0xFFDBEAFE);
+  static const Color adminSecondary = Color(0xFF3B82F6);
+  static const Color adminIcon = Color(0xFF334155);
+  static const Color adminBg = Color(0xFFF4F7FB);
+  static const Color adminCard = Colors.white;
+  static const Color adminBorder = Color(0xFFE2E8F0);
 
   /// Teacher feature primary — teal-green.
   static const Color teacherPrimary = Color(0xFF11998e);

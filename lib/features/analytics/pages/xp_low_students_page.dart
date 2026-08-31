@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:pragatix/core/widgets/pragatix_loader.dart';
 import 'package:pragatix/features/analytics/services/xp_analytics_service.dart';
 import 'package:pragatix/core/di/service_locator.dart';
+import 'package:pragatix/core/utils/error_handler.dart';
 
 class XpLowStudentsPage extends StatefulWidget {
   const XpLowStudentsPage({Key? key}) : super(key: key);
@@ -14,6 +15,7 @@ class _XpLowStudentsPageState extends State<XpLowStudentsPage> {
   bool _isLoading = true;
   List<dynamic> _data = [];
   String? _error;
+  dynamic _rawError;
   double _threshold = 20.0;
 
   @override
@@ -23,7 +25,11 @@ class _XpLowStudentsPageState extends State<XpLowStudentsPage> {
   }
 
   Future<void> _fetchData() async {
-    setState(() => _isLoading = true);
+    setState(() {
+      _isLoading = true;
+      _error = null;
+      _rawError = null;
+    });
     try {
       final service = getIt<XpAnalyticsService>();
       final result = await service.getLowXpStudents({'threshold': _threshold.toInt().toString()});
@@ -33,7 +39,8 @@ class _XpLowStudentsPageState extends State<XpLowStudentsPage> {
       });
     } catch (e) {
       setState(() {
-        _error = e.toString();
+        _rawError = e;
+        _error = ErrorHandler.getErrorMessage(e);
         _isLoading = false;
       });
     }
@@ -69,7 +76,7 @@ class _XpLowStudentsPageState extends State<XpLowStudentsPage> {
             child: _isLoading 
               ? const Center(child: PragatiXLoader(fullScreen: false))
               : _error != null 
-                ? Center(child: Text('Error: $_error'))
+                ? ErrorHandler.buildErrorWidget(_rawError ?? _error, onRetry: _fetchData)
                 : SingleChildScrollView(
                     scrollDirection: Axis.horizontal,
                     child: SingleChildScrollView(

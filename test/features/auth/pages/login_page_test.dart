@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:mocktail/mocktail.dart';
 import 'package:network_image_mock/network_image_mock.dart';
 import 'package:pragatix/features/auth/pages/login_page.dart';
 import '../../../helpers/mocks.dart';
@@ -17,7 +16,7 @@ void main() {
       setupTestGetIt(authRepo: mockAuthRepo);
     });
 
-    testWidgets('renders login form correctly', (tester) async {
+    testWidgets('renders login form with graduate theme correctly', (tester) async {
       await mockNetworkImagesFor(() async {
         await tester.pumpWidget(
           TestWrapper(
@@ -25,49 +24,41 @@ void main() {
             child: const LoginPage(),
           ),
         );
+        await tester.pumpAndSettle();
 
-        // Verify title
-        expect(find.text('SPDMS Login'), findsOneWidget);
+        // Verify title & subtitle
+        expect(find.text('Enter your email to receive an OTP'), findsOneWidget);
 
-        // Verify fields
-        expect(find.byType(TextFormField), findsNWidgets(2));
-        expect(find.text('Sign In'), findsOneWidget);
+        // Verify Email input field
+        expect(find.byType(TextFormField), findsOneWidget);
+        expect(find.text('Send OTP'), findsOneWidget);
 
-        // Verify Dropdown
-        expect(
-          find.byType(DropdownButtonFormField<String>),
-          findsOneWidget,
-        );
+        // Verify Policy checkbox
+        expect(find.byType(Checkbox), findsOneWidget);
       });
     });
 
-    testWidgets(
-      'shows validation errors when fields are empty',
-          (tester) async {
-        await mockNetworkImagesFor(() async {
-          await tester.pumpWidget(
-            TestWrapper(
-              mockAuthProvider: mockAuthProvider,
-              child: const LoginPage(),
-            ),
-          );
+    testWidgets('shows validation error when email is empty', (tester) async {
+      await mockNetworkImagesFor(() async {
+        await tester.pumpWidget(
+          TestWrapper(
+            mockAuthProvider: mockAuthProvider,
+            child: const LoginPage(),
+          ),
+        );
+        await tester.pumpAndSettle();
 
-          // Tap Sign In button
-          await tester.tap(find.text('Sign In'));
-          await tester.pumpAndSettle();
+        // Check the policy box first
+        await tester.tap(find.byType(Checkbox));
+        await tester.pumpAndSettle();
 
-          // Verify validation errors
-          expect(
-            find.text('Username, Email or Student ID is required'),
-            findsOneWidget,
-          );
+        // Tap Send OTP
+        await tester.tap(find.text('Send OTP'));
+        await tester.pumpAndSettle();
 
-          expect(
-            find.text('Password is required'),
-            findsOneWidget,
-          );
-        });
-      },
-    );
+        // Verify validation error
+        expect(find.text('Email is required'), findsOneWidget);
+      });
+    });
   });
 }

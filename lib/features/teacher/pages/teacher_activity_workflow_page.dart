@@ -7,6 +7,7 @@ import 'package:pragatix/core/di/service_locator.dart';
 import 'package:pragatix/features/activity/models/activity_model.dart';
 import 'package:pragatix/features/auth/providers/auth_provider.dart';
 import 'package:pragatix/features/teacher/services/teacher_proxy_service.dart';
+import 'package:pragatix/core/utils/error_handler.dart';
 
 class TeacherActivityWorkflowPage extends StatefulWidget {
   final ActivityModel activity;
@@ -308,9 +309,7 @@ class _TeacherActivityWorkflowPageState
     } catch (e) {
       debugPrint('Error fetching students: $e');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Network error: $e'), backgroundColor: Colors.redAccent),
-        );
+        ErrorHandler.showSnackBar(context, e);
       }
     } finally {
       if (mounted) {
@@ -383,12 +382,7 @@ class _TeacherActivityWorkflowPageState
       );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(e.toString()),
-          backgroundColor: Colors.redAccent,
-        ),
-      );
+      ErrorHandler.showSnackBar(context, e);
     } finally {
       if (mounted) {
         setState(() => _isAwarding = false);

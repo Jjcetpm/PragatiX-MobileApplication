@@ -43,7 +43,7 @@ class _GroupActivityExecutionPageState
   List<Team> _teams = [];
 
   // Theme constants
-  static const Color _primary = Color(0xFF1E3A8A); // Deep blue
+  static const Color _primary = Color(0xFF2563EB); // Modern Blue
   static const Color _accent = Color(0xFF3B82F6);
   static const Color _dark = Color(0xFF0F172A);
   static const Color _bg = Color(0xFFF8FAFC);

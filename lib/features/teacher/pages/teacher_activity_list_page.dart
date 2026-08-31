@@ -63,7 +63,7 @@ class _TeacherActivityListPageState extends State<TeacherActivityListPage> {
       );
       if (mounted) {
         setState(() {
-          _activities = list;
+          _activities = list.where((a) => !a.attendanceEngineEnabled).toList();
           _isLoading = false;
         });
         _filterActivities();

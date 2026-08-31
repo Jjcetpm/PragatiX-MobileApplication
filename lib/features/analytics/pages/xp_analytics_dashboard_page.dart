@@ -8,6 +8,7 @@ import 'xp_top_performers_page.dart';
 import 'xp_low_students_page.dart';
 import 'xp_activity_analytics_page.dart';
 import 'xp_history_page.dart';
+import 'package:pragatix/core/utils/error_handler.dart';
 
 class XpAnalyticsDashboardPage extends StatefulWidget {
   final bool isSuperAdmin;
@@ -95,7 +96,10 @@ class _XpAnalyticsDashboardPageState extends State<XpAnalyticsDashboardPage> wit
             return Padding(padding: const EdgeInsets.all(16.0), child: _buildSkeletonLoader());
           }
           if (provider.error != null && provider.awardVsPenalty == null) {
-            return Center(child: Text('Error: ${provider.error}'));
+            return ErrorHandler.buildErrorWidget(
+              provider.error,
+              onRetry: () => provider.fetchDashboardData(),
+            );
           }
 
           return FadeTransition(

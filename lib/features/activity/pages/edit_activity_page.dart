@@ -4,7 +4,6 @@ import 'package:pragatix/features/activity/models/activity_model.dart';
 import 'package:pragatix/features/activity/providers/activity_provider.dart';
 import 'package:pragatix/features/activity/widgets/activity_form.dart';
 import 'package:pragatix/features/activity/widgets/sticky_bottom_buttons.dart';
-import 'package:pragatix/features/auth/providers/auth_provider.dart';
 import 'package:provider/provider.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -36,7 +35,7 @@ class EditActivityPage extends StatefulWidget {
 
 class _EditActivityPageState extends State<EditActivityPage>
     with SingleTickerProviderStateMixin {
-  static const Color _dark = Color(0xFF1E293B);
+  static const Color _primary = Color(0xFF2563EB);
 
   final _formKey = GlobalKey<ActivityFormState>();
 
@@ -105,89 +104,94 @@ class _EditActivityPageState extends State<EditActivityPage>
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
-      body: FadeTransition(
-        opacity: _fadeAnim,
-        child: NestedScrollView(
-          headerSliverBuilder: (context, innerBoxIsScrolled) => [
-            SliverAppBar(
-              pinned: true,
-              expandedHeight: 110,
-              backgroundColor: _dark,
-              leading: IconButton(
-                icon: const Icon(
-                  Icons.arrow_back_ios_new_rounded,
-                  color: Colors.white,
-                  size: 20,
-                ),
-                onPressed: () => Navigator.pop(context),
-              ),
-              flexibleSpace: FlexibleSpaceBar(
-                title: const Text(
-                  'Edit Event',
-                  style: TextStyle(
+    return ChangeNotifierProvider<ActivityProvider>.value(
+      value: widget.provider,
+      child: Scaffold(
+        backgroundColor: const Color(0xFFF8FAFC),
+        body: FadeTransition(
+          opacity: _fadeAnim,
+          child: NestedScrollView(
+            headerSliverBuilder: (context, innerBoxIsScrolled) => [
+              SliverAppBar(
+                expandedHeight: 120.0,
+                floating: false,
+                pinned: true,
+                elevation: 0,
+                backgroundColor: _primary,
+                leading: IconButton(
+                  icon: const Icon(
+                    Icons.arrow_back_ios_new_rounded,
                     color: Colors.white,
-                    fontWeight: FontWeight.w700,
-                    fontSize: 18,
+                    size: 20,
                   ),
+                  onPressed: () => Navigator.pop(context),
                 ),
-                background: Container(
-                  decoration: const BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [Color(0xFF1E293B), Color(0xFF334155)],
-                    ),
-                  ),
-                ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: _onSave,
-                  child: const Text(
-                    'Save',
+                flexibleSpace: FlexibleSpaceBar(
+                  title: const Text(
+                    'Modify Event',
                     style: TextStyle(
                       color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 18,
+                    ),
+                  ),
+                  background: Container(
+                    decoration: const BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [Color(0xFF1D4ED8), Color(0xFF2563EB)],
+                      ),
                     ),
                   ),
                 ),
-              ],
-            ),
-          ],
-          body: ListenableBuilder(
-            listenable: widget.provider,
-            builder: (context, _) {
-              if (widget.provider.isLoadingDependencies) {
-                return const Center(child: PragatiXLoader());
-              }
-              return Column(
-                children: [
-                  Expanded(
-                    child: ActivityForm(
-                      key: _formKey,
-                      allTeachers: widget.provider.allTeachers,
-                      sections: widget.provider.sections,
-                      provider: widget.provider,
-                      initialData: widget.activity,
-                      isCc: widget.isCc,
+                actions: [
+                  TextButton(
+                    onPressed: _onSave,
+                    child: const Text(
+                      'Save',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                      ),
                     ),
                   ),
                 ],
-              );
-            },
+              ),
+            ],
+            body: ListenableBuilder(
+              listenable: widget.provider,
+              builder: (context, _) {
+                if (widget.provider.isLoadingDependencies) {
+                  return const Center(child: PragatiXLoader());
+                }
+                return Column(
+                  children: [
+                    Expanded(
+                      child: ActivityForm(
+                        key: _formKey,
+                        allTeachers: widget.provider.allTeachers,
+                        sections: widget.provider.sections,
+                        provider: widget.provider,
+                        initialData: widget.activity,
+                        isCc: widget.isCc,
+                      ),
+                    ),
+                  ],
+                );
+              },
+            ),
           ),
         ),
-      ),
-      bottomNavigationBar: ListenableBuilder(
-        listenable: widget.provider,
-        builder: (context, _) => StickyBottomButtons(
-          saveLabel: 'Save Changes',
-          onSave: _onSave,
-          onCancel: () => Navigator.pop(context),
-          isSaving: widget.provider.isSaving,
+        bottomNavigationBar: ListenableBuilder(
+          listenable: widget.provider,
+          builder: (context, _) => StickyBottomButtons(
+            saveLabel: 'Save Changes',
+            onSave: _onSave,
+            onCancel: () => Navigator.pop(context),
+            isSaving: widget.provider.isSaving,
+          ),
         ),
       ),
     );

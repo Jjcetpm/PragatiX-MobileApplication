@@ -1235,7 +1235,7 @@ class _AssignStaffPageState extends State<AssignStaffPage> {
                 ),
               )
             : null,
-        backgroundColor: widget.isCc ? null : _dark,
+        backgroundColor: widget.isCc ? null : const Color(0xFF2563EB),
         iconTheme: const IconThemeData(color: Colors.white),
       ),
       body: AnimatedBuilder(

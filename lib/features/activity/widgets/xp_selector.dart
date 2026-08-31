@@ -55,7 +55,7 @@ class _Chip extends StatelessWidget {
   final bool selected;
   final VoidCallback onTap;
 
-  static const Color _primary = Color(0xFFEA4335);
+  static const Color _primary = Color(0xFF2563EB);
   static const Color _dark = Color(0xFF1E293B);
 
   const _Chip({

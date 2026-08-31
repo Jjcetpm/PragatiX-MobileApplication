@@ -11,6 +11,7 @@ import 'package:pragatix/features/auth/providers/auth_provider.dart';
 
 import '../../leaderboard/pages/shared_leaderboard_page.dart';
 import '../../recycle_bin/screens/recycle_bin_screen.dart';
+import 'package:pragatix/features/admin/pages/admin_levels_page.dart';
 
 class OverviewTab extends StatefulWidget {
   const OverviewTab({super.key});
@@ -175,6 +176,10 @@ class _OverviewTabState extends State<OverviewTab> {
 
                                     // ── Wide Featured Leaderboard Card ───────
                                     _buildLeaderboardCard(),
+                                    const SizedBox(height: 14),
+
+                                    // ── Wide Featured Level Progression Card ──
+                                    _buildLevelsCard(),
                                     const SizedBox(height: 28),
                                   ],
                                 ),
@@ -739,6 +744,111 @@ class _OverviewTabState extends State<OverviewTab> {
                       SizedBox(height: 2),
                       Text(
                         'View top ranking students and achievements',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Color(0xFF64748B),
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF1F5F9),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(
+                    Icons.arrow_forward_ios_rounded,
+                    size: 13,
+                    color: Color(0xFF64748B),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ── Wide Featured Level Progression Management Card ─────────────────────────
+
+  Widget _buildLevelsCard() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: const Color(0xFFE2E8F0),
+          width: 1.1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF0F172A).withValues(alpha: 0.04),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () => Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => const AdminLevelsPage(),
+            ),
+          ),
+          borderRadius: BorderRadius.circular(18),
+          splashColor: const Color(0xFF6366F1).withValues(alpha: 0.08),
+          highlightColor: const Color(0xFF6366F1).withValues(alpha: 0.04),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            child: Row(
+              children: [
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [Color(0xFF6366F1), Color(0xFF4F46E5)],
+                    ),
+                    borderRadius: BorderRadius.circular(14),
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFF6366F1).withValues(alpha: 0.30),
+                        blurRadius: 8,
+                        offset: const Offset(0, 3),
+                      ),
+                    ],
+                  ),
+                  child: const Icon(
+                    Icons.military_tech_rounded,
+                    color: Colors.white,
+                    size: 22,
+                  ),
+                ),
+                const SizedBox(width: 14),
+                const Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Level Progression',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800,
+                          color: Color(0xFF0F172A),
+                          letterSpacing: -0.3,
+                        ),
+                      ),
+                      SizedBox(height: 2),
+                      Text(
+                        'Manage year-wise levels, XP milestones & unlocks',
                         style: TextStyle(
                           fontSize: 12,
                           color: Color(0xFF64748B),

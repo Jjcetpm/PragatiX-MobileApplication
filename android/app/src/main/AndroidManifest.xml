@@ -55,6 +55,12 @@
             <category android:name="android.intent.category.BROWSABLE" />
             <data android:scheme="http" />
         </intent>
+        <intent>
+            <action android:name="android.settings.APPLICATION_DEVELOPMENT_SETTINGS" />
+        </intent>
+        <intent>
+            <action android:name="android.settings.SETTINGS" />
+        </intent>
     </queries>
 
 </manifest>

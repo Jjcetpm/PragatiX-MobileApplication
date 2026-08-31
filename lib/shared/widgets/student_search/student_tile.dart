@@ -4,8 +4,7 @@ class StudentTile extends StatelessWidget {
   final Map<String, dynamic> student;
   final VoidCallback onTap;
 
-  const StudentTile({Key? key, required this.student, required this.onTap})
-    : super(key: key);
+  const StudentTile({super.key, required this.student, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
