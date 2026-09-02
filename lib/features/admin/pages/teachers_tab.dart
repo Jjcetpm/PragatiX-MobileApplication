@@ -3,10 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:async';
 import 'package:pragatix/core/utils/api_client.dart' as http;
-import 'package:path_provider/path_provider.dart';
-import 'package:permission_handler/permission_handler.dart';
 import 'package:file_picker/file_picker.dart';
-import 'package:open_filex/open_filex.dart';
 import 'package:pragatix/core/config/api_config.dart';
 import 'package:pragatix/features/auth/providers/auth_provider.dart';
 import 'package:provider/provider.dart';
@@ -14,18 +11,13 @@ import 'package:pragatix/core/utils/error_handler.dart';
 import 'package:pragatix/features/admin/repository/admin_repository.dart';
 import 'package:pragatix/core/di/service_locator.dart';
 import 'package:pragatix/core/utils/string_utils.dart';
+import 'package:pragatix/core/utils/export_utils.dart';
 import 'admin_teacher_detail.dart';
 
 Future<List<dynamic>> _apiGetDepartments(String token) async {
   try {
-    final list = await getIt<AdminRepository>().getDepartments(type: 'MAIN');
-    return list.where((d) {
-      final type = (d['departmentType'] ?? d['type'] ?? '').toString().toUpperCase();
-      final name = (d['name'] ?? d['deptName'] ?? '').toString();
-      if (type == 'SUB') return false;
-      if (name.toLowerCase().startsWith('department of')) return false;
-      return true;
-    }).toList();
+    final list = await getIt<AdminRepository>().getDepartments(all: true);
+    return list;
   } catch (e) {
     return [];
   }
@@ -121,22 +113,15 @@ class _TeachersTabState extends State<TeachersTab> {
   }
 
   Future<void> _loadMetadata() async {
-    final depts = await getIt<AdminRepository>().getDepartments(type: 'MAIN');
+    final depts = await getIt<AdminRepository>().getDepartments(all: true);
     if (!mounted) return;
-    final mainDepts = depts.where((d) {
-      final type = (d['departmentType'] ?? d['type'] ?? '').toString().toUpperCase();
-      final name = (d['name'] ?? d['deptName'] ?? '').toString();
-      if (type == 'SUB') return false;
-      if (name.toLowerCase().startsWith('department of')) return false;
-      return true;
-    }).toList();
     final roles = await getIt<AdminRepository>().getRoles();
     if (!mounted) return;
     final subjects = await getIt<AdminRepository>().getSubjects();
     if (!mounted) return;
     final secs = await getIt<AdminRepository>().getSections();
     setState(() {
-      departments = mainDepts;
+      departments = List<dynamic>.from(depts);
       departments.sort((a, b) {
         String nameA = (a['name'] ?? a['deptName'] ?? a['code'] ?? '').toString().toLowerCase();
         String nameB = (b['name'] ?? b['deptName'] ?? b['code'] ?? '').toString().toLowerCase();
@@ -160,9 +145,22 @@ class _TeachersTabState extends State<TeachersTab> {
       final allUsers = await getIt<AdminRepository>().getTeachers(departmentId: filterDeptId, keyword: _searchQuery);
       setState(() {
         usersList = allUsers.where((u) {
-          final List<dynamic> roles = u['roles'] ?? [];
-          return roles.contains('ROLE_TEACHER') ||
-              roles.contains('ROLE_TRANSPORT');
+          final List<dynamic> roles = (u['roles'] as List<dynamic>?) ?? [];
+          final List<dynamic> subRoles = (u['subRoles'] as List<dynamic>?) ?? [];
+          final roleStrings = roles.map((r) => r.toString().toUpperCase()).toList();
+          final subRoleStrings = subRoles.map((s) => s.toString().toUpperCase()).toList();
+
+          if (roleStrings.contains('ROLE_STUDENT') || roleStrings.contains('STUDENT')) return false;
+          if (roleStrings.contains('ROLE_SUPER_ADMIN') || roleStrings.contains('SUPER_ADMIN')) return false;
+
+          return roleStrings.contains('ROLE_TEACHER') ||
+              roleStrings.contains('TEACHER') ||
+              roleStrings.contains('ROLE_TRANSPORT') ||
+              roleStrings.contains('TRANSPORT') ||
+              roleStrings.contains('ROLE_HOD') ||
+              roleStrings.contains('HOD') ||
+              subRoleStrings.contains('HOD') ||
+              subRoleStrings.contains('CC');
         }).toList();
         isLoading = false;
       });
@@ -279,11 +277,12 @@ class _TeachersTabState extends State<TeachersTab> {
       }
     }
     try {
+      final roleToSend = selectedMainRole.startsWith('ROLE_') ? selectedMainRole : 'ROLE_$selectedMainRole';
       await getIt<AdminRepository>().updateUser(id, {
         'fullName': nameController.text.trim().toUpperCase(),
         'email': emailController.text.trim(),
         'departmentId': selectedDeptId,
-        'roles': [selectedMainRole],
+        'roles': [roleToSend],
         'subRoles': selectedSubRoles.toList(),
         'sectionId': selectedSubRoles.contains('CC') ? selectedSectionId : null,
         'year': selectedSubRoles.contains('CC') ? selectedYear : null,
@@ -593,102 +592,12 @@ class _TeachersTabState extends State<TeachersTab> {
                         },
                       );
                       if (response.statusCode == 200) {
-                        if (Platform.isAndroid) {
-                          int sdkVersion = 0;
-                          try {
-                            final numbers = RegExp(r'\d+')
-                                .allMatches(Platform.operatingSystemVersion)
-                                .map((m) => int.parse(m.group(0)!))
-                                .toList();
-                            if (numbers.isNotEmpty) {
-                              sdkVersion = numbers.firstWhere(
-                                (n) => n >= 19 && n <= 100,
-                                orElse: () => numbers.first,
-                              );
-                            }
-                          } catch (_) {}
-
-                          PermissionStatus status;
-                          if (sdkVersion >= 33) {
-                            status = await Permission.manageExternalStorage.status;
-                            if (!status.isGranted) {
-                              status = await Permission.manageExternalStorage.request();
-                            }
-                          } else {
-                            status = await Permission.storage.status;
-                            if (!status.isGranted) {
-                              status = await Permission.storage.request();
-                            }
-                          }
-
-                          if (!status.isGranted) {
-                            if (context.mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text('Storage permission is required to save the template.'),
-                                  backgroundColor: Colors.redAccent,
-                                ),
-                              );
-                            }
-                            return;
-                          }
-                        }
-
-                        Directory? dir;
-                        if (Platform.isAndroid) {
-                          dir = Directory('/storage/emulated/0/Download');
-                          if (!await dir.exists()) {
-                            try {
-                              await dir.create(recursive: true);
-                            } catch (_) {
-                              dir = Directory('/storage/emulated/0/Downloads');
-                              if (!await dir.exists()) {
-                                try {
-                                  await dir.create(recursive: true);
-                                } catch (_) {
-                                  dir = await getExternalStorageDirectory();
-                                  dir ??= await getApplicationDocumentsDirectory();
-                                }
-                              }
-                            }
-                          }
-                        } else if (Platform.isIOS) {
-                          dir = await getApplicationDocumentsDirectory();
-                        } else {
-                          dir = await getDownloadsDirectory();
-                        }
-                        
-                        if (dir != null) {
-                          String filename = 'SPDMS_Teacher_Bulk_Upload_Template.xlsx';
-                          String filePath = '${dir.path}/$filename';
-                          File file = File(filePath);
-                          
-                          int counter = 1;
-                          while (await file.exists()) {
-                            filename = 'SPDMS_Teacher_Bulk_Upload_Template_($counter).xlsx';
-                            filePath = '${dir.path}/$filename';
-                            file = File(filePath);
-                            counter++;
-                          }
-
-                          await file.writeAsBytes(response.bodyBytes);
-                          if (context.mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text('Template downloaded to Downloads folder: $filename'),
-                                backgroundColor: Colors.green,
-                                action: SnackBarAction(
-                                  label: 'Open',
-                                  textColor: Colors.white,
-                                  onPressed: () => OpenFilex.open(
-                                    file.path,
-                                    type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-                                  ),
-                                ),
-                              ),
-                            );
-                          }
-                        }
+                        await ExportUtils.saveBytesAndOpen(
+                          context,
+                          response.bodyBytes,
+                          'SPDMS_Teacher_Bulk_Upload_Template.xlsx',
+                          successMessage: 'Template downloaded successfully!',
+                        );
                       } else {
                         if (context.mounted) {
                           String errorMsg = 'Unable to download teacher upload template.';
@@ -1179,6 +1088,7 @@ class _TeachersTabState extends State<TeachersTab> {
                       ),
                       const SizedBox(height: 15),
                       DropdownButtonFormField<int?>(
+                        isExpanded: true,
                         initialValue: departments.any(
                                   (d) =>
                                       (d['id'] != null
@@ -1194,19 +1104,20 @@ class _TeachersTabState extends State<TeachersTab> {
                         items: [
                           const DropdownMenuItem<int?>(
                             value: null,
-                            child: Text('No Department (Optional)'),
+                            child: Text('No Department (Optional)', overflow: TextOverflow.ellipsis),
                           ),
                           ...departments.where((d) => d['id'] != null).map((d) {
                             final dId = int.tryParse(d['id'].toString());
                             return DropdownMenuItem<int?>(
                               value: dId,
                               child: Text(
-                                (d['code'] ??
-                                        d['name'] ??
-                                        d['deptCode'] ??
+                                (d['name'] ??
                                         d['deptName'] ??
+                                        d['code'] ??
+                                        d['deptCode'] ??
                                         '')
                                     .toString(),
+                                overflow: TextOverflow.ellipsis,
                               ),
                             );
                           }),
@@ -1256,6 +1167,7 @@ class _TeachersTabState extends State<TeachersTab> {
                       if (selectedSubRoles.contains('CC')) ...[
                         const SizedBox(height: 8),
                         DropdownButtonFormField<String?>(
+                          isExpanded: true,
                           initialValue:
                               ['I', 'II', 'III', 'IV'].contains(selectedYear)
                               ? selectedYear
@@ -1315,6 +1227,7 @@ class _TeachersTabState extends State<TeachersTab> {
                               children: [
                                 Expanded(
                                   child: DropdownButtonFormField<int?>(
+                                    isExpanded: true,
                                     initialValue:
                                         filteredSections.any(
                                           (sec) => sec['id'] == selectedSectionId,
@@ -1406,7 +1319,8 @@ class _TeachersTabState extends State<TeachersTab> {
 
     final List<dynamic> rolesList = teacher['roles'] ?? [];
     if (rolesList.isNotEmpty) {
-      selectedMainRole = rolesList.first.toString();
+      final firstRole = rolesList.first.toString();
+      selectedMainRole = firstRole.startsWith('ROLE_') ? firstRole : 'ROLE_$firstRole';
     } else {
       selectedMainRole = 'ROLE_TEACHER';
     }
@@ -1486,6 +1400,7 @@ class _TeachersTabState extends State<TeachersTab> {
                       ),
                       const SizedBox(height: 15),
                       DropdownButtonFormField<int?>(
+                        isExpanded: true,
                         initialValue:
                             departments.any(
                               (d) =>
@@ -1502,19 +1417,20 @@ class _TeachersTabState extends State<TeachersTab> {
                         items: [
                           const DropdownMenuItem<int?>(
                             value: null,
-                            child: Text('No Department (Optional)'),
+                            child: Text('No Department (Optional)', overflow: TextOverflow.ellipsis),
                           ),
                           ...departments.where((d) => d['id'] != null).map((d) {
                             final dId = int.tryParse(d['id'].toString());
                             return DropdownMenuItem<int?>(
                               value: dId,
                               child: Text(
-                                (d['code'] ??
-                                        d['name'] ??
-                                        d['deptCode'] ??
+                                (d['name'] ??
                                         d['deptName'] ??
+                                        d['code'] ??
+                                        d['deptCode'] ??
                                         '')
                                     .toString(),
+                                overflow: TextOverflow.ellipsis,
                               ),
                             );
                           }),
@@ -1564,6 +1480,7 @@ class _TeachersTabState extends State<TeachersTab> {
                       if (selectedSubRoles.contains('CC')) ...[
                         const SizedBox(height: 8),
                         DropdownButtonFormField<String?>(
+                          isExpanded: true,
                           initialValue:
                               ['I', 'II', 'III', 'IV'].contains(selectedYear)
                               ? selectedYear
@@ -1623,6 +1540,7 @@ class _TeachersTabState extends State<TeachersTab> {
                               children: [
                                 Expanded(
                                   child: DropdownButtonFormField<int?>(
+                                    isExpanded: true,
                                     initialValue:
                                         filteredSections.any(
                                           (sec) => sec['id'] == selectedSectionId,
@@ -1849,10 +1767,25 @@ class _TeachersTabState extends State<TeachersTab> {
                                 padding: const EdgeInsets.only(bottom: 10.0),
                                 child: TextField(
                                   controller: _searchController,
+                                  textInputAction: TextInputAction.search,
                                   style: const TextStyle(color: Color(0xFF0F172A)),
                                   decoration: InputDecoration(
                                     labelText: 'Search Teacher (Name, Email, Username)',
                                     prefixIcon: const Icon(Icons.search_rounded, color: Color(0xFF6C5CE7)),
+                                    suffixIcon: _searchController.text.isNotEmpty
+                                        ? IconButton(
+                                            icon: const Icon(Icons.clear_rounded, color: Color(0xFF94A3B8)),
+                                            tooltip: 'Clear',
+                                            onPressed: () {
+                                              _searchController.clear();
+                                              setState(() {
+                                                _searchQuery = '';
+                                                isLoading = true;
+                                              });
+                                              _fetchTeachers();
+                                            },
+                                          )
+                                        : null,
                                     filled: true,
                                     fillColor: Colors.white,
                                     border: OutlineInputBorder(
@@ -1870,14 +1803,16 @@ class _TeachersTabState extends State<TeachersTab> {
                                     contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                                   ),
                                   onChanged: (value) {
+                                    // Update suffix icon visibility without triggering search
+                                    setState(() {});
+                                  },
+                                  onSubmitted: (value) {
                                     if (_debounce?.isActive ?? false) _debounce!.cancel();
-                                    _debounce = Timer(const Duration(milliseconds: 500), () {
-                                      setState(() {
-                                        _searchQuery = value;
-                                        isLoading = true;
-                                      });
-                                      _fetchTeachers();
+                                    setState(() {
+                                      _searchQuery = value.trim();
+                                      isLoading = true;
                                     });
+                                    _fetchTeachers();
                                   },
                                 ),
                               ),
@@ -1909,14 +1844,15 @@ class _TeachersTabState extends State<TeachersTab> {
                                     items: [
                                       const DropdownMenuItem<int?>(
                                         value: null,
-                                        child: Text('All Departments'),
+                                        child: Text('All Departments', overflow: TextOverflow.ellipsis),
                                       ),
                                       ...departments.where((d) => d['id'] != null).map((d) {
                                         final dId = int.tryParse(d['id'].toString());
                                         return DropdownMenuItem<int?>(
                                           value: dId,
                                           child: Text(
-                                            (d['name'] ?? d['code'] ?? d['deptName'] ?? d['deptCode'] ?? '').toString(),
+                                            (d['name'] ?? d['deptName'] ?? d['code'] ?? d['deptCode'] ?? '').toString(),
+                                            overflow: TextOverflow.ellipsis,
                                           ),
                                         );
                                       }),

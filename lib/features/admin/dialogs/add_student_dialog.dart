@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:pragatix/core/utils/string_utils.dart';
 
 class AddStudentDialog extends StatefulWidget {
@@ -12,7 +13,6 @@ class AddStudentDialog extends StatefulWidget {
   final TextEditingController guardianPhoneController;
   final TextEditingController guardianEmailController;
   final List<dynamic> departments;
-  final List<dynamic> academicYears;
   final List<dynamic> years;
   final List<dynamic> semesters;
   final List<dynamic> genders;
@@ -20,7 +20,6 @@ class AddStudentDialog extends StatefulWidget {
   final Future<List<dynamic>> Function(int?) fetchSectionsForDept;
   final Future<void> Function({
     required int? departmentId,
-    required int? academicYearId,
     required int? yearId,
     required int? semesterId,
     required int? genderId,
@@ -44,7 +43,6 @@ class AddStudentDialog extends StatefulWidget {
     required this.guardianPhoneController,
     required this.guardianEmailController,
     required this.departments,
-    required this.academicYears,
     required this.years,
     required this.semesters,
     required this.genders,
@@ -61,7 +59,6 @@ class AddStudentDialog extends StatefulWidget {
 class _AddStudentDialogState extends State<AddStudentDialog> {
   int? lastFetchedDeptId;
   int? selectedDeptId;
-  int? selectedAcademicYearId;
   int? selectedYearId;
   int? selectedSemesterId;
   int? selectedGenderId;
@@ -77,6 +74,9 @@ class _AddStudentDialogState extends State<AddStudentDialog> {
   ];
   String? selectedGuardianRel;
   bool isFetchingSections = false;
+
+  final RegExp _emailRegex = RegExp(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$');
+  final RegExp _phoneRegex = RegExp(r'^\d{10}$');
 
   List<dynamic> _deduplicate(List<dynamic> list) {
     final seenIds = <int>{};
@@ -95,19 +95,22 @@ class _AddStudentDialogState extends State<AddStudentDialog> {
     widget.clearControllers();
 
     final uniqueDepartments = _deduplicate(widget.departments);
-    final uniqueAcademicYears = _deduplicate(widget.academicYears);
     final uniqueYears = _deduplicate(widget.years);
     final uniqueSemesters = _deduplicate(widget.semesters);
     final uniqueGenders = _deduplicate(widget.genders);
 
-    if (uniqueDepartments.isNotEmpty)
+    if (uniqueDepartments.isNotEmpty) {
       selectedDeptId = uniqueDepartments.first['id'];
-    if (uniqueAcademicYears.isNotEmpty)
-      selectedAcademicYearId = uniqueAcademicYears.first['id'];
-    if (uniqueYears.isNotEmpty) selectedYearId = uniqueYears.first['id'];
-    if (uniqueSemesters.isNotEmpty)
+    }
+    if (uniqueYears.isNotEmpty) {
+      selectedYearId = uniqueYears.first['id'];
+    }
+    if (uniqueSemesters.isNotEmpty) {
       selectedSemesterId = uniqueSemesters.first['id'];
-    if (uniqueGenders.isNotEmpty) selectedGenderId = uniqueGenders.first['id'];
+    }
+    if (uniqueGenders.isNotEmpty) {
+      selectedGenderId = uniqueGenders.first['id'];
+    }
   }
 
   @override
@@ -116,8 +119,142 @@ class _AddStudentDialogState extends State<AddStudentDialog> {
     super.dispose();
   }
 
+  void _validateAndSubmit() {
+    final regNo = widget.regNoController.text.trim();
+    final name = widget.nameController.text.trim();
+    final email = widget.emailController.text.trim();
+    final phone = widget.phoneController.text.trim();
+    final guardianName = widget.guardianNameController.text.trim();
+    final guardianRel = selectedGuardianRel ?? widget.guardianRelController.text.trim();
+    final guardianPhone = widget.guardianPhoneController.text.trim();
+    final guardianEmail = widget.guardianEmailController.text.trim();
+
+    final now = DateTime.now();
+    final maxAllowedDob = DateTime(now.year - 16, now.month, now.day);
+
+    final sprNo = widget.sprNoController.text.trim();
+
+    if (regNo.isEmpty) {
+      _showError('Register Number is required');
+      return;
+    }
+    if (!RegExp(r'^\d+$').hasMatch(regNo)) {
+      _showError('Register Number must contain digits only.');
+      return;
+    }
+    if (!regNo.startsWith('8113')) {
+      _showError('Register Number must start with 8113.');
+      return;
+    }
+    if (sprNo.isNotEmpty && !RegExp(r'^[a-zA-Z0-9]+$').hasMatch(sprNo)) {
+      _showError('SPR Number must contain letters and numbers only (no symbols).');
+      return;
+    }
+    if (name.isEmpty) {
+      _showError('Full Name is required');
+      return;
+    }
+    if (email.isEmpty) {
+      _showError('Email is required');
+      return;
+    }
+    if (!_emailRegex.hasMatch(email)) {
+      _showError('Enter a valid email address.');
+      return;
+    }
+    if (phone.isNotEmpty && !_phoneRegex.hasMatch(phone)) {
+      _showError('Phone number must contain digits only.');
+      return;
+    }
+    if (selectedGenderId == null) {
+      _showError('Select Gender');
+      return;
+    }
+    if (guardianName.isEmpty) {
+      _showError('Guardian Name is required');
+      return;
+    }
+    if (guardianRel.isEmpty) {
+      _showError('Guardian Relationship is required');
+      return;
+    }
+    if (guardianPhone.isEmpty) {
+      _showError('Guardian Phone is required');
+      return;
+    }
+    if (!_phoneRegex.hasMatch(guardianPhone)) {
+      _showError('Phone number must contain digits only.');
+      return;
+    }
+    if (guardianEmail.isNotEmpty && !_emailRegex.hasMatch(guardianEmail)) {
+      _showError('Enter a valid email address.');
+      return;
+    }
+    if (selectedDob == null) {
+      _showError('Select Date of Birth');
+      return;
+    }
+    if (selectedDob!.isAfter(maxAllowedDob)) {
+      _showError('Student must be at least 16 years old.');
+      return;
+    }
+    if (selectedDeptId == null) {
+      _showError('Select Department');
+      return;
+    }
+    if (selectedYearId == null) {
+      _showError('Select Year');
+      return;
+    }
+    if (selectedSemesterId == null) {
+      _showError('Select Semester');
+      return;
+    }
+
+    widget.onAddStudent(
+      departmentId: selectedDeptId,
+      yearId: selectedYearId,
+      semesterId: selectedSemesterId,
+      genderId: selectedGenderId,
+      sectionId: selectedSectionId,
+      groupId: null,
+      address: addressController.text.trim(),
+      dob: selectedDob,
+    );
+  }
+
+  void _showError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.redAccent,
+      ),
+    );
+  }
+
+  Widget _buildSectionTitle(String title) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 8.0, bottom: 8.0),
+      child: Align(
+        alignment: Alignment.centerLeft,
+        child: Text(
+          title,
+          style: const TextStyle(
+            fontSize: 15,
+            fontWeight: FontWeight.bold,
+            color: Color(0xFF1E293B),
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final now = DateTime.now();
+    final maxAllowedDob = DateTime(now.year - 16, now.month, now.day);
+    final minAllowedDob = DateTime(1970, 1, 1);
+
     if (lastFetchedDeptId != selectedDeptId) {
       isFetchingSections = true;
       Future.microtask(() async {
@@ -133,7 +270,6 @@ class _AddStudentDialogState extends State<AddStudentDialog> {
     }
 
     final uniqueDepartments = _deduplicate(widget.departments);
-    final uniqueAcademicYears = _deduplicate(widget.academicYears);
     final uniqueYears = _deduplicate(widget.years);
     final uniqueSemesters = _deduplicate(widget.semesters);
     final uniqueGenders = _deduplicate(widget.genders);
@@ -141,31 +277,35 @@ class _AddStudentDialogState extends State<AddStudentDialog> {
     final uniqueSections = _deduplicate(dialogSections);
 
     if (selectedDeptId != null &&
-        !uniqueDepartments.any((d) => d['id'] == selectedDeptId))
+        !uniqueDepartments.any((d) => d['id'] == selectedDeptId)) {
       selectedDeptId = null;
-    if (selectedAcademicYearId != null &&
-        !uniqueAcademicYears.any((ay) => ay['id'] == selectedAcademicYearId))
-      selectedAcademicYearId = null;
+    }
     if (selectedYearId != null &&
-        !uniqueYears.any((y) => y['id'] == selectedYearId))
+        !uniqueYears.any((y) => y['id'] == selectedYearId)) {
       selectedYearId = null;
+    }
     if (selectedSemesterId != null &&
-        !uniqueSemesters.any((sem) => sem['id'] == selectedSemesterId))
+        !uniqueSemesters.any((sem) => sem['id'] == selectedSemesterId)) {
       selectedSemesterId = null;
+    }
     if (selectedGenderId != null &&
-        !uniqueGenders.any((g) => g['id'] == selectedGenderId))
+        !uniqueGenders.any((g) => g['id'] == selectedGenderId)) {
       selectedGenderId = null;
+    }
     if (selectedGroupId != null &&
-        !uniqueGroups.any((g) => g['id'] == selectedGroupId))
+        !uniqueGroups.any((g) => g['id'] == selectedGroupId)) {
       selectedGroupId = null;
+    }
     if (!isFetchingSections &&
         selectedSectionId != null &&
-        !uniqueSections.any((sec) => sec['id'] == selectedSectionId))
+        !uniqueSections.any((sec) => sec['id'] == selectedSectionId)) {
       selectedSectionId = null;
+    }
 
     if (selectedGuardianRel != null &&
-        !guardianRelations.contains(selectedGuardianRel))
+        !guardianRelations.contains(selectedGuardianRel)) {
       selectedGuardianRel = null;
+    }
 
     return Scaffold(
       appBar: AppBar(
@@ -180,12 +320,14 @@ class _AddStudentDialogState extends State<AddStudentDialog> {
         padding: const EdgeInsets.all(16.0),
         child: Column(
           mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            _buildSectionTitle('Personal Details'),
             TextField(
               controller: widget.regNoController,
-              textCapitalization: TextCapitalization.characters,
+              keyboardType: TextInputType.number,
               inputFormatters: [
-                UpperCaseTextFormatter(),
+                FilteringTextInputFormatter.digitsOnly,
               ],
               decoration: const InputDecoration(labelText: 'Register Number *'),
             ),
@@ -204,6 +346,9 @@ class _AddStudentDialogState extends State<AddStudentDialog> {
             TextField(
               controller: widget.phoneController,
               keyboardType: TextInputType.phone,
+              inputFormatters: [
+                FilteringTextInputFormatter.digitsOnly,
+              ],
               maxLength: 10,
               decoration: const InputDecoration(
                 labelText: 'Phone',
@@ -212,49 +357,31 @@ class _AddStudentDialogState extends State<AddStudentDialog> {
             ),
             TextField(
               controller: widget.sprNoController,
+              textCapitalization: TextCapitalization.characters,
+              inputFormatters: [
+                FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9]')),
+                UpperCaseTextFormatter(),
+              ],
               decoration: const InputDecoration(labelText: 'SPR No'),
             ),
-            TextField(
-              controller: addressController,
-              decoration: const InputDecoration(labelText: 'Address'),
-            ),
-            const SizedBox(height: 16),
-            const Align(
-              alignment: Alignment.centerLeft,
-              child: Text(
-                'Guardian Details',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-              ),
-            ),
-            TextField(
-              controller: widget.guardianNameController,
-              decoration: const InputDecoration(labelText: 'Guardian Name *'),
-            ),
-            DropdownButtonFormField<String>(
-              value: selectedGuardianRel,
-              decoration: const InputDecoration(labelText: 'Relationship *'),
-              items: guardianRelations.map((rel) {
-                return DropdownMenuItem<String>(value: rel, child: Text(rel));
+            DropdownButtonFormField<int>(
+              value: selectedGenderId,
+              decoration: const InputDecoration(labelText: 'Gender *'),
+              items: uniqueGenders.map((g) {
+                return DropdownMenuItem<int>(
+                  value: g['id'],
+                  child: Text(g['genderName'] ?? ''),
+                );
               }).toList(),
               onChanged: (value) {
                 setState(() {
-                  selectedGuardianRel = value;
-                  widget.guardianRelController.text = value ?? '';
+                  selectedGenderId = value;
                 });
               },
             ),
             TextField(
-              controller: widget.guardianPhoneController,
-              keyboardType: TextInputType.phone,
-              maxLength: 10,
-              decoration: const InputDecoration(
-                labelText: 'Guardian Phone *',
-                counterText: '',
-              ),
-            ),
-            TextField(
-              controller: widget.guardianEmailController,
-              decoration: const InputDecoration(labelText: 'Guardian Email'),
+              controller: addressController,
+              decoration: const InputDecoration(labelText: 'Address'),
             ),
             const SizedBox(height: 12),
             Row(
@@ -275,9 +402,11 @@ class _AddStudentDialogState extends State<AddStudentDialog> {
                   onPressed: () async {
                     final picked = await showDatePicker(
                       context: context,
-                      initialDate: DateTime(2004),
-                      firstDate: DateTime(1995),
-                      lastDate: DateTime.now(),
+                      initialDate: (selectedDob != null && !selectedDob!.isAfter(maxAllowedDob))
+                          ? selectedDob!
+                          : DateTime(now.year - 18, 1, 1),
+                      firstDate: minAllowedDob,
+                      lastDate: maxAllowedDob,
                     );
                     if (picked != null) {
                       setState(() {
@@ -290,7 +419,43 @@ class _AddStudentDialogState extends State<AddStudentDialog> {
                 ),
               ],
             ),
-            const SizedBox(height: 10),
+            const Divider(height: 32),
+            _buildSectionTitle('Guardian Details'),
+            TextField(
+              controller: widget.guardianNameController,
+              decoration: const InputDecoration(labelText: 'Guardian Name *'),
+            ),
+            DropdownButtonFormField<String>(
+              value: selectedGuardianRel,
+              decoration: const InputDecoration(labelText: 'Relationship *'),
+              items: guardianRelations.map((rel) {
+                return DropdownMenuItem<String>(value: rel, child: Text(rel));
+              }).toList(),
+              onChanged: (value) {
+                setState(() {
+                  selectedGuardianRel = value;
+                  widget.guardianRelController.text = value ?? '';
+                });
+              },
+            ),
+            TextField(
+              controller: widget.guardianPhoneController,
+              keyboardType: TextInputType.phone,
+              inputFormatters: [
+                FilteringTextInputFormatter.digitsOnly,
+              ],
+              maxLength: 10,
+              decoration: const InputDecoration(
+                labelText: 'Guardian Phone *',
+                counterText: '',
+              ),
+            ),
+            TextField(
+              controller: widget.guardianEmailController,
+              decoration: const InputDecoration(labelText: 'Guardian Email'),
+            ),
+            const Divider(height: 32),
+            _buildSectionTitle('Academic Details'),
             DropdownButtonFormField<int>(
               value: selectedDeptId,
               decoration: const InputDecoration(labelText: 'Department *'),
@@ -308,27 +473,13 @@ class _AddStudentDialogState extends State<AddStudentDialog> {
               },
             ),
             DropdownButtonFormField<int>(
-              value: selectedAcademicYearId,
-              decoration: const InputDecoration(labelText: 'Academic Year *'),
-              items: uniqueAcademicYears.map((ay) {
-                return DropdownMenuItem<int>(
-                  value: ay['id'],
-                  child: Text(ay['academicYear'] ?? ''),
-                );
-              }).toList(),
-              onChanged: (value) {
-                setState(() {
-                  selectedAcademicYearId = value;
-                });
-              },
-            ),
-            DropdownButtonFormField<int>(
               value: selectedYearId,
               decoration: const InputDecoration(labelText: 'Year *'),
               items: uniqueYears.map((y) {
+                final yLabel = y['yearNo'] != null ? "Year ${y['yearNo']}" : (y['name'] ?? y['yearName'] ?? '');
                 return DropdownMenuItem<int>(
                   value: y['id'],
-                  child: Text(y['yearNo'] != null ? "Year ${y['yearNo']}" : ''),
+                  child: Text(yLabel),
                 );
               }).toList(),
               onChanged: (value) {
@@ -353,21 +504,6 @@ class _AddStudentDialogState extends State<AddStudentDialog> {
               onChanged: (value) {
                 setState(() {
                   selectedSemesterId = value;
-                });
-              },
-            ),
-            DropdownButtonFormField<int>(
-              value: selectedGenderId,
-              decoration: const InputDecoration(labelText: 'Gender *'),
-              items: uniqueGenders.map((g) {
-                return DropdownMenuItem<int>(
-                  value: g['id'],
-                  child: Text(g['genderName'] ?? ''),
-                );
-              }).toList(),
-              onChanged: (value) {
-                setState(() {
-                  selectedGenderId = value;
                 });
               },
             ),
@@ -411,19 +547,7 @@ class _AddStudentDialogState extends State<AddStudentDialog> {
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                 ),
-                onPressed: () {
-                  widget.onAddStudent(
-                    departmentId: selectedDeptId,
-                    academicYearId: selectedAcademicYearId,
-                    yearId: selectedYearId,
-                    semesterId: selectedSemesterId,
-                    genderId: selectedGenderId,
-                    sectionId: selectedSectionId,
-                    groupId: null,
-                    address: addressController.text,
-                    dob: selectedDob,
-                  );
-                },
+                onPressed: _validateAndSubmit,
                 child: const Text('Save'),
               ),
             ],

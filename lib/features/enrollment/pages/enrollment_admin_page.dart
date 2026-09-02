@@ -11,6 +11,7 @@ import 'package:pragatix/core/di/service_locator.dart';
 import 'package:pragatix/features/enrollment/models/enrollment_model.dart';
 import 'package:pragatix/features/enrollment/repository/enrollment_repository.dart';
 import 'package:pragatix/core/utils/string_utils.dart';
+import 'package:pragatix/core/utils/export_utils.dart';
 
 class EnrollmentAdminPage extends StatefulWidget {
   const EnrollmentAdminPage({super.key});
@@ -174,54 +175,12 @@ class _EnrollmentAdminPageState extends State<EnrollmentAdminPage> with SingleTi
         return;
       }
 
-      if (Platform.isAndroid && (await Permission.storage.request().isDenied)) {
-        await Permission.manageExternalStorage.request();
-      }
-
-      Directory? dir;
-      if (Platform.isAndroid) {
-        dir = Directory('/storage/emulated/0/Download');
-        if (!await dir.exists()) {
-          dir = await getExternalStorageDirectory();
-          dir ??= await getApplicationDocumentsDirectory();
-        }
-      } else if (Platform.isIOS) {
-        dir = await getApplicationDocumentsDirectory();
-      } else {
-        dir = await getDownloadsDirectory();
-      }
-
-      if (dir != null) {
-        String filename = 'Student_Enrollment_Template.xlsx';
-        String filePath = '${dir.path}/$filename';
-        File file = File(filePath);
-
-        int counter = 1;
-        while (await file.exists()) {
-          filename = 'Student_Enrollment_Template_($counter).xlsx';
-          filePath = '${dir.path}/$filename';
-          file = File(filePath);
-          counter++;
-        }
-
-        await file.writeAsBytes(bytes);
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Downloaded: $filename'),
-              backgroundColor: Colors.green,
-              action: SnackBarAction(
-                label: 'Open',
-                textColor: Colors.white,
-                onPressed: () => OpenFilex.open(
-                  file.path,
-                  type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-                ),
-              ),
-            ),
-          );
-        }
-      }
+      await ExportUtils.saveBytesAndOpen(
+        context,
+        bytes,
+        'Student_Enrollment_Template.xlsx',
+        successMessage: 'Template downloaded successfully!',
+      );
     } catch (e) {
       _showSnackBar('Error downloading template: $e', isError: true);
     }

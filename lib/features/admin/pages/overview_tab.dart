@@ -11,6 +11,7 @@ import 'package:pragatix/features/auth/providers/auth_provider.dart';
 
 import '../../leaderboard/pages/shared_leaderboard_page.dart';
 import '../../recycle_bin/screens/recycle_bin_screen.dart';
+import '../../recycle_bin/services/recycle_bin_service.dart';
 import 'package:pragatix/features/admin/pages/admin_levels_page.dart';
 
 class OverviewTab extends StatefulWidget {
@@ -27,6 +28,7 @@ class _OverviewTabState extends State<OverviewTab> {
   int totalDepartments = 0;
   int totalAlerts = 0;
   int pendingBadgeRequests = 0;
+  int recycleBinCount = 0;
   bool isLoading = true;
   bool hasError = false;
 
@@ -45,6 +47,13 @@ class _OverviewTabState extends State<OverviewTab> {
     });
     try {
       final stats = await getIt<AdminRepository>().getStats();
+      int rCount = 0;
+      try {
+        final auth = context.read<AuthProvider>();
+        final items = await RecycleBinService(auth).getDeletedItems();
+        rCount = items.length;
+      } catch (_) {}
+
       if (!mounted) return;
       setState(() {
         totalStudents = stats['totalStudents'] ?? 0;
@@ -52,6 +61,7 @@ class _OverviewTabState extends State<OverviewTab> {
         totalDepartments = stats['totalDepartments'] ?? 0;
         totalAlerts = stats['totalAlerts'] ?? 0;
         pendingBadgeRequests = stats['pendingBadgeRequests'] ?? 0;
+        recycleBinCount = rCount;
         isLoading = false;
       });
     } catch (e, stackTrace) {
@@ -233,17 +243,27 @@ class _OverviewTabState extends State<OverviewTab> {
           Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Recycle Bin
+              // Recycle Bin (Dynamic 3D Empty vs Full)
               _buildHeaderActionButton(
-                icon: Icons.delete,
-                tooltip: 'Recycle Bin',
-                onPressed: () {
-                  Navigator.push(
+                customIcon: Image.asset(
+                  recycleBinCount > 0
+                      ? 'assets/images/recycle_bin_full.png'
+                      : 'assets/images/recycle_bin_empty.png',
+                  width: 24,
+                  height: 24,
+                  fit: BoxFit.contain,
+                ),
+                tooltip: recycleBinCount > 0
+                    ? 'Recycle Bin ($recycleBinCount items)'
+                    : 'Recycle Bin (Empty)',
+                onPressed: () async {
+                  await Navigator.push(
                     context,
                     MaterialPageRoute(
                       builder: (context) => const RecycleBinScreen(),
                     ),
                   );
+                  _fetchStats();
                 },
               ),
               const SizedBox(width: 6),
@@ -286,9 +306,11 @@ class _OverviewTabState extends State<OverviewTab> {
   }
 
   Widget _buildHeaderActionButton({
-    required IconData icon,
+    IconData? icon,
+    Widget? customIcon,
     required String tooltip,
     required VoidCallback onPressed,
+    Color iconColor = const Color(0xFF1E293B),
   }) {
     return Container(
       width: 38,
@@ -310,7 +332,7 @@ class _OverviewTabState extends State<OverviewTab> {
       ),
       child: IconButton(
         padding: EdgeInsets.zero,
-        icon: Icon(icon, size: 19, color: const Color(0xFF1E293B)),
+        icon: customIcon ?? Icon(icon, size: 20, color: iconColor),
         tooltip: tooltip,
         onPressed: onPressed,
       ),

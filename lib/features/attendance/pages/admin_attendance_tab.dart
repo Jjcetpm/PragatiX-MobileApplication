@@ -15,6 +15,7 @@ import '../services/attendance_service.dart';
 import '../../admin/pages/attendance_settings_page.dart';
 import '../../admin/pages/attendance_settings_year_selection_page.dart';
 import 'package:pragatix/core/utils/error_handler.dart';
+import 'package:pragatix/features/admin/repository/admin_repository.dart';
 
 class AdminAttendanceTab extends StatefulWidget {
   const AdminAttendanceTab({Key? key}) : super(key: key);
@@ -86,29 +87,28 @@ class _AdminAttendanceTabState extends State<AdminAttendanceTab> {
   Future<void> _loadLookups() async {
     setState(() => _isLoadingLookups = true);
     try {
-      final token = getIt<AuthProvider>().token ?? '';
-      final headers = {'Authorization': 'Bearer $token'};
+      final repo = getIt<AdminRepository>();
       final results = await Future.wait([
-        http.get(
-          Uri.parse('${ApiConfig.baseUrl}/api/v1/admin/years'),
-          headers: headers,
-        ),
-        http.get(
-          Uri.parse('${ApiConfig.baseUrl}/api/v1/admin/departments?type=MAIN'),
-          headers: headers,
-        ),
+        repo.getAssignedYears(),
+        repo.getDepartments(all: true),
       ]);
 
       if (!mounted) return;
 
-      final yearsList = _safeDecodeList(results[0].body);
-      final deptsList = _safeDecodeList(results[1].body);
+      final yearsList = results[0] as List<dynamic>;
+      final deptsList = (results[1] as List<dynamic>).where((d) {
+        final type = (d['departmentType'] ?? d['type'] ?? '').toString().toUpperCase();
+        final name = (d['name'] ?? d['deptName'] ?? '').toString();
+        if (type == 'SUB') return false;
+        if (name.toLowerCase().startsWith('department of')) return false;
+        return true;
+      }).toList();
 
       setState(() {
         _years = yearsList;
         _departments = deptsList;
 
-        if (_years.isNotEmpty && _yearId == null) {
+        if (_years.isNotEmpty && (_yearId == null || !_years.any((y) => y['id'] == _yearId))) {
           _yearId = _years.first['id'];
         }
         
@@ -205,7 +205,6 @@ class _AdminAttendanceTabState extends State<AdminAttendanceTab> {
   }
 
   Future<void> _exportData() async {
-    LoadingService.show(message: 'Exporting attendance...');
     try {
       final token = getIt<AuthProvider>().token ?? '';
       

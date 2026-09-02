@@ -493,8 +493,6 @@ class AdminRepository {
     int? semesterId,
     String? semester,
     int? sectionId,
-    int? academicYearId,
-    String? academicYear,
   }) async {
     final response = await _adminService.put(
       '/api/v1/students/batch-update',
@@ -506,8 +504,6 @@ class AdminRepository {
         if (semesterId != null) 'semesterId': semesterId,
         if (semester != null) 'semester': semester,
         if (sectionId != null) 'sectionId': sectionId,
-        if (academicYearId != null) 'academicYearId': academicYearId,
-        if (academicYear != null) 'academicYear': academicYear,
       },
     );
     return _handleResponse(response);

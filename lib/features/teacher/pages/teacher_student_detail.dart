@@ -29,7 +29,7 @@ class _TeacherStudentDetailState extends State<TeacherStudentDetail> {
   void initState() {
     super.initState();
     _studentData = Map<String, dynamic>.from(widget.student);
-    currentScore = _studentData['score'] ?? 100;
+    currentScore = _studentData['score'] ?? 0;
     currentStreak = _studentData['currentStreak'] ?? 0;
     isCurrentlyCaptain =
         _studentData['teamRole'] == 'CAPTAIN' ||

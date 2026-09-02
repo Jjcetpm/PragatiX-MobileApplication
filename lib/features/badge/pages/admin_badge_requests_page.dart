@@ -7,6 +7,9 @@ import 'package:pragatix/features/badge/models/badge_request.dart';
 import 'package:pragatix/features/badge/models/badge_item.dart';
 import 'package:pragatix/features/badge/pages/admin_add_edit_badge_page.dart';
 import 'package:pragatix/core/utils/proof_viewer_utils.dart';
+import 'package:pragatix/core/di/service_locator.dart';
+import 'package:pragatix/features/admin/repository/admin_repository.dart';
+import 'package:pragatix/features/admin/widgets/student_filter_panel.dart';
 import 'package:intl/intl.dart';
 
 class AdminBadgeRequestsPage extends StatefulWidget {
@@ -22,18 +25,32 @@ class _AdminBadgeRequestsPageState extends State<AdminBadgeRequestsPage>
   String _selectedStatus = 'PENDING';
   String _badgeSearchQuery = '';
 
+  // Lookups & Filters
+  List<dynamic> _departments = [];
+  List<dynamic> _years = [];
+  List<dynamic> _sections = [];
+  List<dynamic> _filterSections = [];
+  String? _selectedYear;
+  int? _selectedDepartmentId;
+  int? _selectedSectionId;
+  final TextEditingController _searchController = TextEditingController();
+  String _searchQuery = '';
+  bool _isLoadingLookups = true;
+
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadData();
+      _loadLookups();
     });
   }
 
   @override
   void dispose() {
     _tabController.dispose();
+    _searchController.dispose();
     super.dispose();
   }
 
@@ -43,6 +60,100 @@ class _AdminBadgeRequestsPageState extends State<AdminBadgeRequestsPage>
       context.read<BadgeProvider>().fetchAdminCCBadgeRequests(token, 'ADMIN');
       context.read<BadgeProvider>().fetchAdminBadges(token);
     }
+  }
+
+  Future<void> _loadLookups() async {
+    try {
+      final repo = getIt<AdminRepository>();
+      final results = await Future.wait([
+        repo.getDepartments(all: true),
+        repo.getYears(),
+        repo.getSections(),
+        repo.getAssignedYears(),
+      ]);
+      if (!mounted) return;
+
+      final mainDepartments = results[0].where((d) {
+        final type = (d['departmentType'] ?? d['type'] ?? '').toString().toUpperCase();
+        final name = (d['name'] ?? d['deptName'] ?? '').toString();
+        if (type == 'SUB') return false;
+        if (name.toLowerCase().startsWith('department of')) return false;
+        return true;
+      }).toList();
+
+      final user = context.read<AuthProvider>().currentUser;
+      final roles = (user?['roles'] as List<dynamic>? ?? []).map((e) => e.toString()).toList();
+      final isSuperAdmin = roles.contains('ROLE_SUPER_ADMIN');
+
+      String? adminYear;
+      if (!isSuperAdmin) {
+        adminYear = user?['assignedYearName'] ?? user?['academicYear'] ?? user?['year'];
+      }
+
+      setState(() {
+        _departments = mainDepartments;
+        _years = results[3].isNotEmpty ? results[3] : results[1];
+        _sections = results[2];
+        _filterSections = results[2];
+        if (!isSuperAdmin && adminYear != null && adminYear.toString().trim().isNotEmpty) {
+          _selectedYear = adminYear.toString().trim();
+        }
+        _isLoadingLookups = false;
+      });
+    } catch (_) {
+      if (mounted) setState(() => _isLoadingLookups = false);
+    }
+  }
+
+  bool _matchesYear(BadgeRequest req, String targetYear) {
+    if (targetYear.isEmpty || targetYear.toLowerCase() == 'all') return true;
+
+    final String cleanTarget = targetYear.replaceAll(RegExp(r'[^0-9]'), '');
+    final String reqYearName = (req.yearName ?? req.academicYear ?? '').trim();
+    final String cleanReq = reqYearName.replaceAll(RegExp(r'[^0-9]'), '');
+
+    if (cleanTarget.isNotEmpty && cleanReq.isNotEmpty) {
+      return cleanTarget == cleanReq;
+    }
+
+    return reqYearName.toLowerCase().contains(targetYear.toLowerCase()) ||
+        targetYear.toLowerCase().contains(reqYearName.toLowerCase());
+  }
+
+  bool _matchesDepartment(BadgeRequest req, int? targetDeptId) {
+    if (targetDeptId == null) return true;
+    if (req.departmentId != null && req.departmentId == targetDeptId) return true;
+
+    final dept = _departments.firstWhere(
+      (d) => d['id'] == targetDeptId,
+      orElse: () => null,
+    );
+    if (dept != null) {
+      final dName = (dept['name'] ?? dept['deptName'] ?? dept['code'] ?? dept['deptCode'] ?? '')
+          .toString()
+          .toLowerCase();
+      final reqDName = req.departmentName.toLowerCase();
+      if (dName.isNotEmpty && (reqDName.contains(dName) || dName.contains(reqDName))) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  bool _matchesSection(BadgeRequest req, int? targetSectionId) {
+    if (targetSectionId == null) return true;
+    if (req.sectionId != null && req.sectionId == targetSectionId) return true;
+
+    final sec = (_filterSections.isNotEmpty ? _filterSections : _sections).firstWhere(
+      (s) => s['id'] == targetSectionId,
+      orElse: () => null,
+    );
+    if (sec != null) {
+      final sName = (sec['sectionName'] ?? sec['name'] ?? '').toString().toLowerCase();
+      final reqSName = req.sectionName.toLowerCase();
+      if (sName.isNotEmpty && reqSName == sName) return true;
+    }
+    return false;
   }
 
 
@@ -247,63 +358,267 @@ class _AdminBadgeRequestsPageState extends State<AdminBadgeRequestsPage>
   // ═══════════════════════════════════════════════════════════════════════════
 
   Widget _buildRequestsTab(BadgeProvider badgeProvider) {
-    final requests = badgeProvider.adminCCBadgeRequests
+    if (badgeProvider.isLoading || _isLoadingLookups) {
+      return const Center(child: PragatiXLoader());
+    }
+
+    final user = context.read<AuthProvider>().currentUser;
+    final roles = (user?['roles'] as List<dynamic>? ?? []).map((e) => e.toString()).toList();
+    final isSuperAdmin = roles.contains('ROLE_SUPER_ADMIN');
+    final String? adminAssignedYear = !isSuperAdmin
+        ? (user?['assignedYearName'] ?? user?['academicYear'] ?? user?['year'])?.toString()
+        : null;
+
+    final effectiveYear = !isSuperAdmin ? (adminAssignedYear ?? _selectedYear) : _selectedYear;
+
+    final allParsedRequests = badgeProvider.adminCCBadgeRequests
         .map((json) => BadgeRequest.fromJson(json))
-        .where((r) => r.status == _selectedStatus)
         .toList();
 
-    return Column(
+    final filteredRequests = allParsedRequests.where((r) {
+      // 1. Status Filter
+      if (r.status.toUpperCase() != _selectedStatus.toUpperCase()) {
+        return false;
+      }
+
+      // 2. Year Filter
+      if (effectiveYear != null && effectiveYear.isNotEmpty && effectiveYear.toLowerCase() != 'all') {
+        if (!_matchesYear(r, effectiveYear)) {
+          return false;
+        }
+      }
+
+      // 3. Department Filter
+      if (_selectedDepartmentId != null) {
+        if (!_matchesDepartment(r, _selectedDepartmentId)) {
+          return false;
+        }
+      }
+
+      // 4. Section Filter
+      if (_selectedSectionId != null) {
+        if (!_matchesSection(r, _selectedSectionId)) {
+          return false;
+        }
+      }
+
+      // 5. Search Filter
+      if (_searchQuery.isNotEmpty) {
+        final q = _searchQuery.toLowerCase();
+        final name = r.studentName.toLowerCase();
+        final reg = r.regNo.toLowerCase();
+        final badge = r.badgeName.toLowerCase();
+        if (!name.contains(q) && !reg.contains(q) && !badge.contains(q)) {
+          return false;
+        }
+      }
+
+      return true;
+    }).toList();
+
+    int getFilteredCount(String status) {
+      return allParsedRequests.where((r) {
+        if (r.status.toUpperCase() != status.toUpperCase()) return false;
+        if (effectiveYear != null && effectiveYear.isNotEmpty && effectiveYear.toLowerCase() != 'all') {
+          if (!_matchesYear(r, effectiveYear)) return false;
+        }
+        if (_selectedDepartmentId != null) {
+          if (!_matchesDepartment(r, _selectedDepartmentId)) return false;
+        }
+        if (_selectedSectionId != null) {
+          if (!_matchesSection(r, _selectedSectionId)) return false;
+        }
+        if (_searchQuery.isNotEmpty) {
+          final q = _searchQuery.toLowerCase();
+          final name = r.studentName.toLowerCase();
+          final reg = r.regNo.toLowerCase();
+          final badge = r.badgeName.toLowerCase();
+          if (!name.contains(q) && !reg.contains(q) && !badge.contains(q)) return false;
+        }
+        return true;
+      }).length;
+    }
+
+    final headerWidget = Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        // Filter Panel
+        Container(
+          margin: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 4.0),
+          padding: const EdgeInsets.all(12.0),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: const Color(0xFFE2E8F0)),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFF64748B).withValues(alpha: 0.04),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              if (!isSuperAdmin && adminAssignedYear != null && adminAssignedYear.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 10.0),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFEFF6FF),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: const Color(0xFFBFDBFE)),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.lock_outline_rounded, size: 14, color: Color(0xFF2563EB)),
+                            const SizedBox(width: 4),
+                            Text(
+                              'Assigned Year: $adminAssignedYear',
+                              style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                                color: Color(0xFF1E40AF),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              StudentFilterPanel(
+                searchController: _searchController,
+                onSearchChanged: (value) {
+                  setState(() {
+                    _searchQuery = value.trim();
+                  });
+                },
+                isSuperAdmin: isSuperAdmin,
+                years: _years,
+                departments: _departments,
+                sections: _filterSections,
+                selectedYear: isSuperAdmin ? _selectedYear : (adminAssignedYear ?? _selectedYear),
+                selectedDepartmentId: _selectedDepartmentId,
+                selectedSectionId: _selectedSectionId,
+                onYearChanged: (year) async {
+                  setState(() {
+                    _selectedYear = year;
+                    _selectedSectionId = null;
+                    _filterSections = [];
+                  });
+                  if (_selectedDepartmentId != null) {
+                    try {
+                      final secs = await getIt<AdminRepository>().getFilterSections(
+                        year: _selectedYear,
+                        departmentId: _selectedDepartmentId,
+                      );
+                      if (mounted) setState(() => _filterSections = secs);
+                    } catch (_) {
+                      if (mounted) setState(() => _filterSections = []);
+                    }
+                  }
+                },
+                onDepartmentChanged: (deptId) async {
+                  setState(() {
+                    _selectedDepartmentId = deptId;
+                    _selectedSectionId = null;
+                  });
+                  if (deptId != null) {
+                    try {
+                      final secs = await getIt<AdminRepository>().getFilterSections(
+                        year: isSuperAdmin ? _selectedYear : (adminAssignedYear ?? _selectedYear),
+                        departmentId: deptId,
+                      );
+                      if (mounted) setState(() => _filterSections = secs);
+                    } catch (_) {
+                      if (mounted) setState(() => _filterSections = []);
+                    }
+                  } else {
+                    setState(() => _filterSections = _sections);
+                  }
+                },
+                onSectionChanged: (secId) {
+                  setState(() => _selectedSectionId = secId);
+                },
+                onReset: () {
+                  setState(() {
+                    if (isSuperAdmin) {
+                      _selectedYear = null;
+                    }
+                    _selectedDepartmentId = null;
+                    _selectedSectionId = null;
+                    _filterSections = _sections;
+                    _searchController.clear();
+                    _searchQuery = '';
+                  });
+                },
+              ),
+            ],
+          ),
+        ),
+
+        // Status chips
         Padding(
           padding: const EdgeInsets.symmetric(vertical: 6.0, horizontal: 16.0),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              _buildFilterChip('PENDING', badgeProvider),
+              _buildFilterChip('PENDING', getFilteredCount('PENDING')),
               const SizedBox(width: 8),
-              _buildFilterChip('APPROVED', badgeProvider),
+              _buildFilterChip('APPROVED', getFilteredCount('APPROVED')),
               const SizedBox(width: 8),
-              _buildFilterChip('REJECTED', badgeProvider),
+              _buildFilterChip('REJECTED', getFilteredCount('REJECTED')),
             ],
           ),
         ),
-        Expanded(
-          child: badgeProvider.isLoading
-              ? const Center(child: PragatiXLoader())
-              : requests.isEmpty
-                  ? Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.inbox_outlined, size: 64, color: Colors.grey.shade400),
-                          const SizedBox(height: 12),
-                          Text(
-                            'No $_selectedStatus badge requests found.',
-                            style: TextStyle(color: Colors.grey.shade600, fontSize: 16),
-                          ),
-                        ],
-                      ),
-                    )
-                  : RefreshIndicator(
-                      onRefresh: () async => _loadData(),
-                      child: ListView.builder(
-                        padding: const EdgeInsets.symmetric(vertical: 8),
-                        itemCount: requests.length,
-                        itemBuilder: (context, index) {
-                          return _buildRequestCard(requests[index]);
-                        },
-                      ),
-                    ),
-        ),
       ],
+    );
+
+    return RefreshIndicator(
+      onRefresh: () async {
+        _loadData();
+        _loadLookups();
+      },
+      child: ListView.builder(
+        padding: const EdgeInsets.only(bottom: 24, top: 4),
+        itemCount: 1 + (filteredRequests.isEmpty ? 1 : filteredRequests.length),
+        itemBuilder: (context, index) {
+          if (index == 0) {
+            return headerWidget;
+          }
+          if (filteredRequests.isEmpty) {
+            return Padding(
+              padding: const EdgeInsets.only(top: 36.0, bottom: 36.0),
+              child: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.inbox_outlined, size: 64, color: Colors.grey.shade400),
+                    const SizedBox(height: 12),
+                    Text(
+                      'No $_selectedStatus badge requests found.',
+                      style: TextStyle(color: Colors.grey.shade600, fontSize: 16),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }
+          final req = filteredRequests[index - 1];
+          return _buildRequestCard(req);
+        },
+      ),
     );
   }
 
-  Widget _buildFilterChip(String status, BadgeProvider badgeProvider) {
+  Widget _buildFilterChip(String status, int count) {
     final isSelected = _selectedStatus == status;
-    final int count = badgeProvider.adminCCBadgeRequests
-        .where((r) => (r['status'] ?? '').toString().toUpperCase() == status)
-        .length;
 
     Color chipColor;
     switch (status) {
@@ -546,6 +861,10 @@ class _AdminBadgeRequestsPageState extends State<AdminBadgeRequestsPage>
   // ═══════════════════════════════════════════════════════════════════════════
 
   Widget _buildBadgesTab(BadgeProvider badgeProvider) {
+    if (badgeProvider.isLoading) {
+      return const Center(child: PragatiXLoader());
+    }
+
     final badges = badgeProvider.adminBadges.where((b) {
       if (_badgeSearchQuery.isEmpty) return true;
       final q = _badgeSearchQuery.toLowerCase();
@@ -554,7 +873,8 @@ class _AdminBadgeRequestsPageState extends State<AdminBadgeRequestsPage>
           b.description.toLowerCase().contains(q);
     }).toList();
 
-    return Column(
+    final headerWidget = Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         // Search Bar
         Padding(
@@ -625,45 +945,47 @@ class _AdminBadgeRequestsPageState extends State<AdminBadgeRequestsPage>
             ],
           ),
         ),
-
-        // Badges List
-        Expanded(
-          child: badgeProvider.isLoading
-              ? const Center(child: PragatiXLoader())
-              : badges.isEmpty
-                  ? Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.workspace_premium_outlined, size: 64, color: Colors.grey.shade400),
-                          const SizedBox(height: 12),
-                          Text(
-                            _badgeSearchQuery.isEmpty
-                                ? 'No badges created yet.\nClick "+ Add New Badge" to create one.'
-                                : 'No badges matching "$_badgeSearchQuery"',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(color: Colors.grey.shade600, fontSize: 15),
-                          ),
-                        ],
-                      ),
-                    )
-                  : RefreshIndicator(
-                      onRefresh: () async {
-                        final token = context.read<AuthProvider>().token;
-                        if (token != null) {
-                          await badgeProvider.fetchAdminBadges(token);
-                        }
-                      },
-                      child: ListView.builder(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                        itemCount: badges.length,
-                        itemBuilder: (context, index) {
-                          return _buildBadgeMasterCard(badges[index]);
-                        },
-                      ),
-                    ),
-        ),
       ],
+    );
+
+    return RefreshIndicator(
+      onRefresh: () async {
+        final token = context.read<AuthProvider>().token;
+        if (token != null) {
+          await badgeProvider.fetchAdminBadges(token);
+        }
+      },
+      child: ListView.builder(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        itemCount: 1 + (badges.isEmpty ? 1 : badges.length),
+        itemBuilder: (context, index) {
+          if (index == 0) {
+            return headerWidget;
+          }
+          if (badges.isEmpty) {
+            return Padding(
+              padding: const EdgeInsets.only(top: 36.0, bottom: 36.0),
+              child: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.workspace_premium_outlined, size: 64, color: Colors.grey.shade400),
+                    const SizedBox(height: 12),
+                    Text(
+                      _badgeSearchQuery.isEmpty
+                          ? 'No badges created yet.\nClick "+ Add New Badge" to create one.'
+                          : 'No badges matching "$_badgeSearchQuery"',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: Colors.grey.shade600, fontSize: 15),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }
+          return _buildBadgeMasterCard(badges[index - 1]);
+        },
+      ),
     );
   }
 

@@ -5,6 +5,7 @@ class SharedLeaderboardTile extends StatelessWidget {
   final String name;
   final String subtitle;
   final int score;
+  final String? gender;
   final bool isCurrentUser;
   final Color themeColor;
   final bool isCaptain;
@@ -16,6 +17,7 @@ class SharedLeaderboardTile extends StatelessWidget {
     required this.name,
     required this.subtitle,
     required this.score,
+    this.gender,
     this.isCurrentUser = false,
     this.themeColor = const Color(0xFF4F46E5),
     this.isCaptain = false,
@@ -35,47 +37,44 @@ class SharedLeaderboardTile extends StatelessWidget {
     return colors[(rank - 1) % colors.length];
   }
 
-  Color _getAvatarBg(int rank) {
-    const bgs = [
-      Color(0xFFEDE9FE), // Lavender
-      Color(0xFFD1FAE5), // Mint
-      Color(0xFFFFEDD5), // Peach
-      Color(0xFFE0F2FE), // Sky
-      Color(0xFFF3E8FF), // Purple
-      Color(0xFFFCE7F3), // Pink
-      Color(0xFFFEF3C7), // Amber
-    ];
-    return bgs[(rank - 1) % bgs.length];
-  }
+  Widget _buildAvatar() {
+    final String g = (gender ?? '').trim().toLowerCase();
+    final bool isFemale = g.startsWith('f') || g == 'female' || g == 'girl';
+    final String avatarAsset = isFemale
+        ? 'assets/images/avatar_female.png'
+        : 'assets/images/avatar_male.png';
 
-  Color _getAvatarText(int rank) {
-    const texts = [
-      Color(0xFF4338CA),
-      Color(0xFF047857),
-      Color(0xFFC2410C),
-      Color(0xFF0369A1),
-      Color(0xFF6D28D9),
-      Color(0xFFBE185D),
-      Color(0xFFB45309),
-    ];
-    return texts[(rank - 1) % texts.length];
-  }
-
-  String _getInitials(String name) {
-    if (name.trim().isEmpty) return '';
-    final parts = name.trim().split(RegExp(r'\s+'));
-    if (parts.length > 1) {
-      return '${parts[0][0]}${parts[1][0]}'.toUpperCase();
-    }
-    return parts[0][0].toUpperCase();
+    return Container(
+      width: 38,
+      height: 38,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        border: Border.all(
+          color: const Color(0xFFE2E8F0),
+          width: 1.5,
+        ),
+      ),
+      child: ClipOval(
+        child: Image.asset(
+          avatarAsset,
+          width: 38,
+          height: 38,
+          fit: BoxFit.cover,
+          errorBuilder: (_, __, ___) => CircleAvatar(
+            backgroundColor: const Color(0xFFEDE9FE),
+            child: Text(
+              name.isNotEmpty ? name[0].toUpperCase() : 'S',
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     final accentColor = _getAccentColor(rank);
-    final avatarBg = _getAvatarBg(rank);
-    final avatarText = _getAvatarText(rank);
-    final initials = _getInitials(name);
 
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
@@ -128,19 +127,8 @@ class SharedLeaderboardTile extends StatelessWidget {
               ),
               const SizedBox(width: 10),
 
-              // Initials Avatar
-              CircleAvatar(
-                radius: 19,
-                backgroundColor: avatarBg,
-                child: Text(
-                  initials,
-                  style: TextStyle(
-                    fontSize: 12.5,
-                    fontWeight: FontWeight.w800,
-                    color: avatarText,
-                  ),
-                ),
-              ),
+              // Gender Avatar
+              _buildAvatar(),
               const SizedBox(width: 12),
 
               // Name and Department Subtitle

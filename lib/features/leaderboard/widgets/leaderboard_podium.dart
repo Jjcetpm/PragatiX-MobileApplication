@@ -123,7 +123,11 @@ class LeaderboardPodium extends StatelessWidget {
     final int score = (student['totalXp'] is num)
         ? (student['totalXp'] as num).toInt()
         : (int.tryParse(student['totalXp']?.toString() ?? '0') ?? 0);
-    final String initials = _getInitials(name);
+    final String g = (student['gender'] ?? '').toString().trim().toLowerCase();
+    final bool isFemale = g.startsWith('f') || g == 'female' || g == 'girl';
+    final String avatarAsset = isFemale
+        ? 'assets/images/avatar_female.png'
+        : 'assets/images/avatar_male.png';
 
     return Container(
       padding: const EdgeInsets.only(top: 8),
@@ -151,15 +155,37 @@ class LeaderboardPodium extends StatelessWidget {
             clipBehavior: Clip.none,
             alignment: Alignment.bottomCenter,
             children: [
-              CircleAvatar(
-                radius: 32,
-                backgroundColor: const Color(0xFF4F46E5),
-                child: Text(
-                  initials,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w900,
-                    fontSize: 19,
+              Container(
+                width: 64,
+                height: 64,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(color: const Color(0xFFF59E0B), width: 2.5),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFFF59E0B).withValues(alpha: 0.25),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: ClipOval(
+                  child: Image.asset(
+                    avatarAsset,
+                    width: 64,
+                    height: 64,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => CircleAvatar(
+                      backgroundColor: const Color(0xFF4F46E5),
+                      child: Text(
+                        _getInitials(name),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w900,
+                          fontSize: 19,
+                        ),
+                      ),
+                    ),
                   ),
                 ),
               ),
@@ -278,7 +304,11 @@ class LeaderboardPodium extends StatelessWidget {
     final int score = (student['totalXp'] is num)
         ? (student['totalXp'] as num).toInt()
         : (int.tryParse(student['totalXp']?.toString() ?? '0') ?? 0);
-    final String initials = _getInitials(name);
+    final String g = (student['gender'] ?? '').toString().trim().toLowerCase();
+    final bool isFemale = g.startsWith('f') || g == 'female' || g == 'girl';
+    final String avatarAsset = isFemale
+        ? 'assets/images/avatar_female.png'
+        : 'assets/images/avatar_male.png';
 
     return Column(
       mainAxisAlignment: MainAxisAlignment.end,
@@ -294,18 +324,62 @@ class LeaderboardPodium extends StatelessWidget {
         ),
         const SizedBox(height: 6),
 
-        // Avatar
-        CircleAvatar(
-          radius: avatarRadius,
-          backgroundColor: avatarBg,
-          child: Text(
-            initials,
-            style: TextStyle(
-              color: avatarTextColor,
-              fontWeight: FontWeight.w800,
-              fontSize: 14,
+        // Gender Avatar with Rank Badge
+        Stack(
+          clipBehavior: Clip.none,
+          alignment: Alignment.bottomCenter,
+          children: [
+            Container(
+              width: avatarRadius * 2,
+              height: avatarRadius * 2,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(color: ribbonColor.withValues(alpha: 0.7), width: 2),
+              ),
+              child: ClipOval(
+                child: Image.asset(
+                  avatarAsset,
+                  width: avatarRadius * 2,
+                  height: avatarRadius * 2,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) => CircleAvatar(
+                    radius: avatarRadius,
+                    backgroundColor: avatarBg,
+                    child: Text(
+                      _getInitials(name),
+                      style: TextStyle(
+                        color: avatarTextColor,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
             ),
-          ),
+            Positioned(
+              bottom: -6,
+              child: Container(
+                width: 18,
+                height: 18,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: ribbonColor,
+                  border: Border.all(color: Colors.white, width: 1.5),
+                ),
+                child: Center(
+                  child: Text(
+                    '$rank',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w900,
+                      fontSize: 10,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
         ),
         const SizedBox(height: 8),
 

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:pragatix/core/widgets/pragatix_loader.dart';
 import 'package:pragatix/core/utils/string_utils.dart';
 
@@ -14,7 +15,6 @@ class EditStudentDialog extends StatefulWidget {
   final TextEditingController guardianPhoneController;
   final TextEditingController guardianEmailController;
   final List<dynamic> departments;
-  final List<dynamic> academicYears;
   final List<dynamic> years;
   final List<dynamic> semesters;
   final List<dynamic> genders;
@@ -27,7 +27,6 @@ class EditStudentDialog extends StatefulWidget {
     required String phone,
     required int? genderId,
     required int? departmentId,
-    required int? academicYearId,
     required int? yearId,
     required int? semesterId,
     required int? sectionId,
@@ -53,7 +52,6 @@ class EditStudentDialog extends StatefulWidget {
     required this.guardianPhoneController,
     required this.guardianEmailController,
     required this.departments,
-    required this.academicYears,
     required this.years,
     required this.semesters,
     required this.genders,
@@ -70,7 +68,6 @@ class EditStudentDialog extends StatefulWidget {
 class _EditStudentDialogState extends State<EditStudentDialog> {
   int? lastFetchedDeptId;
   int? selectedDeptId;
-  int? selectedAcademicYearId;
   int? selectedYearId;
   int? selectedSemesterId;
   int? selectedGenderId;
@@ -88,13 +85,8 @@ class _EditStudentDialogState extends State<EditStudentDialog> {
   String? selectedGuardianRel;
   bool isFetchingSections = false;
 
-  String _normalizeSectionName(String name) {
-    String cleaned = name.trim().toLowerCase();
-    if (cleaned.startsWith('section ')) {
-      cleaned = cleaned.substring(8).trim();
-    }
-    return cleaned;
-  }
+  final RegExp _emailRegex = RegExp(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$');
+  final RegExp _phoneRegex = RegExp(r'^\d{10}$');
 
   List<dynamic> _deduplicate(List<dynamic> list) {
     final seenIds = <int>{};
@@ -116,7 +108,7 @@ class _EditStudentDialogState extends State<EditStudentDialog> {
     widget.regNoController.text = s['regNo'] ?? '';
     widget.nameController.text = s['fullName'] ?? '';
     widget.emailController.text = s['email'] ?? '';
-    widget.phoneController.text = s['phone'] ?? '';
+    widget.phoneController.text = s['phone'] != null ? s['phone'].toString() : '';
     widget.sprNoController.text = s['sprNo'] ?? '';
     addressController.text = s['address'] ?? '';
     isActive = s['active'] ?? true;
@@ -136,7 +128,7 @@ class _EditStudentDialogState extends State<EditStudentDialog> {
       }
       widget.guardianRelController.text = selectedGuardianRel ?? '';
 
-      widget.guardianPhoneController.text = g['phoneNo'] ?? '';
+      widget.guardianPhoneController.text = g['phoneNo'] != null ? g['phoneNo'].toString() : '';
       widget.guardianEmailController.text = g['email'] ?? '';
     } else {
       widget.guardianNameController.text = '';
@@ -164,13 +156,6 @@ class _EditStudentDialogState extends State<EditStudentDialog> {
     if (selectedDeptId != null &&
         !uniqueDepartments.any((d) => d['id'] == selectedDeptId)) {
       selectedDeptId = null;
-    }
-
-    final uniqueAcademicYears = _deduplicate(widget.academicYears);
-    selectedAcademicYearId = s['academicYearId'];
-    if (selectedAcademicYearId != null &&
-        !uniqueAcademicYears.any((ay) => ay['id'] == selectedAcademicYearId)) {
-      selectedAcademicYearId = null;
     }
 
     final uniqueYears = _deduplicate(widget.years);
@@ -209,13 +194,95 @@ class _EditStudentDialogState extends State<EditStudentDialog> {
     }
 
     selectedSectionId = s['sectionId'];
-    // We will trigger section fetch in build if needed, and validate it in build
   }
 
   @override
   void dispose() {
     addressController.dispose();
     super.dispose();
+  }
+
+  void _validateAndSubmit() {
+    final name = widget.nameController.text.trim();
+    final email = widget.emailController.text.trim();
+    final phone = widget.phoneController.text.trim();
+    final guardianName = widget.guardianNameController.text.trim();
+    final guardianRel = selectedGuardianRel ?? widget.guardianRelController.text.trim();
+    final guardianPhone = widget.guardianPhoneController.text.trim();
+    final guardianEmail = widget.guardianEmailController.text.trim();
+
+    final now = DateTime.now();
+    final maxAllowedDob = DateTime(now.year - 16, now.month, now.day);
+
+    if (name.isEmpty) {
+      _showError('Full Name is required');
+      return;
+    }
+    if (email.isEmpty) {
+      _showError('Email is required');
+      return;
+    }
+    if (!_emailRegex.hasMatch(email)) {
+      _showError('Enter a valid email address.');
+      return;
+    }
+    if (phone.isNotEmpty && !_phoneRegex.hasMatch(phone)) {
+      _showError('Phone number must contain digits only.');
+      return;
+    }
+    final sprNo = widget.sprNoController.text.trim();
+    if (sprNo.isNotEmpty && !RegExp(r'^[a-zA-Z0-9]+$').hasMatch(sprNo)) {
+      _showError('SPR Number must contain letters and numbers only (no symbols).');
+      return;
+    }
+    if (guardianName.isNotEmpty || guardianPhone.isNotEmpty || guardianEmail.isNotEmpty) {
+      if (guardianName.isEmpty) {
+        _showError('Guardian Name is required');
+        return;
+      }
+      if (guardianPhone.isEmpty) {
+        _showError('Guardian Phone is required');
+        return;
+      }
+      if (!_phoneRegex.hasMatch(guardianPhone)) {
+        _showError('Phone number must contain digits only.');
+        return;
+      }
+      if (guardianEmail.isNotEmpty && !_emailRegex.hasMatch(guardianEmail)) {
+        _showError('Enter a valid email address.');
+        return;
+      }
+    }
+    if (selectedDob != null && selectedDob!.isAfter(maxAllowedDob)) {
+      _showError('Student must be at least 16 years old.');
+      return;
+    }
+
+    widget.onEditStudent(
+      id: widget.student['id'],
+      fullName: name.toUpperCase(),
+      email: email,
+      phone: phone,
+      genderId: selectedGenderId,
+      departmentId: selectedDeptId,
+      yearId: selectedYearId,
+      semesterId: selectedSemesterId,
+      sectionId: selectedSectionId,
+      groupId: null,
+      sprNo: widget.sprNoController.text.trim(),
+      dob: selectedDob,
+      address: addressController.text.trim(),
+      active: isActive,
+    );
+  }
+
+  void _showError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.redAccent,
+      ),
+    );
   }
 
   Widget _buildSectionTitle(String title) {
@@ -234,6 +301,10 @@ class _EditStudentDialogState extends State<EditStudentDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final now = DateTime.now();
+    final maxAllowedDob = DateTime(now.year - 16, now.month, now.day);
+    final minAllowedDob = DateTime(1970, 1, 1);
+
     if (lastFetchedDeptId != selectedDeptId) {
       isFetchingSections = true;
       Future.microtask(() async {
@@ -242,7 +313,6 @@ class _EditStudentDialogState extends State<EditStudentDialog> {
           setState(() {
             dialogSections = list;
             isFetchingSections = false;
-            // Also validate selected section immediately
             if (selectedSectionId != null &&
                 !list.any((sec) => sec['id'] == selectedSectionId)) {
               selectedSectionId = null;
@@ -254,7 +324,6 @@ class _EditStudentDialogState extends State<EditStudentDialog> {
     }
 
     final uniqueDepartments = _deduplicate(widget.departments);
-    final uniqueAcademicYears = _deduplicate(widget.academicYears);
     final uniqueYears = _deduplicate(widget.years);
     final uniqueSemesters = _deduplicate(widget.semesters);
     final uniqueGenders = _deduplicate(widget.genders);
@@ -262,30 +331,34 @@ class _EditStudentDialogState extends State<EditStudentDialog> {
     final uniqueSections = _deduplicate(dialogSections);
 
     if (selectedDeptId != null &&
-        !uniqueDepartments.any((d) => d['id'] == selectedDeptId))
+        !uniqueDepartments.any((d) => d['id'] == selectedDeptId)) {
       selectedDeptId = null;
-    if (selectedAcademicYearId != null &&
-        !uniqueAcademicYears.any((ay) => ay['id'] == selectedAcademicYearId))
-      selectedAcademicYearId = null;
+    }
     if (selectedYearId != null &&
-        !uniqueYears.any((y) => y['id'] == selectedYearId))
+        !uniqueYears.any((y) => y['id'] == selectedYearId)) {
       selectedYearId = null;
+    }
     if (selectedSemesterId != null &&
-        !uniqueSemesters.any((sem) => sem['id'] == selectedSemesterId))
+        !uniqueSemesters.any((sem) => sem['id'] == selectedSemesterId)) {
       selectedSemesterId = null;
+    }
     if (selectedGenderId != null &&
-        !uniqueGenders.any((g) => g['id'] == selectedGenderId))
+        !uniqueGenders.any((g) => g['id'] == selectedGenderId)) {
       selectedGenderId = null;
+    }
     if (selectedGroupId != null &&
-        !uniqueGroups.any((g) => g['id'] == selectedGroupId))
+        !uniqueGroups.any((g) => g['id'] == selectedGroupId)) {
       selectedGroupId = null;
+    }
     if (!isFetchingSections &&
         selectedSectionId != null &&
-        !uniqueSections.any((sec) => sec['id'] == selectedSectionId))
+        !uniqueSections.any((sec) => sec['id'] == selectedSectionId)) {
       selectedSectionId = null;
+    }
     if (selectedGuardianRel != null &&
-        !guardianRelations.contains(selectedGuardianRel))
+        !guardianRelations.contains(selectedGuardianRel)) {
       selectedGuardianRel = null;
+    }
 
     final inputDecoration = (String label) => InputDecoration(
       labelText: label,
@@ -307,314 +380,311 @@ class _EditStudentDialogState extends State<EditStudentDialog> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-                    Card(
-                      elevation: 2,
-                      margin: const EdgeInsets.only(bottom: 16),
-                      child: Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            _buildSectionTitle('Personal Information'),
-                            TextField(
-                              controller: widget.regNoController,
-                              textCapitalization: TextCapitalization.characters,
-                              inputFormatters: [
-                                UpperCaseTextFormatter(),
-                              ],
-                              decoration: inputDecoration('Register Number *'),
-                              readOnly: true,
-                            ),
-                            const SizedBox(height: 16),
-                            TextField(
-                              controller: widget.nameController,
-                              textCapitalization: TextCapitalization.characters,
-                              inputFormatters: [
-                                UpperCaseTextFormatter(),
-                              ],
-                              decoration: inputDecoration('Full Name *'),
-                            ),
-                            const SizedBox(height: 16),
-                            TextField(
-                              controller: widget.emailController,
-                              decoration: inputDecoration('Email *'),
-                            ),
-                            const SizedBox(height: 16),
-                            TextField(
-                              controller: widget.phoneController,
-                              keyboardType: TextInputType.phone,
-                              maxLength: 10,
-                              decoration: inputDecoration(
-                                'Phone',
-                              ).copyWith(counterText: ''),
-                            ),
-                            const SizedBox(height: 16),
-                            TextField(
-                              controller: widget.sprNoController,
-                              decoration: inputDecoration('SPR No'),
-                            ),
-                            const SizedBox(height: 16),
-                            TextField(
-                              controller: addressController,
-                              decoration: inputDecoration('Address'),
-                              maxLines: 2,
-                            ),
-                            const SizedBox(height: 16),
-                            DropdownButtonFormField<int>(
-                              value: selectedGenderId,
-                              decoration: inputDecoration('Gender'),
-                              items: uniqueGenders
-                                  .map(
-                                    (g) => DropdownMenuItem<int>(
-                                      value: g['id'],
-                                      child: Text(g['genderName'] ?? ''),
-                                    ),
-                                  )
-                                  .toList(),
-                              onChanged: (val) =>
-                                  setState(() => selectedGenderId = val),
-                            ),
-                            const SizedBox(height: 16),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                              decoration: BoxDecoration(
-                                border: Border.all(color: Colors.grey.shade400),
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Row(
-                                    children: [
-                                      Icon(
-                                        Icons.cake_outlined,
-                                        color: selectedDob != null ? const Color(0xFF1E293B) : Colors.grey,
-                                        size: 20,
-                                      ),
-                                      const SizedBox(width: 10),
-                                      Text(
-                                        selectedDob == null
-                                            ? 'Select Date of Birth'
-                                            : 'DOB: ${selectedDob!.year}-${selectedDob!.month.toString().padLeft(2, '0')}-${selectedDob!.day.toString().padLeft(2, '0')}',
-                                        style: TextStyle(
-                                          fontWeight: selectedDob != null ? FontWeight.bold : FontWeight.normal,
-                                          color: selectedDob != null ? Colors.black87 : Colors.grey.shade700,
-                                          fontSize: 14,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  TextButton.icon(
-                                    onPressed: () async {
-                                      final picked = await showDatePicker(
-                                        context: context,
-                                        initialDate:
-                                            selectedDob ?? DateTime(2004),
-                                        firstDate: DateTime(1970),
-                                        lastDate: DateTime.now(),
-                                      );
-                                      if (picked != null) {
-                                        setState(() {
-                                          selectedDob = picked;
-                                        });
-                                      }
-                                    },
-                                    icon: const Icon(Icons.calendar_month, size: 18),
-                                    label: Text(selectedDob == null ? 'Pick' : 'Change'),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
+            Card(
+              elevation: 2,
+              margin: const EdgeInsets.only(bottom: 16),
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildSectionTitle('Personal Information'),
+                    TextField(
+                      controller: widget.regNoController,
+                      textCapitalization: TextCapitalization.characters,
+                      inputFormatters: [
+                        UpperCaseTextFormatter(),
+                      ],
+                      decoration: inputDecoration('Register Number *'),
+                      readOnly: true,
                     ),
-                    Card(
-                      elevation: 2,
-                      margin: const EdgeInsets.only(bottom: 16),
-                      child: Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            _buildSectionTitle('Guardian Information'),
-                            TextField(
-                              controller: widget.guardianNameController,
-                              decoration: inputDecoration('Guardian Name *'),
+                    const SizedBox(height: 16),
+                    TextField(
+                      controller: widget.nameController,
+                      textCapitalization: TextCapitalization.characters,
+                      inputFormatters: [
+                        UpperCaseTextFormatter(),
+                      ],
+                      decoration: inputDecoration('Full Name *'),
+                    ),
+                    const SizedBox(height: 16),
+                    TextField(
+                      controller: widget.emailController,
+                      decoration: inputDecoration('Email *'),
+                    ),
+                    const SizedBox(height: 16),
+                    TextField(
+                      controller: widget.phoneController,
+                      keyboardType: TextInputType.phone,
+                      inputFormatters: [
+                        FilteringTextInputFormatter.digitsOnly,
+                      ],
+                      maxLength: 10,
+                      decoration: inputDecoration(
+                        'Phone',
+                      ).copyWith(counterText: ''),
+                    ),
+                    const SizedBox(height: 16),
+                    TextField(
+                      controller: widget.sprNoController,
+                      textCapitalization: TextCapitalization.characters,
+                      inputFormatters: [
+                        FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9]')),
+                        UpperCaseTextFormatter(),
+                      ],
+                      decoration: inputDecoration('SPR No'),
+                    ),
+                    const SizedBox(height: 16),
+                    DropdownButtonFormField<int>(
+                      value: selectedGenderId,
+                      decoration: inputDecoration('Gender'),
+                      items: uniqueGenders
+                          .map(
+                            (g) => DropdownMenuItem<int>(
+                              value: g['id'],
+                              child: Text(g['genderName'] ?? ''),
                             ),
-                            const SizedBox(height: 16),
-                            DropdownButtonFormField<String>(
-                              value: selectedGuardianRel,
-                              decoration: inputDecoration(
-                                'Relationship (e.g. Father, Mother) *',
+                          )
+                          .toList(),
+                      onChanged: (val) =>
+                          setState(() => selectedGenderId = val),
+                    ),
+                    const SizedBox(height: 16),
+                    TextField(
+                      controller: addressController,
+                      decoration: inputDecoration('Address'),
+                      maxLines: 2,
+                    ),
+                    const SizedBox(height: 16),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Colors.grey.shade400),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Row(
+                            children: [
+                              Icon(
+                                Icons.cake_outlined,
+                                color: selectedDob != null ? const Color(0xFF1E293B) : Colors.grey,
+                                size: 20,
                               ),
-                              items: guardianRelations.map((rel) {
-                                return DropdownMenuItem<String>(
-                                  value: rel,
-                                  child: Text(rel),
-                                );
-                              }).toList(),
-                              onChanged: (value) {
+                              const SizedBox(width: 10),
+                              Text(
+                                selectedDob == null
+                                    ? 'Select Date of Birth'
+                                    : 'DOB: ${selectedDob!.year}-${selectedDob!.month.toString().padLeft(2, '0')}-${selectedDob!.day.toString().padLeft(2, '0')}',
+                                style: TextStyle(
+                                  fontWeight: selectedDob != null ? FontWeight.bold : FontWeight.normal,
+                                  color: selectedDob != null ? Colors.black87 : Colors.grey.shade700,
+                                  fontSize: 14,
+                                ),
+                              ),
+                            ],
+                          ),
+                          TextButton.icon(
+                            onPressed: () async {
+                              final picked = await showDatePicker(
+                                context: context,
+                                initialDate: (selectedDob != null && !selectedDob!.isAfter(maxAllowedDob))
+                                    ? selectedDob!
+                                    : DateTime(now.year - 18, 1, 1),
+                                firstDate: minAllowedDob,
+                                lastDate: maxAllowedDob,
+                              );
+                              if (picked != null) {
                                 setState(() {
-                                  selectedGuardianRel = value;
-                                  widget.guardianRelController.text =
-                                      value ?? '';
+                                  selectedDob = picked;
                                 });
-                              },
-                            ),
-                            const SizedBox(height: 16),
-                            TextField(
-                              controller: widget.guardianPhoneController,
-                              keyboardType: TextInputType.phone,
-                              maxLength: 10,
-                              decoration: inputDecoration(
-                                'Guardian Phone *',
-                              ).copyWith(counterText: ''),
-                            ),
-                            const SizedBox(height: 16),
-                            TextField(
-                              controller: widget.guardianEmailController,
-                              decoration: inputDecoration('Guardian Email'),
-                            ),
-                          ],
-                        ),
+                              }
+                            },
+                            icon: const Icon(Icons.calendar_month, size: 18),
+                            label: Text(selectedDob == null ? 'Pick' : 'Change'),
+                          ),
+                        ],
                       ),
                     ),
-                    Card(
-                      elevation: 2,
-                      margin: const EdgeInsets.only(bottom: 16),
-                      child: Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            _buildSectionTitle('Academic Information'),
-                            DropdownButtonFormField<int>(
-                              value: selectedDeptId,
-                              decoration: inputDecoration('Department'),
-                              items: uniqueDepartments
-                                  .map(
-                                    (d) => DropdownMenuItem<int>(
-                                      value: d['id'],
-                                      child: Text(d['code'] ?? d['name']),
-                                    ),
-                                  )
-                                  .toList(),
-                              onChanged: (val) => setState(() {
-                                selectedDeptId = val;
-                                selectedSectionId = null;
-                              }),
-                            ),
-                            const SizedBox(height: 16),
-                            DropdownButtonFormField<int>(
-                              value: selectedAcademicYearId,
-                              decoration: inputDecoration('Academic Year'),
-                              items: uniqueAcademicYears
-                                  .map(
-                                    (ay) => DropdownMenuItem<int>(
-                                      value: ay['id'],
-                                      child: Text(ay['academicYear'] ?? ''),
-                                    ),
-                                  )
-                                  .toList(),
-                              onChanged: (val) =>
-                                  setState(() => selectedAcademicYearId = val),
-                            ),
-                            const SizedBox(height: 16),
-                            DropdownButtonFormField<int>(
-                              value: selectedYearId,
-                              decoration: inputDecoration('Year'),
-                              items: uniqueYears
-                                  .map(
-                                    (y) => DropdownMenuItem<int>(
-                                      value: y['id'],
-                                      child: Text(
-                                        y['yearNo'] != null
-                                            ? "Year ${y['yearNo']}"
-                                            : '',
-                                      ),
-                                    ),
-                                  )
-                                  .toList(),
-                              onChanged: (val) =>
-                                  setState(() => selectedYearId = val),
-                            ),
-                            const SizedBox(height: 16),
-                            DropdownButtonFormField<int>(
-                              value: selectedSemesterId,
-                              decoration: inputDecoration('Semester'),
-                              items: uniqueSemesters
-                                  .map(
-                                    (sem) => DropdownMenuItem<int>(
-                                      value: sem['id'],
-                                      child: Text(
-                                        sem['semesterNo'] != null
-                                            ? "Semester ${sem['semesterNo']}"
-                                            : '',
-                                      ),
-                                    ),
-                                  )
-                                  .toList(),
-                              onChanged: (val) =>
-                                  setState(() => selectedSemesterId = val),
-                            ),
-                            const SizedBox(height: 16),
-                            isFetchingSections
-                                ? const Center(
-                                    child: Padding(
-                                      padding: EdgeInsets.all(8.0),
-                                      child: SizedBox(
-                                        height: 24,
-                                        width: 24,
-                                        child: CircularProgressIndicator(
-                                          strokeWidth: 2,
-                                          color: Color(0xFF2563EB),
-                                        ),
-                                      ),
-                                    ),
-                                  )
-                                : DropdownButtonFormField<int>(
-                                    value: selectedSectionId,
-                                    decoration: inputDecoration('Section'),
-                                    items: uniqueSections
-                                        .map(
-                                          (sec) => DropdownMenuItem<int>(
-                                            value: sec['id'],
-                                            child: Text(
-                                              sec['sectionName'] ?? '',
-                                            ),
-                                          ),
-                                        )
-                                        .toList(),
-                                    onChanged: (val) =>
-                                        setState(() => selectedSectionId = val),
-                                  ),
-                          ],
-                        ),
-                      ),
+                  ],
+                ),
+              ),
+            ),
+            Card(
+              elevation: 2,
+              margin: const EdgeInsets.only(bottom: 16),
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildSectionTitle('Guardian Information'),
+                    TextField(
+                      controller: widget.guardianNameController,
+                      decoration: inputDecoration('Guardian Name *'),
                     ),
-                    Card(
-                      elevation: 2,
-                      child: Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            _buildSectionTitle('Account & Status'),
-                            SwitchListTile(
-                              title: const Text(
-                                'Active Account',
-                                style: TextStyle(fontWeight: FontWeight.w600),
+                    const SizedBox(height: 16),
+                    DropdownButtonFormField<String>(
+                      value: selectedGuardianRel,
+                      decoration: inputDecoration(
+                        'Relationship (e.g. Father, Mother) *',
+                      ),
+                      items: guardianRelations.map((rel) {
+                        return DropdownMenuItem<String>(
+                          value: rel,
+                          child: Text(rel),
+                        );
+                      }).toList(),
+                      onChanged: (value) {
+                        setState(() {
+                          selectedGuardianRel = value;
+                          widget.guardianRelController.text =
+                              value ?? '';
+                        });
+                      },
+                    ),
+                    const SizedBox(height: 16),
+                    TextField(
+                      controller: widget.guardianPhoneController,
+                      keyboardType: TextInputType.phone,
+                      inputFormatters: [
+                        FilteringTextInputFormatter.digitsOnly,
+                      ],
+                      maxLength: 10,
+                      decoration: inputDecoration(
+                        'Guardian Phone *',
+                      ).copyWith(counterText: ''),
+                    ),
+                    const SizedBox(height: 16),
+                    TextField(
+                      controller: widget.guardianEmailController,
+                      decoration: inputDecoration('Guardian Email'),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            Card(
+              elevation: 2,
+              margin: const EdgeInsets.only(bottom: 16),
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildSectionTitle('Academic Information'),
+                    DropdownButtonFormField<int>(
+                      value: selectedDeptId,
+                      decoration: inputDecoration('Department'),
+                      items: uniqueDepartments
+                          .map(
+                            (d) => DropdownMenuItem<int>(
+                              value: d['id'],
+                              child: Text(d['code'] ?? d['name']),
+                            ),
+                          )
+                          .toList(),
+                      onChanged: (val) => setState(() {
+                        selectedDeptId = val;
+                        selectedSectionId = null;
+                      }),
+                    ),
+                    const SizedBox(height: 16),
+                    DropdownButtonFormField<int>(
+                      value: selectedYearId,
+                      decoration: inputDecoration('Year'),
+                      items: uniqueYears
+                          .map(
+                            (y) => DropdownMenuItem<int>(
+                              value: y['id'],
+                              child: Text(
+                                y['yearNo'] != null
+                                    ? "Year ${y['yearNo']}"
+                                    : (y['name'] ?? y['yearName'] ?? ''),
                               ),
-                              contentPadding: EdgeInsets.zero,
-                              value: isActive,
-                              onChanged: (val) =>
-                                  setState(() => isActive = val),
                             ),
-                          ],
-                        ),
-                      ),
+                          )
+                          .toList(),
+                      onChanged: (val) =>
+                          setState(() => selectedYearId = val),
                     ),
+                    const SizedBox(height: 16),
+                    DropdownButtonFormField<int>(
+                      value: selectedSemesterId,
+                      decoration: inputDecoration('Semester'),
+                      items: uniqueSemesters
+                          .map(
+                            (sem) => DropdownMenuItem<int>(
+                              value: sem['id'],
+                              child: Text(
+                                sem['semesterNo'] != null
+                                    ? "Semester ${sem['semesterNo']}"
+                                    : '',
+                              ),
+                            ),
+                          )
+                          .toList(),
+                      onChanged: (val) =>
+                          setState(() => selectedSemesterId = val),
+                    ),
+                    const SizedBox(height: 16),
+                    isFetchingSections
+                        ? const Center(
+                            child: Padding(
+                              padding: EdgeInsets.all(8.0),
+                              child: SizedBox(
+                                height: 24,
+                                width: 24,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Color(0xFF2563EB),
+                                ),
+                              ),
+                            ),
+                          )
+                        : DropdownButtonFormField<int>(
+                            value: selectedSectionId,
+                            decoration: inputDecoration('Section'),
+                            items: uniqueSections
+                                .map(
+                                  (sec) => DropdownMenuItem<int>(
+                                    value: sec['id'],
+                                    child: Text(
+                                      sec['sectionName'] ?? '',
+                                    ),
+                                  ),
+                                )
+                                .toList(),
+                            onChanged: (val) =>
+                                setState(() => selectedSectionId = val),
+                          ),
+                  ],
+                ),
+              ),
+            ),
+            Card(
+              elevation: 2,
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildSectionTitle('Account & Status'),
+                    SwitchListTile(
+                      title: const Text(
+                        'Active Account',
+                        style: TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                      contentPadding: EdgeInsets.zero,
+                      value: isActive,
+                      onChanged: (val) =>
+                          setState(() => isActive = val),
+                    ),
+                  ],
+                ),
+              ),
+            ),
           ],
         ),
       ),
@@ -638,25 +708,7 @@ class _EditStudentDialogState extends State<EditStudentDialog> {
                   backgroundColor: const Color(0xFF1E293B),
                   foregroundColor: Colors.white,
                 ),
-                onPressed: () {
-                  widget.onEditStudent(
-                    id: widget.student['id'],
-                    fullName: widget.nameController.text.trim().toUpperCase(),
-                    email: widget.emailController.text.trim(),
-                    phone: widget.phoneController.text.trim(),
-                    genderId: selectedGenderId,
-                    departmentId: selectedDeptId,
-                    academicYearId: selectedAcademicYearId,
-                    yearId: selectedYearId,
-                    semesterId: selectedSemesterId,
-                    sectionId: selectedSectionId,
-                    groupId: null,
-                    sprNo: widget.sprNoController.text.trim(),
-                    dob: selectedDob,
-                    address: addressController.text.trim(),
-                    active: isActive,
-                  );
-                },
+                onPressed: _validateAndSubmit,
                 child: const Text('Update Student'),
               ),
             ],

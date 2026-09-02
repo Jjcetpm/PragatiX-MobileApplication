@@ -10,6 +10,7 @@ import 'package:pragatix/features/auth/providers/auth_provider.dart';
 import '../models/student_attendance_list_item.dart';
 import '../services/attendance_service.dart';
 import 'package:pragatix/core/utils/error_handler.dart';
+import 'package:pragatix/features/admin/repository/admin_repository.dart';
 
 class TeacherAttendanceTab extends StatefulWidget {
   const TeacherAttendanceTab({Key? key}) : super(key: key);
@@ -67,19 +68,14 @@ class _TeacherAttendanceTabState extends State<TeacherAttendanceTab> {
     try {
       final token = getIt<AuthProvider>().token ?? '';
       final headers = {'Authorization': 'Bearer $token'};
+      final repo = getIt<AdminRepository>();
       final results = await Future.wait([
         http.get(
           Uri.parse('${ApiConfig.baseUrl}/api/v1/admin/academic-years'),
           headers: headers,
         ),
-        http.get(
-          Uri.parse('${ApiConfig.baseUrl}/api/v1/admin/years'),
-          headers: headers,
-        ),
-        http.get(
-          Uri.parse('${ApiConfig.baseUrl}/api/v1/admin/departments?type=MAIN'),
-          headers: headers,
-        ),
+        repo.getAssignedYears(),
+        repo.getDepartments(all: true),
         http.get(
           Uri.parse('${ApiConfig.baseUrl}/api/v1/admin/sections'),
           headers: headers,
@@ -88,11 +84,19 @@ class _TeacherAttendanceTabState extends State<TeacherAttendanceTab> {
 
       if (!mounted) return;
 
+      final mainDepts = (results[2] as List<dynamic>).where((d) {
+        final type = (d['departmentType'] ?? d['type'] ?? '').toString().toUpperCase();
+        final name = (d['name'] ?? d['deptName'] ?? '').toString();
+        if (type == 'SUB') return false;
+        if (name.toLowerCase().startsWith('department of')) return false;
+        return true;
+      }).toList();
+
       setState(() {
-        _academicYears = jsonDecode(results[0].body)['data'] ?? [];
-        _years = jsonDecode(results[1].body)['data'] ?? [];
-        _departments = jsonDecode(results[2].body)['data'] ?? [];
-        _sections = jsonDecode(results[3].body)['data'] ?? [];
+        _academicYears = jsonDecode((results[0] as http.Response).body)['data'] ?? [];
+        _years = results[1] as List<dynamic>;
+        _departments = mainDepts;
+        _sections = jsonDecode((results[3] as http.Response).body)['data'] ?? [];
 
         if (_academicYears.isNotEmpty)
           _academicYearId = _academicYears.first['id'];
@@ -257,6 +261,35 @@ class _TeacherAttendanceTabState extends State<TeacherAttendanceTab> {
   }
 
   void _showAttendancePopup(List<StudentAttendanceListItem> initialStudents) {
+    // Resolve Year Name
+    String yearName = '';
+    final foundYear = _years.firstWhere((y) => y['id'] == _yearId, orElse: () => null);
+    if (foundYear != null) {
+      yearName = foundYear['yearName']?.toString() ?? foundYear['yearNo']?.toString() ?? 'Year $_yearId';
+    } else if (isYearAdmin) {
+      yearName = 'Year Admin';
+    } else if (_yearId != null) {
+      yearName = 'Year $_yearId';
+    }
+
+    // Resolve Department Name
+    String departmentName = '';
+    final foundDept = _departments.firstWhere((d) => d['id'] == _departmentId, orElse: () => null);
+    if (foundDept != null) {
+      departmentName = foundDept['deptCode']?.toString() ?? foundDept['code']?.toString() ?? foundDept['deptName']?.toString() ?? foundDept['name']?.toString() ?? 'Dept';
+    }
+
+    // Resolve Section Name
+    String sectionName = '';
+    if (_sectionId != null) {
+      final foundSec = _sections.firstWhere((s) => s['id'] == _sectionId, orElse: () => null);
+      if (foundSec != null) {
+        sectionName = foundSec['sectionName']?.toString() ?? 'Sec $_sectionId';
+      }
+    }
+
+    final dateStr = DateFormat('dd MMM yyyy').format(_selectedDate);
+
     showDialog(
       context: context,
       useSafeArea: true,
@@ -265,6 +298,11 @@ class _TeacherAttendanceTabState extends State<TeacherAttendanceTab> {
           insetPadding: EdgeInsets.zero,
           child: AttendancePopupContent(
             initialStudents: initialStudents,
+            yearName: yearName,
+            departmentName: departmentName,
+            sectionName: sectionName,
+            period: _selectedPeriod,
+            dateStr: dateStr,
             onSave: (updatedStudents) {
               _saveAttendance(updatedStudents);
             },
@@ -549,11 +587,21 @@ class _TeacherAttendanceTabState extends State<TeacherAttendanceTab> {
 
 class AttendancePopupContent extends StatefulWidget {
   final List<StudentAttendanceListItem> initialStudents;
+  final String? yearName;
+  final String? departmentName;
+  final String? sectionName;
+  final int? period;
+  final String? dateStr;
   final Function(List<StudentAttendanceListItem>) onSave;
 
   const AttendancePopupContent({
     Key? key,
     required this.initialStudents,
+    this.yearName,
+    this.departmentName,
+    this.sectionName,
+    this.period,
+    this.dateStr,
     required this.onSave,
   }) : super(key: key);
 
@@ -613,6 +661,131 @@ class _AttendancePopupContentState extends State<AttendancePopupContent> {
         _students[index] = _students[index].copyWith(status: newStatus);
       }
     });
+  }
+
+  void _openSummaryScreen() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (ctx) => AttendanceSummaryPage(
+          students: _students,
+          yearName: widget.yearName,
+          departmentName: widget.departmentName,
+          sectionName: widget.sectionName,
+          period: widget.period,
+          dateStr: widget.dateStr,
+          onConfirm: (finalStudents) {
+            Navigator.pop(context);
+            widget.onSave(finalStudents);
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _buildClassInfoChip(IconData icon, String label, Color textColor, Color bgColor) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 13, color: textColor),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: TextStyle(
+              color: textColor,
+              fontWeight: FontWeight.bold,
+              fontSize: 11.5,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatusToggle(StudentAttendanceListItem s) {
+    final isPresent = s.status == 'PRESENT';
+    return Container(
+      height: 38,
+      decoration: BoxDecoration(
+        color: const Color(0xFFF1F5F9),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: isPresent ? const Color(0xFF86EFAC) : const Color(0xFFFCA5A5),
+          width: 1,
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Present (P) Button - Green
+          InkWell(
+            onTap: () => _updateStudentStatus(s.studentId, 'PRESENT'),
+            borderRadius: const BorderRadius.horizontal(left: Radius.circular(20)),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 150),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+              decoration: BoxDecoration(
+                color: isPresent ? const Color(0xFF16A34A) : Colors.transparent,
+                borderRadius: const BorderRadius.horizontal(left: Radius.circular(20)),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (isPresent) ...[
+                    const Icon(Icons.check, size: 14, color: Colors.white),
+                    const SizedBox(width: 3),
+                  ],
+                  Text(
+                    'P',
+                    style: TextStyle(
+                      color: isPresent ? Colors.white : const Color(0xFF64748B),
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          // Absent (A) Button - Red
+          InkWell(
+            onTap: () => _updateStudentStatus(s.studentId, 'ABSENT'),
+            borderRadius: const BorderRadius.horizontal(right: Radius.circular(20)),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 150),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+              decoration: BoxDecoration(
+                color: !isPresent ? const Color(0xFFDC2626) : Colors.transparent,
+                borderRadius: const BorderRadius.horizontal(right: Radius.circular(20)),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (!isPresent) ...[
+                    const Icon(Icons.close, size: 14, color: Colors.white),
+                    const SizedBox(width: 3),
+                  ],
+                  Text(
+                    'A',
+                    style: TextStyle(
+                      color: !isPresent ? Colors.white : const Color(0xFF64748B),
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -696,75 +869,168 @@ class _AttendancePopupContentState extends State<AttendancePopupContent> {
               ),
             ),
           ),
-          // Action Buttons & Count Indicator
+          // Class Info Header Strip (Year, Department, Section, Period, Date)
           Container(
             color: Colors.white,
-            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFEEF2FF),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    _searchQuery.isNotEmpty
-                        ? '${filtered.length} / ${_students.length} Students'
-                        : '${_students.length} Students',
-                    style: const TextStyle(
-                      color: Color(0xFF4F46E5),
-                      fontWeight: FontWeight.bold,
-                      fontSize: 12,
-                    ),
-                  ),
-                ),
-                Row(
-                  mainAxisSize: MainAxisSize.min,
+            padding: const EdgeInsets.fromLTRB(16.0, 0, 16.0, 8.0),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 6.0),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF8FAFC),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: const Color(0xFFE2E8F0), width: 1),
+              ),
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
                   children: [
-                    TextButton.icon(
-                      onPressed: () => _markAll('PRESENT'),
-                      icon: const Icon(
-                        Icons.check_circle_outline_rounded,
-                        size: 16,
-                        color: Color(0xFF16A34A),
+                    if (widget.yearName != null && widget.yearName!.isNotEmpty) ...[
+                      _buildClassInfoChip(
+                        Icons.school_rounded,
+                        widget.yearName!,
+                        const Color(0xFF4338CA),
+                        const Color(0xFFEEF2FF),
                       ),
-                      label: Text(
-                        _searchQuery.isNotEmpty
-                            ? 'Present Filtered'
-                            : 'Mark All Present',
-                        style: const TextStyle(
-                          color: Color(0xFF16A34A),
-                          fontWeight: FontWeight.w600,
-                          fontSize: 13,
-                        ),
+                      const SizedBox(width: 6),
+                    ],
+                    if (widget.departmentName != null && widget.departmentName!.isNotEmpty) ...[
+                      _buildClassInfoChip(
+                        Icons.domain_rounded,
+                        widget.departmentName!,
+                        const Color(0xFF0369A1),
+                        const Color(0xFFE0F2FE),
                       ),
-                    ),
-                    TextButton.icon(
-                      onPressed: () => _markAll('ABSENT'),
-                      icon: const Icon(
-                        Icons.highlight_off_rounded,
-                        size: 16,
-                        color: Color(0xFFDC2626),
+                      const SizedBox(width: 6),
+                    ],
+                    if (widget.sectionName != null && widget.sectionName!.isNotEmpty) ...[
+                      _buildClassInfoChip(
+                        Icons.group_work_rounded,
+                        'Sec: ${widget.sectionName}',
+                        const Color(0xFF0F766E),
+                        const Color(0xFFCCFBF1),
                       ),
-                      label: Text(
-                        _searchQuery.isNotEmpty
-                            ? 'Absent Filtered'
-                            : 'Mark All Absent',
-                        style: const TextStyle(
-                          color: Color(0xFFDC2626),
-                          fontWeight: FontWeight.w600,
-                          fontSize: 13,
-                        ),
+                      const SizedBox(width: 6),
+                    ],
+                    if (widget.period != null) ...[
+                      _buildClassInfoChip(
+                        Icons.access_time_filled_rounded,
+                        'Period ${widget.period}',
+                        const Color(0xFFB45309),
+                        const Color(0xFFFEF3C7),
                       ),
-                    ),
+                      const SizedBox(width: 6),
+                    ],
+                    if (widget.dateStr != null && widget.dateStr!.isNotEmpty) ...[
+                      _buildClassInfoChip(
+                        Icons.calendar_today_rounded,
+                        widget.dateStr!,
+                        const Color(0xFF475569),
+                        const Color(0xFFF1F5F9),
+                      ),
+                    ],
                   ],
                 ),
-              ],
+              ),
+            ),
+          ),
+          // Action Buttons & Count Indicator (Overflow Protected)
+          Container(
+            color: Colors.white,
+            padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFEEF2FF),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      _searchQuery.isNotEmpty
+                          ? '${filtered.length} / ${_students.length} Students'
+                          : '${_students.length} Students',
+                      style: const TextStyle(
+                        color: Color(0xFF4F46E5),
+                        fontWeight: FontWeight.bold,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  InkWell(
+                    onTap: () => _markAll('PRESENT'),
+                    borderRadius: BorderRadius.circular(8),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF0FDF4),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: const Color(0xFFBBF7D0), width: 0.8),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(
+                            Icons.check_circle_outline_rounded,
+                            size: 15,
+                            color: Color(0xFF16A34A),
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            _searchQuery.isNotEmpty
+                                ? 'Present Filtered'
+                                : 'Mark All Present',
+                            style: const TextStyle(
+                              color: Color(0xFF16A34A),
+                              fontWeight: FontWeight.w600,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  InkWell(
+                    onTap: () => _markAll('ABSENT'),
+                    borderRadius: BorderRadius.circular(8),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFEF2F2),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: const Color(0xFFFECACA), width: 0.8),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(
+                            Icons.highlight_off_rounded,
+                            size: 15,
+                            color: Color(0xFFDC2626),
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            _searchQuery.isNotEmpty
+                                ? 'Absent Filtered'
+                                : 'Mark All Absent',
+                            style: const TextStyle(
+                              color: Color(0xFFDC2626),
+                              fontWeight: FontWeight.w600,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
           const Divider(height: 1, thickness: 1),
@@ -803,6 +1069,7 @@ class _AttendancePopupContentState extends State<AttendancePopupContent> {
                     itemCount: filtered.length,
                     itemBuilder: (context, index) {
                       final s = filtered[index];
+                      final isPresent = s.status == 'PRESENT';
                       return Card(
                         elevation: 1,
                         margin: const EdgeInsets.symmetric(
@@ -812,10 +1079,10 @@ class _AttendancePopupContentState extends State<AttendancePopupContent> {
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
                           side: BorderSide(
-                            color: s.status == 'PRESENT'
-                                ? Colors.green.shade100
-                                : Colors.red.shade100,
-                            width: 0.8,
+                            color: isPresent
+                                ? Colors.green.shade200
+                                : Colors.red.shade200,
+                            width: 1.0,
                           ),
                         ),
                         child: ListTile(
@@ -828,6 +1095,7 @@ class _AttendancePopupContentState extends State<AttendancePopupContent> {
                             style: const TextStyle(
                               fontWeight: FontWeight.bold,
                               fontSize: 15,
+                              color: Color(0xFF1E293B),
                             ),
                           ),
                           subtitle: Text(
@@ -837,25 +1105,7 @@ class _AttendancePopupContentState extends State<AttendancePopupContent> {
                               fontSize: 13,
                             ),
                           ),
-                          trailing: SegmentedButton<String>(
-                            segments: const [
-                              ButtonSegment(
-                                value: 'PRESENT',
-                                label: Text('P'),
-                              ),
-                              ButtonSegment(
-                                value: 'ABSENT',
-                                label: Text('A'),
-                              ),
-                            ],
-                            selected: {s.status},
-                            onSelectionChanged: (Set<String> newSelection) {
-                              _updateStudentStatus(
-                                s.studentId,
-                                newSelection.first,
-                              );
-                            },
-                          ),
+                          trailing: _buildStatusToggle(s),
                         ),
                       );
                     },
@@ -864,13 +1114,552 @@ class _AttendancePopupContentState extends State<AttendancePopupContent> {
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () {
-          Navigator.pop(context);
-          widget.onSave(_students);
-        },
-        label: const Text('Save Attendance'),
-        icon: const Icon(Icons.save),
+        onPressed: _openSummaryScreen,
+        label: const Text(
+          'Save Attendance',
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        ),
+        icon: const Icon(Icons.save, color: Colors.white),
         backgroundColor: const Color(0xFF4F46E5),
+      ),
+    );
+  }
+}
+
+class AttendanceSummaryPage extends StatefulWidget {
+  final List<StudentAttendanceListItem> students;
+  final String? yearName;
+  final String? departmentName;
+  final String? sectionName;
+  final int? period;
+  final String? dateStr;
+  final Function(List<StudentAttendanceListItem>) onConfirm;
+
+  const AttendanceSummaryPage({
+    Key? key,
+    required this.students,
+    this.yearName,
+    this.departmentName,
+    this.sectionName,
+    this.period,
+    this.dateStr,
+    required this.onConfirm,
+  }) : super(key: key);
+
+  @override
+  State<AttendanceSummaryPage> createState() => _AttendanceSummaryPageState();
+}
+
+class _AttendanceSummaryPageState extends State<AttendanceSummaryPage> {
+  String _activeTab = 'ABSENT';
+  String _searchQuery = '';
+  final TextEditingController _searchController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    final hasAbsent = widget.students.any((s) => s.status == 'ABSENT');
+    _activeTab = hasAbsent ? 'ABSENT' : 'ALL';
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  List<StudentAttendanceListItem> get _displayedStudents {
+    List<StudentAttendanceListItem> list = widget.students;
+    if (_activeTab == 'ABSENT') {
+      list = list.where((s) => s.status == 'ABSENT').toList();
+    } else if (_activeTab == 'PRESENT') {
+      list = list.where((s) => s.status == 'PRESENT').toList();
+    }
+
+    if (_searchQuery.trim().isNotEmpty) {
+      final q = _searchQuery.trim().toLowerCase();
+      list = list.where((s) =>
+        s.studentName.toLowerCase().contains(q) ||
+        s.registerNumber.toLowerCase().contains(q)
+      ).toList();
+    }
+
+    return list;
+  }
+
+  Widget _buildClassInfoChip(IconData icon, String label, Color textColor, Color bgColor) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 12, color: textColor),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: TextStyle(
+              color: textColor,
+              fontWeight: FontWeight.bold,
+              fontSize: 11,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final total = widget.students.length;
+    final presentCount = widget.students.where((s) => s.status == 'PRESENT').length;
+    final absentCount = widget.students.where((s) => s.status == 'ABSENT').toList().length;
+    final percent = total > 0 ? ((presentCount / total) * 100).toStringAsFixed(1) : '0';
+    final displayed = _displayedStudents;
+
+    return Scaffold(
+      backgroundColor: const Color(0xFFF8FAFC),
+      appBar: AppBar(
+        title: const Text(
+          'Attendance Summary',
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        ),
+        backgroundColor: const Color(0xFF1E293B),
+        iconTheme: const IconThemeData(color: Colors.white),
+        elevation: 0,
+      ),
+      body: Column(
+        children: [
+          // Class Context Banner in Summary Screen
+          if ((widget.yearName != null && widget.yearName!.isNotEmpty) ||
+              (widget.departmentName != null && widget.departmentName!.isNotEmpty))
+            Container(
+              color: const Color(0xFF1E293B),
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: [
+                    if (widget.yearName != null && widget.yearName!.isNotEmpty) ...[
+                      _buildClassInfoChip(Icons.school_rounded, widget.yearName!, Colors.white, Colors.white.withValues(alpha: 0.15)),
+                      const SizedBox(width: 6),
+                    ],
+                    if (widget.departmentName != null && widget.departmentName!.isNotEmpty) ...[
+                      _buildClassInfoChip(Icons.domain_rounded, widget.departmentName!, Colors.white, Colors.white.withValues(alpha: 0.15)),
+                      const SizedBox(width: 6),
+                    ],
+                    if (widget.sectionName != null && widget.sectionName!.isNotEmpty) ...[
+                      _buildClassInfoChip(Icons.group_work_rounded, 'Sec: ${widget.sectionName}', Colors.white, Colors.white.withValues(alpha: 0.15)),
+                      const SizedBox(width: 6),
+                    ],
+                    if (widget.period != null) ...[
+                      _buildClassInfoChip(Icons.access_time_filled_rounded, 'Period ${widget.period}', const Color(0xFFFDE68A), Colors.white.withValues(alpha: 0.15)),
+                      const SizedBox(width: 6),
+                    ],
+                    if (widget.dateStr != null && widget.dateStr!.isNotEmpty) ...[
+                      _buildClassInfoChip(Icons.calendar_today_rounded, widget.dateStr!, Colors.white70, Colors.white.withValues(alpha: 0.1)),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+          // Top Stats Card
+          Container(
+            color: Colors.white,
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
+            child: Column(
+              children: [
+                Row(
+                  children: [
+                    // Total
+                    Expanded(
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF1F5F9),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.grey.shade300, width: 0.8),
+                        ),
+                        child: Column(
+                          children: [
+                            const Text(
+                              'TOTAL',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF64748B),
+                                letterSpacing: 0.5,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              '$total',
+                              style: const TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF1E293B),
+                              ),
+                            ),
+                            Text(
+                              '100%',
+                              style: TextStyle(
+                                fontSize: 10,
+                                color: Colors.grey.shade500,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    // Present
+                    Expanded(
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF0FDF4),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: const Color(0xFFBBF7D0), width: 0.8),
+                        ),
+                        child: Column(
+                          children: [
+                            const Text(
+                              'PRESENT',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF16A34A),
+                                letterSpacing: 0.5,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              '$presentCount',
+                              style: const TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF16A34A),
+                              ),
+                            ),
+                            Text(
+                              '$percent%',
+                              style: const TextStyle(
+                                fontSize: 10,
+                                color: Color(0xFF16A34A),
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    // Absent
+                    Expanded(
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFEF2F2),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: const Color(0xFFFECACA), width: 0.8),
+                        ),
+                        child: Column(
+                          children: [
+                            const Text(
+                              'ABSENT',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFFDC2626),
+                                letterSpacing: 0.5,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              '$absentCount',
+                              style: const TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFFDC2626),
+                              ),
+                            ),
+                            Text(
+                              total > 0 ? '${((absentCount / total) * 100).toStringAsFixed(1)}%' : '0%',
+                              style: const TextStyle(
+                                fontSize: 10,
+                                color: Color(0xFFDC2626),
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                // Filter Tabs (Absent, Present, All)
+                Row(
+                  children: [
+                    _buildTabChip('ABSENT', 'Absent ($absentCount)', const Color(0xFFDC2626), const Color(0xFFFEF2F2)),
+                    const SizedBox(width: 8),
+                    _buildTabChip('PRESENT', 'Present ($presentCount)', const Color(0xFF16A34A), const Color(0xFFF0FDF4)),
+                    const SizedBox(width: 8),
+                    _buildTabChip('ALL', 'All ($total)', const Color(0xFF4F46E5), const Color(0xFFEEF2FF)),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          // Search Bar
+          Container(
+            color: Colors.white,
+            padding: const EdgeInsets.fromLTRB(16.0, 0, 16.0, 10.0),
+            child: TextField(
+              controller: _searchController,
+              onChanged: (val) => setState(() => _searchQuery = val),
+              decoration: InputDecoration(
+                hintText: 'Search student in summary...',
+                hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 13),
+                prefixIcon: const Icon(Icons.search_rounded, color: Color(0xFF64748B), size: 20),
+                suffixIcon: _searchQuery.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(Icons.cancel_rounded, color: Color(0xFF94A3B8), size: 18),
+                        onPressed: () {
+                          _searchController.clear();
+                          setState(() => _searchQuery = '');
+                        },
+                      )
+                    : null,
+                filled: true,
+                fillColor: const Color(0xFFF1F5F9),
+                contentPadding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: BorderSide.none,
+                ),
+              ),
+            ),
+          ),
+          const Divider(height: 1),
+          // Students List
+          Expanded(
+            child: displayed.isEmpty
+                ? Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(32.0),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            _activeTab == 'ABSENT' ? Icons.celebration_rounded : Icons.person_search_rounded,
+                            size: 56,
+                            color: _activeTab == 'ABSENT' ? const Color(0xFF16A34A) : Colors.grey.shade400,
+                          ),
+                          const SizedBox(height: 12),
+                          Text(
+                            _activeTab == 'ABSENT' && _searchQuery.isEmpty
+                                ? 'No Absent Students!\nAll students are marked as Present.'
+                                : 'No students found matching current filter.',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: 15,
+                              color: _activeTab == 'ABSENT' && _searchQuery.isEmpty ? const Color(0xFF16A34A) : Colors.grey.shade600,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  )
+                : ListView.builder(
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    itemCount: displayed.length,
+                    itemBuilder: (context, index) {
+                      final s = displayed[index];
+                      final isPresent = s.status == 'PRESENT';
+                      return Container(
+                        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: isPresent ? Colors.green.shade100 : Colors.red.shade100,
+                            width: 1,
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            CircleAvatar(
+                              radius: 14,
+                              backgroundColor: isPresent ? const Color(0xFFDCFCE7) : const Color(0xFFFEE2E2),
+                              child: Text(
+                                '${index + 1}',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                  color: isPresent ? const Color(0xFF15803D) : const Color(0xFFB91C1C),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    s.studentName,
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 14,
+                                      color: Color(0xFF1E293B),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    s.registerNumber,
+                                    style: TextStyle(
+                                      color: Colors.grey.shade600,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: isPresent ? const Color(0xFFF0FDF4) : const Color(0xFFFEF2F2),
+                                borderRadius: BorderRadius.circular(20),
+                                border: Border.all(
+                                  color: isPresent ? const Color(0xFFBBF7D0) : const Color(0xFFFECACA),
+                                ),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    isPresent ? Icons.check_circle : Icons.cancel,
+                                    size: 14,
+                                    color: isPresent ? const Color(0xFF16A34A) : const Color(0xFFDC2626),
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    isPresent ? 'PRESENT' : 'ABSENT',
+                                    style: TextStyle(
+                                      color: isPresent ? const Color(0xFF16A34A) : const Color(0xFFDC2626),
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 11,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+          ),
+          // Bottom Sticky Action Bar
+          Container(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.05),
+                  blurRadius: 10,
+                  offset: const Offset(0, -4),
+                ),
+              ],
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () => Navigator.pop(context),
+                    icon: const Icon(Icons.edit_note_rounded, size: 18, color: Color(0xFF475569)),
+                    label: const Text(
+                      'Edit Attendance',
+                      style: TextStyle(
+                        color: Color(0xFF475569),
+                        fontWeight: FontWeight.bold,
+                        fontSize: 13,
+                      ),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      side: BorderSide(color: Colors.grey.shade300, width: 1.2),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  flex: 1,
+                  child: ElevatedButton.icon(
+                    onPressed: () {
+                      Navigator.pop(context);
+                      widget.onConfirm(widget.students);
+                    },
+                    icon: const Icon(Icons.check_circle_rounded, size: 18, color: Colors.white),
+                    label: const Text(
+                      'Confirm & Save',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 13,
+                        color: Colors.white,
+                      ),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF4F46E5),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      elevation: 2,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTabChip(String tabKey, String label, Color activeColor, Color activeBg) {
+    final isSelected = _activeTab == tabKey;
+    return Expanded(
+      child: InkWell(
+        onTap: () => setState(() => _activeTab = tabKey),
+        borderRadius: BorderRadius.circular(8),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 150),
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: isSelected ? activeBg : const Color(0xFFF1F5F9),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(
+              color: isSelected ? activeColor.withValues(alpha: 0.5) : Colors.transparent,
+              width: 1,
+            ),
+          ),
+          child: Text(
+            label,
+            style: TextStyle(
+              color: isSelected ? activeColor : const Color(0xFF64748B),
+              fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
+              fontSize: 11,
+            ),
+          ),
+        ),
       ),
     );
   }

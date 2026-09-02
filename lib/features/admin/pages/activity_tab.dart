@@ -83,7 +83,7 @@ class _AdminActivityManagementPageState
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Stage deleted successfully'),
+          content: Text('Stage moved to Recycle Bin successfully'),
           backgroundColor: Colors.green,
         ),
       );
@@ -474,9 +474,9 @@ class _AdminActivityManagementPageState
                                           showDialog<void>(
                                             context: context,
                                             builder: (ctx) => AlertDialog(
-                                              title: const Text('Delete Stage'),
+                                              title: const Text('Move Stage to Recycle Bin?'),
                                               content: Text(
-                                                'Are you sure you want to delete $name and all its subgroups?',
+                                                'Are you sure you want to move $name to the Recycle Bin?\n\nYou can restore it at any time from the Recycle Bin.',
                                               ),
                                               actions: [
                                                 TextButton(
@@ -484,17 +484,20 @@ class _AdminActivityManagementPageState
                                                       Navigator.pop(ctx),
                                                   child: const Text('Cancel'),
                                                 ),
-                                                TextButton(
+                                                ElevatedButton(
                                                   onPressed: () {
                                                     Navigator.pop(ctx);
                                                     _deleteStage(
                                                       stage['id'] as int,
                                                     );
                                                   },
+                                                  style: ElevatedButton.styleFrom(
+                                                    backgroundColor: const Color(0xFFEF4444),
+                                                    foregroundColor: Colors.white,
+                                                  ),
                                                   child: const Text(
-                                                    'Delete',
+                                                    'Move to Recycle Bin',
                                                     style: TextStyle(
-                                                      color: Color(0xFFEF4444),
                                                       fontWeight: FontWeight.bold,
                                                     ),
                                                   ),

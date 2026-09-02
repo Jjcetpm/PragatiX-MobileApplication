@@ -4,10 +4,9 @@ import 'package:pragatix/shared/widgets/shared_leaderboard_tile.dart';
 import 'package:pragatix/core/di/service_locator.dart';
 import 'package:pragatix/features/leaderboard/services/leaderboard_service.dart';
 import 'package:pragatix/features/leaderboard/widgets/leaderboard_podium.dart';
-import 'package:pragatix/features/attendance/providers/attendance_provider.dart';
-import 'package:pragatix/features/attendance/widgets/fire_streak_icon.dart';
 import 'package:pragatix/features/auth/providers/auth_provider.dart';
 import 'package:pragatix/features/xp/providers/xp_provider.dart';
+import 'package:pragatix/features/admin/repository/admin_repository.dart';
 
 class SharedLeaderboardPage extends StatefulWidget {
   final String title;
@@ -72,6 +71,13 @@ class _SharedLeaderboardPageState extends State<SharedLeaderboardPage> {
     return true;
   }
 
+  bool get _isSectionFilterEnabled {
+    if (_effectiveShowYearFilter) {
+      return selectedYear != null && selectedDept != null;
+    }
+    return selectedDept != null;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -120,9 +126,35 @@ class _SharedLeaderboardPageState extends State<SharedLeaderboardPage> {
         yearId: selectedYear,
         departmentId: selectedDept,
       );
+
+      List<Map<String, dynamic>> rawYears = List<Map<String, dynamic>>.from(filters['years'] ?? []);
+      try {
+        final yearAdmins = await getIt<AdminRepository>().getYearAdmins();
+        final Set<String> assignedYearNames = {};
+        for (var a in yearAdmins) {
+          if (a is Map) {
+            final ay = a['academicYear']?.toString().toUpperCase().replaceAll('_', ' ');
+            if (ay != null && ay.isNotEmpty) assignedYearNames.add(ay);
+            final yr = a['year']?.toString().toUpperCase().replaceAll('_', ' ');
+            if (yr != null && yr.isNotEmpty) assignedYearNames.add(yr);
+            final aId = a['assignedYearId']?.toString();
+            if (aId != null && aId.isNotEmpty) assignedYearNames.add(aId);
+          }
+        }
+        if (assignedYearNames.isNotEmpty) {
+          rawYears = rawYears.where((y) {
+            final name = (y['name'] ?? '').toString().toUpperCase().replaceAll('_', ' ');
+            final id = (y['id'] ?? '').toString();
+            return assignedYearNames.any((ay) => name.contains(ay) || ay.contains(name) || id == ay);
+          }).toList();
+        }
+      } catch (e) {
+        debugPrint('Error filtering year admins in leaderboard: $e');
+      }
+
       if (mounted) {
         setState(() {
-          yearOptions = List<Map<String, dynamic>>.from(filters['years'] ?? []);
+          yearOptions = rawYears;
           deptOptions = List<Map<String, dynamic>>.from(filters['departments'] ?? []);
           sectionOptions = List<Map<String, dynamic>>.from(filters['sections'] ?? []);
         });
@@ -211,7 +243,7 @@ class _SharedLeaderboardPageState extends State<SharedLeaderboardPage> {
         }
       }
     }
-    return 1;
+    return -1;
   }
 
   int _getCurrentUserXp() {
@@ -223,7 +255,7 @@ class _SharedLeaderboardPageState extends State<SharedLeaderboardPage> {
     }
     final xpProv = Provider.of<XpProvider>(context, listen: false);
     if (xpProv.totalXp > 0) return xpProv.totalXp;
-    return 540;
+    return 0;
   }
 
   String _cleanSectionName(String raw) {
@@ -343,6 +375,7 @@ class _SharedLeaderboardPageState extends State<SharedLeaderboardPage> {
                                       name: student['fullName'] ?? 'Unknown Student',
                                       subtitle: fullSubtitle,
                                       score: score,
+                                      gender: student['gender']?.toString(),
                                       isCurrentUser: isCurrentUser,
                                       isCaptain: student['teamRole'] == 'CAPTAIN',
                                       isViceCaptain: student['teamRole'] == 'VICE_CAPTAIN',
@@ -368,7 +401,7 @@ class _SharedLeaderboardPageState extends State<SharedLeaderboardPage> {
           ),
 
           // 3. Fixed / Sticky Bottom "Your Rank" Bar
-          if (widget.showCurrentUserRank)
+          if (widget.showCurrentUserRank && userRank > 0)
             Positioned(
               left: 16,
               right: 16,
@@ -386,9 +419,11 @@ class _SharedLeaderboardPageState extends State<SharedLeaderboardPage> {
 
   // ── Top Gradient App Bar ───────────────────────────────────────────────────
   PreferredSizeWidget _buildAppBar() {
+    final bool canPop = Navigator.canPop(context);
     return AppBar(
       elevation: 0,
       backgroundColor: Colors.transparent,
+      automaticallyImplyLeading: false,
       flexibleSpace: Container(
         decoration: const BoxDecoration(
           gradient: LinearGradient(
@@ -398,10 +433,16 @@ class _SharedLeaderboardPageState extends State<SharedLeaderboardPage> {
           ),
         ),
       ),
-      leading: IconButton(
-        icon: const Icon(Icons.arrow_back_rounded, color: Colors.white),
-        onPressed: () => Navigator.pop(context),
-      ),
+      leading: canPop
+          ? IconButton(
+              icon: const Icon(Icons.arrow_back_rounded, color: Colors.white),
+              onPressed: () {
+                if (Navigator.canPop(context)) {
+                  Navigator.maybePop(context);
+                }
+              },
+            )
+          : null,
       title: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: const [
@@ -416,7 +457,7 @@ class _SharedLeaderboardPageState extends State<SharedLeaderboardPage> {
           ),
           SizedBox(height: 2),
           Text(
-            'Compete • Earn • Lead',
+            'Track • Learn • Grow',
             style: TextStyle(
               fontSize: 11,
               fontWeight: FontWeight.w500,
@@ -425,18 +466,6 @@ class _SharedLeaderboardPageState extends State<SharedLeaderboardPage> {
           ),
         ],
       ),
-      actions: [
-        Consumer<AttendanceProvider>(
-          builder: (context, provider, child) {
-            return Center(
-              child: Padding(
-                padding: const EdgeInsets.only(right: 16.0),
-                child: FireStreakIcon(streakCount: provider.currentStreak),
-              ),
-            );
-          },
-        ),
-      ],
     );
   }
 
@@ -495,11 +524,14 @@ class _SharedLeaderboardPageState extends State<SharedLeaderboardPage> {
       );
     }
 
-    // Section Filter Pill (Cleaned names without batch suffix)
+    // Section Filter Pill (Role-Adaptive: requires Department, plus Year if Year filter is active)
     if (_effectiveShowSectionFilter) {
       if (filterPills.isNotEmpty) filterPills.add(const SizedBox(width: 8));
+      final bool isSectionEnabled = _isSectionFilterEnabled;
       String currentSecName = 'All Sections';
-      if (selectedSection != null) {
+      if (!isSectionEnabled) {
+        currentSecName = 'All Sections';
+      } else if (selectedSection != null) {
         final s = sectionOptions.firstWhere(
           (e) => e['id']?.toString() == selectedSection,
           orElse: () => {'name': selectedSection},
@@ -511,7 +543,56 @@ class _SharedLeaderboardPageState extends State<SharedLeaderboardPage> {
           child: _buildFilterPill(
             label: 'Section',
             value: currentSecName,
+            isEnabled: isSectionEnabled,
             onTap: () {
+              if (!isSectionEnabled) {
+                if (_effectiveShowYearFilter) {
+                  if (selectedYear == null && selectedDept == null) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Please select Year and Department first to filter by Section'),
+                        duration: Duration(seconds: 2),
+                        behavior: SnackBarBehavior.floating,
+                      ),
+                    );
+                  } else if (selectedYear == null) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Please select Year first'),
+                        duration: Duration(seconds: 2),
+                        behavior: SnackBarBehavior.floating,
+                      ),
+                    );
+                  } else {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Please select Department first'),
+                        duration: Duration(seconds: 2),
+                        behavior: SnackBarBehavior.floating,
+                      ),
+                    );
+                  }
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Please select Department first to filter by Section'),
+                      duration: Duration(seconds: 2),
+                      behavior: SnackBarBehavior.floating,
+                    ),
+                  );
+                }
+                return;
+              }
+              if (sectionOptions.isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('No sections available for the selected Department'),
+                    duration: Duration(seconds: 2),
+                    behavior: SnackBarBehavior.floating,
+                  ),
+                );
+                return;
+              }
               _showOptionsBottomSheet('Select Section', sectionOptions, selectedSection, (val) {
                 _onSectionChanged(val);
               });
@@ -565,6 +646,7 @@ class _SharedLeaderboardPageState extends State<SharedLeaderboardPage> {
     required String label,
     required String value,
     required VoidCallback onTap,
+    bool isEnabled = true,
   }) {
     return InkWell(
       onTap: onTap,
@@ -572,16 +654,18 @@ class _SharedLeaderboardPageState extends State<SharedLeaderboardPage> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: isEnabled ? Colors.white : const Color(0xFFF8FAFC),
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: const Color(0xFFF1F5F9), width: 1.5),
-          boxShadow: [
-            BoxShadow(
-              color: const Color(0xFF0F172A).withValues(alpha: 0.03),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
-          ],
+          border: Border.all(color: isEnabled ? const Color(0xFFF1F5F9) : const Color(0xFFE2E8F0), width: 1.5),
+          boxShadow: isEnabled
+              ? [
+                  BoxShadow(
+                    color: const Color(0xFF0F172A).withValues(alpha: 0.03),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ]
+              : null,
         ),
         child: Row(
           children: [
@@ -592,19 +676,19 @@ class _SharedLeaderboardPageState extends State<SharedLeaderboardPage> {
                 children: [
                   Text(
                     label,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 10,
                       fontWeight: FontWeight.w500,
-                      color: Color(0xFF64748B),
+                      color: isEnabled ? const Color(0xFF64748B) : const Color(0xFF94A3B8),
                     ),
                   ),
                   const SizedBox(height: 2),
                   Text(
                     value,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w800,
-                      color: Color(0xFF0F172A),
+                      color: isEnabled ? const Color(0xFF0F172A) : const Color(0xFF94A3B8),
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -612,10 +696,10 @@ class _SharedLeaderboardPageState extends State<SharedLeaderboardPage> {
                 ],
               ),
             ),
-            const Icon(
+            Icon(
               Icons.keyboard_arrow_down_rounded,
               size: 17,
-              color: Color(0xFF64748B),
+              color: isEnabled ? const Color(0xFF64748B) : const Color(0xFFCBD5E1),
             ),
           ],
         ),
@@ -629,9 +713,25 @@ class _SharedLeaderboardPageState extends State<SharedLeaderboardPage> {
     String? selectedId,
     Function(String?) onSelect,
   ) {
+    final List<Map<String, dynamic>> processedItems = [];
+    if (title.toLowerCase().contains('section')) {
+      final Set<String> seenNames = {};
+      for (var it in items) {
+        final clean = _cleanSectionName(it['name']?.toString() ?? '').trim();
+        if (clean.isNotEmpty && seenNames.add(clean.toLowerCase())) {
+          processedItems.add({
+            'id': it['id'],
+            'name': clean,
+          });
+        }
+      }
+    } else {
+      processedItems.addAll(items);
+    }
+
     final List<Map<String, dynamic>> allOptions = [
       {'id': null, 'name': 'All ${title.replaceAll("Select ", "")}s'},
-      ...items.map((it) => {
+      ...processedItems.map((it) => {
         'id': it['id'],
         'name': _cleanSectionName(it['name']?.toString() ?? ''),
       }),
@@ -765,8 +865,17 @@ class _SharedLeaderboardPageState extends State<SharedLeaderboardPage> {
                       ...yearOptions.map((y) => DropdownMenuItem(value: y['id']?.toString(), child: Text(y['name']?.toString() ?? ''))),
                     ],
                     onChanged: (val) {
-                      setModalState(() => selectedYear = val);
-                      setState(() => selectedYear = val);
+                      setModalState(() {
+                        selectedYear = val;
+                        selectedSection = null;
+                      });
+                      setState(() {
+                        selectedYear = val;
+                        selectedSection = null;
+                      });
+                      _fetchFilters().then((_) {
+                        if (mounted) setModalState(() {});
+                      });
                     },
                   ),
                   const SizedBox(height: 14),
@@ -789,38 +898,91 @@ class _SharedLeaderboardPageState extends State<SharedLeaderboardPage> {
                       ...deptOptions.map((d) => DropdownMenuItem(value: d['id']?.toString(), child: Text(d['name']?.toString() ?? ''))),
                     ],
                     onChanged: (val) {
-                      setModalState(() => selectedDept = val);
-                      setState(() => selectedDept = val);
+                      setModalState(() {
+                        selectedDept = val;
+                        selectedSection = null;
+                      });
+                      setState(() {
+                        selectedDept = val;
+                        selectedSection = null;
+                      });
+                      _fetchFilters().then((_) {
+                        if (mounted) setModalState(() {});
+                      });
                     },
                   ),
                   const SizedBox(height: 14),
                 ],
 
-                // Section Filter
-                if (_effectiveShowSectionFilter && sectionOptions.isNotEmpty) ...[
+                // Section Filter (Enabled only when both Year & Department are selected)
+                if (_effectiveShowSectionFilter) ...[
                   const Text('Section', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF475569))),
                   const SizedBox(height: 6),
-                  DropdownButtonFormField<String>(
-                    value: selectedSection,
-                    isExpanded: true,
-                    decoration: InputDecoration(
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  if (!_isSectionFilterEnabled) ...[
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF1F5F9),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: const Color(0xFFE2E8F0)),
+                      ),
+                      child: Text(
+                        _effectiveShowYearFilter
+                            ? 'Select Year and Department first'
+                            : 'Select Department first',
+                        style: const TextStyle(color: Color(0xFF94A3B8), fontSize: 13),
+                      ),
                     ),
-                    hint: const Text('All Sections'),
-                    items: [
-                      const DropdownMenuItem(value: null, child: Text('All Sections')),
-                      ...sectionOptions.map((s) => DropdownMenuItem(
-                            value: s['id']?.toString(),
-                            child: Text(_cleanSectionName(s['name']?.toString() ?? '')),
-                          )),
-                    ],
-                    onChanged: (val) {
-                      setModalState(() => selectedSection = val);
-                      setState(() => selectedSection = val);
-                    },
-                  ),
-                  const SizedBox(height: 20),
+                    const SizedBox(height: 20),
+                  ] else if (sectionOptions.isEmpty) ...[
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF1F5F9),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: const Color(0xFFE2E8F0)),
+                      ),
+                      child: const Text(
+                        'No sections for selected Department',
+                        style: TextStyle(color: Color(0xFF94A3B8), fontSize: 13),
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                  ] else ...[
+                    DropdownButtonFormField<String>(
+                      value: sectionOptions.any((s) => s['id']?.toString() == selectedSection) ? selectedSection : null,
+                      isExpanded: true,
+                      decoration: InputDecoration(
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                      hint: const Text('All Sections'),
+                      items: [
+                        const DropdownMenuItem(value: null, child: Text('All Sections')),
+                        ...(() {
+                          final Set<String> seenNames = {};
+                          final List<DropdownMenuItem<String>> dItems = [];
+                          for (var s in sectionOptions) {
+                            final clean = _cleanSectionName(s['name']?.toString() ?? '').trim();
+                            if (clean.isNotEmpty && seenNames.add(clean.toLowerCase())) {
+                              dItems.add(DropdownMenuItem(
+                                value: s['id']?.toString(),
+                                child: Text(clean),
+                              ));
+                            }
+                          }
+                          return dItems;
+                        })(),
+                      ],
+                      onChanged: (val) {
+                        setModalState(() => selectedSection = val);
+                        setState(() => selectedSection = val);
+                      },
+                    ),
+                    const SizedBox(height: 20),
+                  ],
                 ],
 
                 // Apply Button

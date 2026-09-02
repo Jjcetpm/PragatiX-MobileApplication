@@ -10,6 +10,7 @@ import 'package:pragatix/core/config/api_config.dart';
 
 import 'package:pragatix/core/widgets/pragatix_loader.dart';
 import 'package:pragatix/core/utils/error_handler.dart';
+import 'package:pragatix/core/utils/export_utils.dart';
 
 import 'package:pragatix/features/admin/repository/admin_repository.dart';
 import 'package:pragatix/core/di/service_locator.dart';
@@ -303,19 +304,11 @@ class _StudentsTabState extends State<StudentsTab> {
 
   Future<void> _addStudent({
     required int? departmentId,
-
-    required int? academicYearId,
-
     required int? yearId,
-
     required int? semesterId,
-
     required int? genderId,
-
     required int? sectionId,
-
     required int? groupId,
-
     required String address,
   }) async {
     if (regNoController.text.trim().isEmpty ||
@@ -346,7 +339,6 @@ class _StudentsTabState extends State<StudentsTab> {
         'dateOfBirth': formattedDob,
         'address': address,
         'departmentId': departmentId,
-        'academicYearId': academicYearId,
         'yearId': yearId,
         'semesterId': semesterId,
         'genderId': genderId,
@@ -385,35 +377,19 @@ class _StudentsTabState extends State<StudentsTab> {
 
   Future<void> _editStudent({
     required int id,
-
     required String fullName,
-
     required String email,
-
     required String phone,
-
     required int? genderId,
-
     required int? departmentId,
-
-    required int? academicYearId,
-
     required int? yearId,
-
     required int? semesterId,
-
     required int? sectionId,
-
     required int? groupId,
-
     required String sprNo,
-
     required DateTime? dob,
-
     required String address,
-
     required bool active,
-
     required String password,
   }) async {
     if (fullName.isEmpty || email.isEmpty) {
@@ -437,7 +413,6 @@ class _StudentsTabState extends State<StudentsTab> {
         if (formattedDob != null) 'dob': formattedDob,
         'address': address,
         'departmentId': departmentId,
-        'academicYearId': academicYearId,
         'yearId': yearId,
         'semesterId': semesterId,
         'genderId': genderId,
@@ -527,7 +502,6 @@ class _StudentsTabState extends State<StudentsTab> {
         guardianPhoneController: guardianPhoneController,
         guardianEmailController: guardianEmailController,
         departments: departments,
-        academicYears: academicYears,
         years: years,
         semesters: semesters,
         genders: genders,
@@ -537,7 +511,6 @@ class _StudentsTabState extends State<StudentsTab> {
         onAddStudent:
             ({
               required departmentId,
-              required academicYearId,
               required yearId,
               required semesterId,
               required genderId,
@@ -549,7 +522,6 @@ class _StudentsTabState extends State<StudentsTab> {
               selectedDob = dob;
               await _addStudent(
                 departmentId: departmentId,
-                academicYearId: academicYearId,
                 yearId: yearId,
                 semesterId: semesterId,
                 genderId: genderId,
@@ -579,7 +551,6 @@ class _StudentsTabState extends State<StudentsTab> {
         guardianPhoneController: guardianPhoneController,
         guardianEmailController: guardianEmailController,
         departments: departments,
-        academicYears: academicYears,
         years: years,
         semesters: semesters,
         genders: genders,
@@ -594,7 +565,6 @@ class _StudentsTabState extends State<StudentsTab> {
               required phone,
               required genderId,
               required departmentId,
-              required academicYearId,
               required yearId,
               required semesterId,
               required sectionId,
@@ -611,7 +581,6 @@ class _StudentsTabState extends State<StudentsTab> {
                 phone: phone,
                 genderId: genderId,
                 departmentId: departmentId,
-                academicYearId: academicYearId,
                 yearId: yearId,
                 semesterId: semesterId,
                 sectionId: sectionId,
@@ -837,7 +806,7 @@ class _StudentsTabState extends State<StudentsTab> {
                     const SizedBox(height: 16),
 
                     // Target Year Dropdown
-                    const Text('Target Academic Year', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF334155))),
+                    const Text('Target Year', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF334155))),
                     const SizedBox(height: 6),
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -1125,10 +1094,13 @@ class _StudentsTabState extends State<StudentsTab> {
 
   @override
   Widget build(BuildContext context) {
-      final roles = context.read<AuthProvider>().currentUser?['roles'] ?? [];
-      final subRoles = context.read<AuthProvider>().currentUser?['subRoles'] ?? [];
+    final user = context.read<AuthProvider>().currentUser;
+      final roles = (user?['roles'] as List<dynamic>? ?? []).map((e) => e.toString()).toList();
+      final subRoles = (user?['subRoles'] as List<dynamic>? ?? []).map((e) => e.toString()).toList();
       final canAddStudent = roles.contains('ROLE_SUPER_ADMIN') || 
                             roles.contains('ROLE_ADMIN') || 
+                            roles.contains('ROLE_HOD') ||
+                            subRoles.contains('HOD') ||
                             subRoles.contains('CC') ||
                             roles.contains('ROLE_CLASS_COORDINATOR');
 
@@ -1513,68 +1485,12 @@ class _StudentsTabState extends State<StudentsTab> {
                       );
 
                       if (response.statusCode == 200) {
-                        bool hasPermission = true;
-                        if (Platform.isAndroid && (await Permission.storage.request().isDenied)) {
-                          if (await Permission.manageExternalStorage.request().isDenied) {
-                            hasPermission = false;
-                          }
-                        }
-
-                        Directory? dir;
-                        if (Platform.isAndroid) {
-                          dir = Directory('/storage/emulated/0/Download');
-                          if (!await dir.exists()) {
-                            try {
-                              await dir.create(recursive: true);
-                            } catch (_) {
-                              dir = Directory('/storage/emulated/0/Downloads');
-                              if (!await dir.exists()) {
-                                try {
-                                  await dir.create(recursive: true);
-                                } catch (_) {
-                                  dir = await getExternalStorageDirectory();
-                                  dir ??= await getApplicationDocumentsDirectory();
-                                }
-                              }
-                            }
-                          }
-                        } else if (Platform.isIOS) {
-                          dir = await getApplicationDocumentsDirectory();
-                        } else {
-                          dir = await getDownloadsDirectory();
-                        }
-                        
-                        if (dir != null) {
-                          String filename = 'SPDMS_Student_Bulk_Upload_Template.xlsx';
-                          String filePath = '${dir.path}/$filename';
-                          File file = File(filePath);
-                          
-                          int counter = 1;
-                          while (await file.exists()) {
-                            filename = 'SPDMS_Student_Bulk_Upload_Template_($counter).xlsx';
-                            filePath = '${dir.path}/$filename';
-                            file = File(filePath);
-                            counter++;
-                          }
-
-                          await file.writeAsBytes(response.bodyBytes);
-                          if (context.mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text('Template downloaded to Downloads folder: $filename'),
-                                backgroundColor: Colors.green,
-                                action: SnackBarAction(
-                                  label: 'Open',
-                                  textColor: Colors.white,
-                                  onPressed: () => OpenFilex.open(
-                                    file.path,
-                                    type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-                                  ),
-                                ),
-                              ),
-                            );
-                          }
-                        }
+                        await ExportUtils.saveBytesAndOpen(
+                          context,
+                          response.bodyBytes,
+                          'SPDMS_Student_Bulk_Upload_Template.xlsx',
+                          successMessage: 'Template downloaded successfully!',
+                        );
                       } else {
                         if (context.mounted) {
                           String errorMsg = 'Unable to download student upload template.';
@@ -1795,68 +1711,12 @@ class _StudentsTabState extends State<StudentsTab> {
       );
 
       if (response.statusCode == 200) {
-        bool hasPermission = true;
-        if (Platform.isAndroid && (await Permission.storage.request().isDenied)) {
-          if (await Permission.manageExternalStorage.request().isDenied) {
-            hasPermission = false;
-          }
-        }
-
-        Directory? dir;
-        if (Platform.isAndroid) {
-          dir = Directory('/storage/emulated/0/Download');
-          if (!await dir.exists()) {
-            try {
-              await dir.create(recursive: true);
-            } catch (_) {
-              dir = Directory('/storage/emulated/0/Downloads');
-              if (!await dir.exists()) {
-                try {
-                  await dir.create(recursive: true);
-                } catch (_) {
-                  dir = await getExternalStorageDirectory();
-                  dir ??= await getApplicationDocumentsDirectory();
-                }
-              }
-            }
-          }
-        } else if (Platform.isIOS) {
-          dir = await getApplicationDocumentsDirectory();
-        } else {
-          dir = await getDownloadsDirectory();
-        }
-        
-        if (dir != null) {
-          String filename = 'Students_Export.xlsx';
-          String filePath = '${dir.path}/$filename';
-          File file = File(filePath);
-          
-          int counter = 1;
-          while (await file.exists()) {
-            filename = 'Students_Export_($counter).xlsx';
-            filePath = '${dir.path}/$filename';
-            file = File(filePath);
-            counter++;
-          }
-
-          await file.writeAsBytes(response.bodyBytes);
-          if (context.mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('Student list exported successfully.'),
-                backgroundColor: Colors.green,
-                action: SnackBarAction(
-                  label: 'Open',
-                  textColor: Colors.white,
-                  onPressed: () => OpenFilex.open(
-                    file.path,
-                    type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-                  ),
-                ),
-              ),
-            );
-          }
-        }
+        await ExportUtils.saveBytesAndOpen(
+          context,
+          response.bodyBytes,
+          'Students_Export.xlsx',
+          successMessage: 'Student list exported successfully.',
+        );
       } else {
         throw Exception('Export failed. Please try again.');
       }

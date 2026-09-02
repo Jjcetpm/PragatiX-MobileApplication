@@ -9,6 +9,7 @@ import 'package:pragatix/features/team/pages/team_details_page.dart';
 import 'package:pragatix/features/team/pages/create_team_page.dart';
 import 'package:pragatix/features/admin/pages/captain_reward_settings_page.dart';
 import 'package:pragatix/features/admin/pages/captain_reward_year_selection_page.dart';
+import 'package:pragatix/features/admin/repository/admin_repository.dart';
 
 // Dialogs removed from here
 
@@ -92,35 +93,23 @@ class _TeamGroupManagementTabState extends State<TeamGroupManagementTab> {
     });
 
     try {
-      final headers = {
-        'Authorization': 'Bearer ${auth.token!}',
-      };
-
       try {
+        final repo = getIt<AdminRepository>();
         final results = await Future.wait([
-          getIt<TeamProxyService>().get(
-            Uri.parse('${ApiConfig.baseUrl}/api/v1/admin/departments?type=MAIN'),
-            headers: headers,
-          ),
-          getIt<TeamProxyService>().get(
-            Uri.parse('${ApiConfig.baseUrl}/api/v1/admin/years'),
-            headers: headers,
-          ),
+          repo.getDepartments(all: true),
+          repo.getAssignedYears(),
         ]);
 
-        if (results[0].statusCode == 200) {
-          final deptData = jsonDecode(results[0].body);
-          if (deptData['data'] is List) {
-            _departments = deptData['data'];
-          }
-        }
+        final mainDepartments = (results[0]).where((d) {
+          final type = (d['departmentType'] ?? d['type'] ?? '').toString().toUpperCase();
+          final name = (d['name'] ?? d['deptName'] ?? '').toString();
+          if (type == 'SUB') return false;
+          if (name.toLowerCase().startsWith('department of')) return false;
+          return true;
+        }).toList();
 
-        if (results[1].statusCode == 200) {
-          final yearData = jsonDecode(results[1].body);
-          if (yearData['data'] is List) {
-            _academicYears = yearData['data'];
-          }
-        }
+        _departments = mainDepartments;
+        _academicYears = results[1];
       } catch (lookupErr) {
         debugPrint('Non-fatal error fetching lookups: $lookupErr');
       }
@@ -562,7 +551,10 @@ class _TeamGroupManagementTabState extends State<TeamGroupManagementTab> {
                       if (isSuperAdmin || isHOD)
                         _buildDropdown<String>(
                           'Year',
-                          _academicYears.map((y) => y['yearName'].toString()).toList(),
+                          _academicYears
+                              .map((y) => (y is Map ? (y['yearName'] ?? y['name'] ?? '') : y).toString())
+                              .where((s) => s.isNotEmpty)
+                              .toList(),
                           (y) => y,
                           selectedYear,
                           (val) {

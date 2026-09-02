@@ -218,6 +218,7 @@ class _RecycleBinScreenState extends State<RecycleBinScreen> {
     if (upper.contains('TEACHER') || upper.contains('FACULTY')) return const Color(0xFF8B5CF6);
     if (upper.contains('LEVEL')) return const Color(0xFFD97706);
     if (upper.contains('BADGE')) return const Color(0xFF16A34A);
+    if (upper.contains('STAGE')) return const Color(0xFFF59E0B);
     return const Color(0xFF64748B);
   }
 
@@ -622,16 +623,25 @@ class _RecycleBinScreenState extends State<RecycleBinScreen> {
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
                               Container(
-                                width: 80,
-                                height: 80,
+                                width: 88,
+                                height: 88,
                                 decoration: BoxDecoration(
-                                  color: isDark ? const Color(0xFF1E293B) : const Color(0xFFEFF6FF),
+                                  color: isDark ? const Color(0xFF1E293B) : Colors.white,
                                   shape: BoxShape.circle,
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withValues(alpha: 0.05),
+                                      blurRadius: 14,
+                                      offset: const Offset(0, 4),
+                                    ),
+                                  ],
                                 ),
-                                child: const Icon(
-                                  Icons.delete_outline_rounded,
-                                  size: 40,
-                                  color: Color(0xFF2563EB),
+                                child: Padding(
+                                  padding: const EdgeInsets.all(12),
+                                  child: Image.asset(
+                                    'assets/images/recycle_bin_empty.png',
+                                    fit: BoxFit.contain,
+                                  ),
                                 ),
                               ),
                               const SizedBox(height: 16),

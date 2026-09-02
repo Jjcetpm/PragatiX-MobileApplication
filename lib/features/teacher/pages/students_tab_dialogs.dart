@@ -81,102 +81,12 @@ extension StudentsTabDialogs on _StudentsTabState {
                         },
                       );
                       if (response.statusCode == 200) {
-                        if (Platform.isAndroid) {
-                          int sdkVersion = 0;
-                          try {
-                            final numbers = RegExp(r'\d+')
-                                .allMatches(Platform.operatingSystemVersion)
-                                .map((m) => int.parse(m.group(0)!))
-                                .toList();
-                            if (numbers.isNotEmpty) {
-                              sdkVersion = numbers.firstWhere(
-                                (n) => n >= 19 && n <= 100,
-                                orElse: () => numbers.first,
-                              );
-                            }
-                          } catch (_) {}
-
-                          PermissionStatus status;
-                          if (sdkVersion >= 33) {
-                            status = await Permission.manageExternalStorage.status;
-                            if (!status.isGranted) {
-                              status = await Permission.manageExternalStorage.request();
-                            }
-                          } else {
-                            status = await Permission.storage.status;
-                            if (!status.isGranted) {
-                              status = await Permission.storage.request();
-                            }
-                          }
-
-                          if (!status.isGranted) {
-                            if (context.mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text('Storage permission is required to save the template.'),
-                                  backgroundColor: Colors.redAccent,
-                                ),
-                              );
-                            }
-                            return;
-                          }
-                        }
-
-                        Directory? dir;
-                        if (Platform.isAndroid) {
-                          dir = Directory('/storage/emulated/0/Download');
-                          if (!await dir.exists()) {
-                            try {
-                              await dir.create(recursive: true);
-                            } catch (_) {
-                              dir = Directory('/storage/emulated/0/Downloads');
-                              if (!await dir.exists()) {
-                                try {
-                                  await dir.create(recursive: true);
-                                } catch (_) {
-                                  dir = await getExternalStorageDirectory();
-                                  dir ??= await getApplicationDocumentsDirectory();
-                                }
-                              }
-                            }
-                          }
-                        } else if (Platform.isIOS) {
-                          dir = await getApplicationDocumentsDirectory();
-                        } else {
-                          dir = await getDownloadsDirectory();
-                        }
-                        
-                        if (dir != null) {
-                          String filename = 'SPDMS_Student_Bulk_Upload_Template.xlsx';
-                          String filePath = '${dir.path}/$filename';
-                          File file = File(filePath);
-                          
-                          int counter = 1;
-                          while (await file.exists()) {
-                            filename = 'SPDMS_Student_Bulk_Upload_Template_($counter).xlsx';
-                            filePath = '${dir.path}/$filename';
-                            file = File(filePath);
-                            counter++;
-                          }
-
-                          await file.writeAsBytes(response.bodyBytes);
-                          if (context.mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text('Template downloaded to Downloads folder: $filename'),
-                                backgroundColor: Colors.green,
-                                action: SnackBarAction(
-                                  label: 'Open',
-                                  textColor: Colors.white,
-                                  onPressed: () => OpenFilex.open(
-                                    file.path,
-                                    type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-                                  ),
-                                ),
-                              ),
-                            );
-                          }
-                        }
+                        await ExportUtils.saveBytesAndOpen(
+                          context,
+                          response.bodyBytes,
+                          'SPDMS_Student_Bulk_Upload_Template.xlsx',
+                          successMessage: 'Template downloaded successfully!',
+                        );
                       } else {
                         if (context.mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
@@ -236,7 +146,8 @@ extension StudentsTabDialogs on _StudentsTabState {
 
   void _showSingleStudentDialog() {
     _clearControllers();
-    final isCc = widget.subRoles.contains('CC');
+    final isCc = widget.subRoles.any((r) => r.toUpperCase() == 'CC' || r.toUpperCase() == 'CLASS_COORDINATOR' || r.toUpperCase() == 'ROLE_CC');
+    final isHod = widget.subRoles.any((r) => r.toUpperCase() == 'HOD' || r.toUpperCase() == 'HEAD_OF_DEPARTMENT' || r.toUpperCase() == 'ROLE_HOD');
 
     int? selectedDeptId;
     int? selectedYearId;
@@ -251,7 +162,7 @@ extension StudentsTabDialogs on _StudentsTabState {
       builder: (context) {
         return StatefulBuilder(
           builder: (context, setDialogState) {
-            // Perform CC resolution inside builder if not resolved yet
+            // Perform CC / HOD resolution inside builder if not resolved yet
             if (isCc) {
               selectedDeptId ??= ccDeptId;
               selectedSectionId ??= ccSectionId;
@@ -274,9 +185,17 @@ extension StudentsTabDialogs on _StudentsTabState {
                 );
                 if (yMatch != null) selectedYearId = yMatch['id'];
               }
+            } else if (isHod) {
+              selectedDeptId ??= ccDeptId;
+              if (selectedYearId == null && years.isNotEmpty) {
+                selectedYearId = years.first['id'];
+              }
             } else {
               if (selectedDeptId == null && departments.isNotEmpty) {
                 selectedDeptId = departments.first['id'];
+              }
+              if (selectedYearId == null && years.isNotEmpty) {
+                selectedYearId = years.first['id'];
               }
             }
 
@@ -302,9 +221,9 @@ extension StudentsTabDialogs on _StudentsTabState {
               selectedSectionId = null;
             }
 
-            // Resolve display strings for CC locked fields
+            // Resolve display strings for CC / HOD locked fields
             String ccDeptDisplay = ccDeptName ?? '';
-            if (isCc && selectedDeptId != null) {
+            if ((isCc || isHod) && selectedDeptId != null) {
               final d = departments.firstWhere(
                 (d) => d['id'] == selectedDeptId,
                 orElse: () => null,
@@ -345,9 +264,9 @@ extension StudentsTabDialogs on _StudentsTabState {
                     ),
                     TextField(
                       controller: regNoController,
-                      textCapitalization: TextCapitalization.characters,
+                      keyboardType: TextInputType.number,
                       inputFormatters: [
-                        UpperCaseTextFormatter(),
+                        FilteringTextInputFormatter.digitsOnly,
                       ],
                       decoration: const InputDecoration(
                         labelText: 'Register Number *',
@@ -355,6 +274,11 @@ extension StudentsTabDialogs on _StudentsTabState {
                     ),
                     TextField(
                       controller: sprNoController,
+                      textCapitalization: TextCapitalization.characters,
+                      inputFormatters: [
+                        FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9]')),
+                        UpperCaseTextFormatter(),
+                      ],
                       decoration: const InputDecoration(
                         labelText: 'SPR Number (spr_no)',
                       ),
@@ -366,11 +290,29 @@ extension StudentsTabDialogs on _StudentsTabState {
                     TextField(
                       controller: phoneController,
                       keyboardType: TextInputType.phone,
+                      inputFormatters: [
+                        FilteringTextInputFormatter.digitsOnly,
+                      ],
                       maxLength: 10,
                       decoration: const InputDecoration(
                         labelText: 'Phone Number',
                         counterText: '',
                       ),
+                    ),
+                    DropdownButtonFormField<int>(
+                      initialValue: selectedGenderId,
+                      decoration: const InputDecoration(labelText: 'Gender *'),
+                      items: genders.map((g) {
+                        return DropdownMenuItem<int>(
+                          value: g['id'],
+                          child: Text(g['genderName'] ?? ''),
+                        );
+                      }).toList(),
+                      onChanged: (value) {
+                        setDialogState(() {
+                          selectedGenderId = value;
+                        });
+                      },
                     ),
                     TextField(
                       controller: addressController,
@@ -393,11 +335,15 @@ extension StudentsTabDialogs on _StudentsTabState {
                         ),
                         TextButton.icon(
                           onPressed: () async {
+                            final now = DateTime.now();
+                            final maxAllowedDob = DateTime(now.year - 16, now.month, now.day);
                             final picked = await showDatePicker(
                               context: context,
-                              initialDate: DateTime(2004),
-                              firstDate: DateTime(1995),
-                              lastDate: DateTime.now(),
+                              initialDate: (selectedDob != null && !selectedDob!.isAfter(maxAllowedDob))
+                                  ? selectedDob!
+                                  : DateTime(now.year - 18, 1, 1),
+                              firstDate: DateTime(1970),
+                              lastDate: maxAllowedDob,
                             );
                             if (picked != null) {
                               setDialogState(() {
@@ -412,7 +358,7 @@ extension StudentsTabDialogs on _StudentsTabState {
                     ),
                     const SizedBox(height: 10),
 
-                    // -- CC locked fields shown as info rows --
+                    // -- CC / HOD locked fields --
                     if (isCc) ...[
                       Container(
                         decoration: BoxDecoration(
@@ -534,8 +480,95 @@ extension StudentsTabDialogs on _StudentsTabState {
                           ],
                         ),
                       ),
+                    ] else if (isHod) ...[
+                      // HOD: Department is locked to HOD's department, Year/Section/Sem are selectable
+                      Container(
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Colors.grey.shade300),
+                          borderRadius: BorderRadius.circular(8),
+                          color: Colors.grey.shade100,
+                        ),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 10,
+                        ),
+                        margin: const EdgeInsets.only(bottom: 8),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text(
+                              'Department',
+                              style: TextStyle(
+                                color: Colors.grey,
+                                fontSize: 12,
+                              ),
+                            ),
+                            Row(
+                              children: [
+                                Text(
+                                  ccDeptDisplay,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                const SizedBox(width: 4),
+                                const Icon(
+                                  Icons.lock_outline,
+                                  size: 14,
+                                  color: Colors.grey,
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                      DropdownButtonFormField<int>(
+                        initialValue: selectedYearId,
+                        decoration: const InputDecoration(labelText: 'Year *'),
+                        items: years.map((y) {
+                          return DropdownMenuItem<int>(
+                            value: y['id'],
+                            child: Text(
+                              y['yearNo'] != null ? "Year ${y["yearNo"]}" : '',
+                            ),
+                          );
+                        }).toList(),
+                        onChanged: (value) {
+                          setDialogState(() {
+                            selectedYearId = value;
+                          });
+                        },
+                      ),
+                      DropdownButtonFormField<int?>(
+                        initialValue:
+                            filteredSections.any(
+                              (sec) => sec['id'] == selectedSectionId,
+                            )
+                            ? selectedSectionId
+                            : null,
+                        decoration: const InputDecoration(
+                          labelText: 'Section (Optional)',
+                        ),
+                        items: [
+                          const DropdownMenuItem<int?>(
+                            value: null,
+                            child: Text('No Section Selected (Optional)'),
+                          ),
+                          ...filteredSections.map((sec) {
+                            return DropdownMenuItem<int?>(
+                              value: sec['id'],
+                              child: Text(sec['sectionName'] ?? ''),
+                            );
+                          }),
+                        ],
+                        onChanged: (value) {
+                          setDialogState(() {
+                            selectedSectionId = value;
+                          });
+                        },
+                      ),
                     ] else ...[
-                      // Non-CC: full editable dropdowns
+                      // Non-CC / Non-HOD: full editable dropdowns
                       DropdownButtonFormField<int>(
                         initialValue: selectedDeptId,
                         decoration: const InputDecoration(
@@ -622,21 +655,6 @@ extension StudentsTabDialogs on _StudentsTabState {
                         });
                       },
                     ),
-                    DropdownButtonFormField<int>(
-                      initialValue: selectedGenderId,
-                      decoration: const InputDecoration(labelText: 'Gender *'),
-                      items: genders.map((g) {
-                        return DropdownMenuItem<int>(
-                          value: g['id'],
-                          child: Text(g['genderName'] ?? ''),
-                        );
-                      }).toList(),
-                      onChanged: (value) {
-                        setDialogState(() {
-                          selectedGenderId = value;
-                        });
-                      },
-                    ),
 
                     Card(
                       elevation: 2,
@@ -692,6 +710,9 @@ extension StudentsTabDialogs on _StudentsTabState {
                             TextField(
                               controller: guardianPhoneCtrl,
                               keyboardType: TextInputType.phone,
+                              inputFormatters: [
+                                FilteringTextInputFormatter.digitsOnly,
+                              ],
                               maxLength: 10,
                               decoration: const InputDecoration(
                                 labelText: 'Parent Mobile Number *',
@@ -721,7 +742,6 @@ extension StudentsTabDialogs on _StudentsTabState {
                   onPressed: () {
                     _addSingleStudent(
                       departmentId: selectedDeptId,
-                      academicYear: null,
                       yearId: selectedYearId,
                       semesterId: selectedSemesterId,
                       genderId: selectedGenderId,
@@ -1300,7 +1320,6 @@ extension StudentsTabDialogs on _StudentsTabState {
     required String phone,
     required int? genderId,
     required int? departmentId,
-    required int? academicYearId,
     required int? yearId,
     required int? semesterId,
     required int? sectionId,
@@ -1315,9 +1334,70 @@ extension StudentsTabDialogs on _StudentsTabState {
     required String? guardianPhone,
     required String? guardianEmail,
   }) async {
-    if (fullName.isEmpty || email.isEmpty) {
+    final emailRegex = RegExp(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$');
+    final phoneRegex = RegExp(r'^\d{10}$');
+
+    if (fullName.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Name and Email are required.')),
+        const SnackBar(content: Text('Full Name is required'), backgroundColor: Colors.redAccent),
+      );
+      return;
+    }
+    if (email.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Email is required'), backgroundColor: Colors.redAccent),
+      );
+      return;
+    }
+    if (!emailRegex.hasMatch(email)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Enter a valid email address.'), backgroundColor: Colors.redAccent),
+      );
+      return;
+    }
+    if (phone.isNotEmpty && !phoneRegex.hasMatch(phone)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Phone number must contain digits only.'), backgroundColor: Colors.redAccent),
+      );
+      return;
+    }
+    if ((guardianName != null && guardianName.isNotEmpty) || (guardianPhone != null && guardianPhone.isNotEmpty) || (guardianEmail != null && guardianEmail.isNotEmpty)) {
+      if (guardianName == null || guardianName.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Guardian Name is required'), backgroundColor: Colors.redAccent),
+        );
+        return;
+      }
+      if (guardianPhone == null || guardianPhone.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Guardian Phone is required'), backgroundColor: Colors.redAccent),
+        );
+        return;
+      }
+      if (!phoneRegex.hasMatch(guardianPhone)) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Phone number must contain digits only.'), backgroundColor: Colors.redAccent),
+        );
+        return;
+      }
+      if (guardianEmail != null && guardianEmail.isNotEmpty && !emailRegex.hasMatch(guardianEmail)) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Enter a valid email address.'), backgroundColor: Colors.redAccent),
+        );
+        return;
+      }
+    }
+    if (sprNo.isNotEmpty && !RegExp(r'^[a-zA-Z0-9]+$').hasMatch(sprNo)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('SPR Number must contain letters and numbers only (no symbols).'), backgroundColor: Colors.redAccent),
+      );
+      return;
+    }
+    final now = DateTime.now();
+    final maxAllowedDob = DateTime(now.year - 16, now.month, now.day);
+    if (dob != null && dob.isAfter(maxAllowedDob)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Student must be at least 16 years old.'), backgroundColor: Colors.redAccent),
       );
       return;
     }
@@ -1335,7 +1415,6 @@ extension StudentsTabDialogs on _StudentsTabState {
           'phone': phone,
           'genderId': genderId,
           'departmentId': departmentId,
-          'academicYearId': academicYearId,
           'yearId': yearId,
           'semesterId': semesterId,
           'sectionId': sectionId,
@@ -1624,6 +1703,9 @@ extension StudentsTabDialogs on _StudentsTabState {
                     TextField(
                       controller: phoneCtrl,
                       keyboardType: TextInputType.phone,
+                      inputFormatters: [
+                        FilteringTextInputFormatter.digitsOnly,
+                      ],
                       maxLength: 10,
                       decoration: const InputDecoration(
                         labelText: 'Phone',
@@ -1633,7 +1715,32 @@ extension StudentsTabDialogs on _StudentsTabState {
                     const SizedBox(height: 12),
                     TextField(
                       controller: sprCtrl,
+                      textCapitalization: TextCapitalization.characters,
+                      inputFormatters: [
+                        FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9]')),
+                        UpperCaseTextFormatter(),
+                      ],
                       decoration: const InputDecoration(labelText: 'SPR No'),
+                    ),
+                    const SizedBox(height: 12),
+                    DropdownButtonFormField<int>(
+                      isExpanded: true,
+                      value:
+                          uniqueGenders.any((g) => g['id'] == selectedGenderId)
+                          ? selectedGenderId
+                          : null,
+                      decoration: const InputDecoration(labelText: 'Gender *'),
+                      items: uniqueGenders.map((g) {
+                        return DropdownMenuItem<int>(
+                          value: g['id'],
+                          child: Text(g['genderName'] ?? ''),
+                        );
+                      }).toList(),
+                      onChanged: (value) {
+                        setDialogState(() {
+                          selectedGenderId = value;
+                        });
+                      },
                     ),
                     const SizedBox(height: 12),
                     TextField(
@@ -1652,11 +1759,15 @@ extension StudentsTabDialogs on _StudentsTabState {
                         ),
                         TextButton.icon(
                           onPressed: () async {
+                            final now = DateTime.now();
+                            final maxAllowedDob = DateTime(now.year - 16, now.month, now.day);
                             final picked = await showDatePicker(
                               context: context,
-                              initialDate: editDob ?? DateTime(2004),
-                              firstDate: DateTime(1995),
-                              lastDate: DateTime.now(),
+                              initialDate: (editDob != null && !editDob!.isAfter(maxAllowedDob))
+                                  ? editDob!
+                                  : DateTime(now.year - 18, 1, 1),
+                              firstDate: DateTime(1970),
+                              lastDate: maxAllowedDob,
                             );
                             if (picked != null) {
                               setDialogState(() {
@@ -1744,26 +1855,6 @@ extension StudentsTabDialogs on _StudentsTabState {
                       },
                     ),
                     const SizedBox(height: 12),
-                    DropdownButtonFormField<int>(
-                      isExpanded: true,
-                      value:
-                          uniqueGenders.any((g) => g['id'] == selectedGenderId)
-                          ? selectedGenderId
-                          : null,
-                      decoration: const InputDecoration(labelText: 'Gender *'),
-                      items: uniqueGenders.map((g) {
-                        return DropdownMenuItem<int>(
-                          value: g['id'],
-                          child: Text(g['genderName'] ?? ''),
-                        );
-                      }).toList(),
-                      onChanged: (value) {
-                        setDialogState(() {
-                          selectedGenderId = value;
-                        });
-                      },
-                    ),
-                    const SizedBox(height: 12),
                     DropdownButtonFormField<int?>(
                       isExpanded: true,
                       value:
@@ -1841,6 +1932,9 @@ extension StudentsTabDialogs on _StudentsTabState {
                             TextField(
                               controller: guardianPhoneCtrl,
                               keyboardType: TextInputType.phone,
+                              inputFormatters: [
+                                FilteringTextInputFormatter.digitsOnly,
+                              ],
                               maxLength: 10,
                               decoration: const InputDecoration(
                                 labelText: 'Parent Mobile Number *',
@@ -1890,7 +1984,6 @@ extension StudentsTabDialogs on _StudentsTabState {
                             phone: phoneCtrl.text.trim(),
                             genderId: selectedGenderId,
                             departmentId: selectedDeptId,
-                            academicYearId: selectedAcademicYearId,
                             yearId: selectedYearId,
                             semesterId: selectedSemesterId,
                             sectionId: selectedSectionId,

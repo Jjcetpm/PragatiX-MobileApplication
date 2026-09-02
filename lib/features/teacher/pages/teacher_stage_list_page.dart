@@ -15,6 +15,7 @@ import 'package:pragatix/features/teacher/pages/students_tab.dart';
 import 'package:pragatix/features/teacher/pages/teacher_stage_details_page.dart';
 import 'package:pragatix/features/teacher/services/teacher_activity_service.dart';
 import 'package:pragatix/features/teacher/services/teacher_proxy_service.dart';
+import 'package:pragatix/features/admin/repository/admin_repository.dart';
 
 class TeacherStageListPage extends StatefulWidget {
   final List<String> subRoles;
@@ -34,7 +35,7 @@ class _TeacherStageListPageState extends State<TeacherStageListPage> {
   static const Color _dark = Color(0xFF1E293B);
   static const Color _tealPrimary = Color(0xFF11998E);
 
-  final List<Map<String, String>> _academicYears = [
+  List<Map<String, String>> _academicYears = [
     {'label': 'FIRST YEAR', 'value': 'FIRST_YEAR'},
     {'label': 'SECOND YEAR', 'value': 'SECOND_YEAR'},
     {'label': 'THIRD YEAR', 'value': 'THIRD_YEAR'},
@@ -69,6 +70,97 @@ class _TeacherStageListPageState extends State<TeacherStageListPage> {
 
   Future<void> _loadInitialData() async {
     try {
+      final repo = getIt<AdminRepository>();
+      final List<dynamic> years = await repo.getYears();
+      List<dynamic> admins = [];
+      try {
+        admins = await repo.getYearAdmins();
+      } catch (e) {
+        debugPrint('Error fetching year admins for stages: $e');
+      }
+
+      final List<Map<String, String>> matchedAssignedYears = [];
+      for (var y in years) {
+        if (y is! Map) continue;
+        final yId = y['id']?.toString().trim();
+        final yNo = y['yearNo'] != null ? int.tryParse(y['yearNo'].toString().trim()) : null;
+        final yName = (y['yearName'] ?? '').toString().trim().toLowerCase();
+
+        bool hasAssignedAdmin = false;
+        for (var a in admins) {
+          if (a is! Map) continue;
+          final aYearId = a['assignedYearId']?.toString().trim();
+          final aYearName = (a['assignedYearName'] ?? '').toString().trim().toLowerCase();
+
+          if (yId != null && aYearId != null && yId == aYearId) {
+            hasAssignedAdmin = true;
+            break;
+          }
+          if (aYearName.isNotEmpty && aYearName != 'null' && aYearName != 'not assigned') {
+            if (yName == aYearName) {
+              hasAssignedAdmin = true;
+              break;
+            }
+            if (yNo != null && aYearName.contains(yNo.toString())) {
+              hasAssignedAdmin = true;
+              break;
+            }
+            if (yName.contains('first') && aYearName.contains('first')) {
+              hasAssignedAdmin = true;
+              break;
+            }
+            if (yName.contains('second') && aYearName.contains('second')) {
+              hasAssignedAdmin = true;
+              break;
+            }
+            if (yName.contains('third') && aYearName.contains('third')) {
+              hasAssignedAdmin = true;
+              break;
+            }
+            if (yName.contains('fourth') && aYearName.contains('fourth')) {
+              hasAssignedAdmin = true;
+              break;
+            }
+          }
+        }
+
+        if (hasAssignedAdmin) {
+          String enumVal = 'FIRST_YEAR';
+          String labelVal = 'FIRST YEAR';
+          if (yNo == 1 || yName.contains('first')) {
+            enumVal = 'FIRST_YEAR';
+            labelVal = 'FIRST YEAR';
+          } else if (yNo == 2 || yName.contains('second')) {
+            enumVal = 'SECOND_YEAR';
+            labelVal = 'SECOND YEAR';
+          } else if (yNo == 3 || yName.contains('third')) {
+            enumVal = 'THIRD_YEAR';
+            labelVal = 'THIRD YEAR';
+          } else if (yNo == 4 || yName.contains('fourth')) {
+            enumVal = 'FOURTH_YEAR';
+            labelVal = 'FOURTH YEAR';
+          } else {
+            enumVal = (y['yearName'] ?? '').toString().toUpperCase().replaceAll(' ', '_');
+            labelVal = (y['yearName'] ?? '').toString().toUpperCase();
+          }
+
+          matchedAssignedYears.add({
+            'label': labelVal,
+            'value': enumVal,
+            'yearNo': (yNo ?? 0).toString(),
+          });
+        }
+      }
+
+      matchedAssignedYears.sort((a, b) => (int.tryParse(a['yearNo'] ?? '0') ?? 0).compareTo(int.tryParse(b['yearNo'] ?? '0') ?? 0));
+
+      if (matchedAssignedYears.isNotEmpty) {
+        _academicYears = matchedAssignedYears;
+        if (!_academicYears.any((ay) => ay['value'] == _selectedAcademicYear)) {
+          _selectedAcademicYear = _academicYears.first['value']!;
+        }
+      }
+
       final token = context.read<AuthProvider>().token;
       if (token != null && _isCc) {
         final response = await getIt<TeacherProxyService>().get(
@@ -79,19 +171,30 @@ class _TeacherStageListPageState extends State<TeacherStageListPage> {
           final data = jsonDecode(response.body);
           if (data['success'] == true && data['data'] != null) {
             final year = (data['data']['year'] ?? '').toString().toUpperCase();
+            String ccTargetYear = 'FIRST_YEAR';
             if (year.contains('2') || year.contains('SECOND')) {
-              _selectedAcademicYear = 'SECOND_YEAR';
+              ccTargetYear = 'SECOND_YEAR';
             } else if (year.contains('3') || year.contains('THIRD')) {
-              _selectedAcademicYear = 'THIRD_YEAR';
+              ccTargetYear = 'THIRD_YEAR';
             } else if (year.contains('4') || year.contains('FOURTH')) {
-              _selectedAcademicYear = 'FOURTH_YEAR';
+              ccTargetYear = 'FOURTH_YEAR';
             } else {
-              _selectedAcademicYear = 'FIRST_YEAR';
+              ccTargetYear = 'FIRST_YEAR';
+            }
+
+            if (_academicYears.any((ay) => ay['value'] == ccTargetYear)) {
+              _selectedAcademicYear = ccTargetYear;
             }
           }
         }
       }
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('Error loading assigned academic years: $e');
+    }
+
+    if (mounted) {
+      setState(() {});
+    }
 
     _fetchStages();
   }
@@ -325,7 +428,9 @@ class _TeacherStageListPageState extends State<TeacherStageListPage> {
                         ),
                         child: DropdownButtonHideUnderline(
                           child: DropdownButton<String>(
-                            value: _selectedAcademicYear,
+                            value: _academicYears.any((ay) => ay['value'] == _selectedAcademicYear)
+                                ? _selectedAcademicYear
+                                : (_academicYears.isNotEmpty ? _academicYears.first['value'] : null),
                             isExpanded: true,
                             icon: const Icon(
                               Icons.keyboard_arrow_down_rounded,
@@ -409,7 +514,7 @@ class _TeacherStageListPageState extends State<TeacherStageListPage> {
                                     ),
                                     const SizedBox(height: 16),
                                     Text(
-                                      'No stages for ${_academicYears.firstWhere((ay) => ay['value'] == _selectedAcademicYear)['label']}',
+                                      'No stages for ${_academicYears.firstWhere((ay) => ay['value'] == _selectedAcademicYear, orElse: () => {'label': _selectedAcademicYear})['label']}',
                                       style: TextStyle(
                                         fontSize: 15,
                                         fontWeight: FontWeight.w600,

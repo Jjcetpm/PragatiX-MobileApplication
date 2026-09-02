@@ -5,17 +5,16 @@ import 'package:pragatix/core/config/api_config.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:pragatix/core/utils/error_handler.dart';
 import 'package:pragatix/features/teacher/services/teacher_proxy_service.dart';
 import 'package:pragatix/shared/widgets/shared_student_card.dart';
-import 'package:file_picker/file_picker.dart';
 import 'package:pragatix/features/teacher/pages/cc_student_profile_page.dart';
 import 'package:pragatix/core/di/service_locator.dart';
 import 'package:pragatix/core/utils/string_utils.dart';
-import 'package:path_provider/path_provider.dart';
-import 'dart:io';
-import 'package:open_filex/open_filex.dart';
-import 'package:permission_handler/permission_handler.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:pragatix/core/utils/export_utils.dart';
+import 'package:pragatix/features/admin/repository/admin_repository.dart';
 
 part 'students_tab_dialogs.dart';
 
@@ -34,6 +33,13 @@ class _StudentsTabState extends State<StudentsTab> {
         r.toUpperCase() == 'CLASS_COORDINATOR' ||
         r.toUpperCase() == 'ROLE_CC',
   );
+  bool get isHod => widget.subRoles.any(
+    (r) =>
+        r.toUpperCase() == 'HOD' ||
+        r.toUpperCase() == 'HEAD_OF_DEPARTMENT' ||
+        r.toUpperCase() == 'ROLE_HOD',
+  );
+  bool get canAddStudents => isCc || isHod;
   List<dynamic> studentsList = [];
   List<dynamic> departments = [];
   List<dynamic> academicYears = [];
@@ -42,6 +48,7 @@ class _StudentsTabState extends State<StudentsTab> {
   List<dynamic> genders = [];
   List<dynamic> sections = [];
   List<dynamic> groups = [];
+  List<Map<String, dynamic>> assignedYearsForHod = [];
   bool isLoadingLookups = true;
   bool isLoading = true;
   String searchQuery = '';
@@ -179,24 +186,116 @@ class _StudentsTabState extends State<StudentsTab> {
         ),
       ]);
 
+      List<dynamic> yearAdminsList = [];
+      try {
+        yearAdminsList = await getIt<AdminRepository>().getYearAdmins();
+      } catch (e) {
+        debugPrint('Error fetching year admins for HOD: $e');
+      }
+
+      final List<dynamic> loadedYears = jsonDecode(results[2].body)['data'] ?? [];
+      final List<Map<String, dynamic>> matchedAssignedYears = [];
+
+      for (var y in loadedYears) {
+        if (y is! Map) continue;
+        final yId = y['id']?.toString().trim();
+        final yNo = y['yearNo'] != null ? int.tryParse(y['yearNo'].toString().trim()) : null;
+        final yName = (y['yearName'] ?? '').toString().trim().toLowerCase();
+
+        bool hasAssignedAdmin = false;
+        for (var a in yearAdminsList) {
+          if (a is! Map) continue;
+          final aYearId = a['assignedYearId']?.toString().trim();
+          final aYearName = (a['assignedYearName'] ?? '').toString().trim().toLowerCase();
+
+          if (yId != null && aYearId != null && yId == aYearId) {
+            hasAssignedAdmin = true;
+            break;
+          }
+          if (aYearName.isNotEmpty && aYearName != 'null' && aYearName != 'not assigned') {
+            if (yName == aYearName) {
+              hasAssignedAdmin = true;
+              break;
+            }
+            if (yNo != null && aYearName.contains(yNo.toString())) {
+              hasAssignedAdmin = true;
+              break;
+            }
+            if (yName.contains('first') && aYearName.contains('first')) {
+              hasAssignedAdmin = true;
+              break;
+            }
+            if (yName.contains('second') && aYearName.contains('second')) {
+              hasAssignedAdmin = true;
+              break;
+            }
+            if (yName.contains('third') && aYearName.contains('third')) {
+              hasAssignedAdmin = true;
+              break;
+            }
+            if (yName.contains('fourth') && aYearName.contains('fourth')) {
+              hasAssignedAdmin = true;
+              break;
+            }
+          }
+        }
+
+        if (hasAssignedAdmin) {
+          final roman = yNo != null ? _getYearRoman(yNo) : (y['yearName']?.toString() ?? '');
+          matchedAssignedYears.add({
+            'value': roman,
+            'label': '$roman Year',
+            'yearNo': yNo ?? 0,
+          });
+        }
+      }
+
+      matchedAssignedYears.sort((a, b) => (a['yearNo'] as int).compareTo(b['yearNo'] as int));
+
       if (!mounted) return;
 
+      final bool isHod = widget.subRoles.contains('HOD');
       setState(() {
         departments = jsonDecode(results[0].body)['data'] ?? [];
         academicYears = jsonDecode(results[1].body)['data'] ?? [];
-        years = jsonDecode(results[2].body)['data'] ?? [];
+        years = loadedYears;
         semesters = jsonDecode(results[3].body)['data'] ?? [];
         genders = jsonDecode(results[4].body)['data'] ?? [];
         sections = jsonDecode(results[5].body)['data'] ?? [];
         groups = jsonDecode(results[6].body)['data'] ?? [];
+        assignedYearsForHod = matchedAssignedYears;
         isLoadingLookups = false;
 
-
         if (departments.isNotEmpty) selectedDeptId = departments.first['id'];
+
+        if (isHod && assignedYearsForHod.isNotEmpty) {
+          if (filterYear == null || !assignedYearsForHod.any((item) => item['value'] == filterYear)) {
+            filterYear = assignedYearsForHod.first['value'] as String;
+          }
+        }
       });
+
+      if (isHod && filterYear != null && filterYear!.isNotEmpty) {
+        _fetchStudents();
+      }
     } catch (e) {
       if (!mounted) return;
       setState(() => isLoadingLookups = false);
+    }
+  }
+
+  String _getYearRoman(int yearNo) {
+    switch (yearNo) {
+      case 1:
+        return 'I';
+      case 2:
+        return 'II';
+      case 3:
+        return 'III';
+      case 4:
+        return 'IV';
+      default:
+        return yearNo.toString();
     }
   }
 
@@ -345,7 +444,6 @@ class _StudentsTabState extends State<StudentsTab> {
 
   Future<void> _addSingleStudent({
     required int? departmentId,
-    required String? academicYear,
     required int? yearId,
     required int? semesterId,
     required int? genderId,
@@ -353,15 +451,96 @@ class _StudentsTabState extends State<StudentsTab> {
     required int? groupId,
     required String address,
   }) async {
-    if (nameController.text.trim().isEmpty ||
-        regNoController.text.trim().isEmpty ||
-        emailController.text.trim().isEmpty ||
-        selectedDob == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Name, Reg No, Email and DOB are required.'),
-        ),
-      );
+    final name = nameController.text.trim();
+    final regNo = regNoController.text.trim();
+    final email = emailController.text.trim();
+    final phone = phoneController.text.trim();
+    final guardianName = guardianNameCtrl.text.trim();
+    final guardianRel = selectedGuardianRel ?? guardianRelCtrl.text.trim();
+    final guardianPhone = guardianPhoneCtrl.text.trim();
+    final guardianEmail = guardianEmailCtrl.text.trim();
+
+    final emailRegex = RegExp(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$');
+    final phoneRegex = RegExp(r'^\d{10}$');
+
+    final sprNo = sprNoController.text.trim();
+
+    if (regNo.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Register Number is required'), backgroundColor: Colors.redAccent));
+      return;
+    }
+    if (!RegExp(r'^\d+$').hasMatch(regNo)) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Register Number must contain digits only.'), backgroundColor: Colors.redAccent));
+      return;
+    }
+    if (!regNo.startsWith('8113')) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Register Number must start with 8113.'), backgroundColor: Colors.redAccent));
+      return;
+    }
+    if (sprNo.isNotEmpty && !RegExp(r'^[a-zA-Z0-9]+$').hasMatch(sprNo)) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('SPR Number must contain letters and numbers only (no symbols).'), backgroundColor: Colors.redAccent));
+      return;
+    }
+    if (name.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Full Name is required'), backgroundColor: Colors.redAccent));
+      return;
+    }
+    if (email.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Email is required'), backgroundColor: Colors.redAccent));
+      return;
+    }
+    if (!emailRegex.hasMatch(email)) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Enter a valid email address.'), backgroundColor: Colors.redAccent));
+      return;
+    }
+    if (phone.isNotEmpty && !phoneRegex.hasMatch(phone)) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Phone number must contain digits only.'), backgroundColor: Colors.redAccent));
+      return;
+    }
+    if (guardianName.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Guardian Name is required'), backgroundColor: Colors.redAccent));
+      return;
+    }
+    if (guardianRel.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Guardian Relationship is required'), backgroundColor: Colors.redAccent));
+      return;
+    }
+    if (guardianPhone.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Guardian Phone is required'), backgroundColor: Colors.redAccent));
+      return;
+    }
+    if (!phoneRegex.hasMatch(guardianPhone)) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Phone number must contain digits only.'), backgroundColor: Colors.redAccent));
+      return;
+    }
+    if (guardianEmail.isNotEmpty && !emailRegex.hasMatch(guardianEmail)) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Enter a valid email address.'), backgroundColor: Colors.redAccent));
+      return;
+    }
+    final now = DateTime.now();
+    final maxAllowedDob = DateTime(now.year - 16, now.month, now.day);
+    if (selectedDob == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Select Date of Birth'), backgroundColor: Colors.redAccent));
+      return;
+    }
+    if (selectedDob!.isAfter(maxAllowedDob)) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Student must be at least 16 years old.'), backgroundColor: Colors.redAccent));
+      return;
+    }
+    if (departmentId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Select Department'), backgroundColor: Colors.redAccent));
+      return;
+    }
+    if (yearId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Select Year'), backgroundColor: Colors.redAccent));
+      return;
+    }
+    if (semesterId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Select Semester'), backgroundColor: Colors.redAccent));
+      return;
+    }
+    if (genderId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Select Gender'), backgroundColor: Colors.redAccent));
       return;
     }
 
@@ -380,16 +559,15 @@ class _StudentsTabState extends State<StudentsTab> {
           'Authorization': 'Bearer ${context.read<AuthProvider>().token!}',
         },
         body: jsonEncode({
-          'regNo': regNoController.text.trim().toUpperCase(),
-          'fullName': nameController.text.trim().toUpperCase(),
-          'email': emailController.text.trim(),
+          'regNo': regNo.toUpperCase(),
+          'fullName': name.toUpperCase(),
+          'email': email,
           'password': passwordDob,
-          'phone': phoneController.text.trim(),
+          'phone': phone,
           'dateOfBirth': formattedDob,
           'dob': formattedDob,
           'address': address,
           'departmentId': departmentId,
-          'academicYear': academicYear,
           'yearId': yearId,
           'semesterId': semesterId,
           'genderId': genderId,
@@ -398,10 +576,10 @@ class _StudentsTabState extends State<StudentsTab> {
           'sprNo': sprNoController.text.trim(),
           'active': true,
           'guardian': {
-            'guardianName': guardianNameCtrl.text.trim(),
-            'relationship': selectedGuardianRel,
-            'phoneNo': guardianPhoneCtrl.text.trim(),
-            'email': guardianEmailCtrl.text.trim(),
+            'guardianName': guardianName,
+            'relationship': guardianRel,
+            'phoneNo': guardianPhone,
+            'email': guardianEmail,
           },
         }),
       );
@@ -718,7 +896,11 @@ class _StudentsTabState extends State<StudentsTab> {
                                     children: [
                                       Expanded(
                                         child: DropdownButtonFormField<String>(
-                                          initialValue: filterYear,
+                                          value: (assignedYearsForHod.isNotEmpty && assignedYearsForHod.any((item) => item['value'] == filterYear))
+                                              ? filterYear
+                                              : (assignedYearsForHod.isNotEmpty
+                                                  ? assignedYearsForHod.first['value'] as String
+                                                  : filterYear),
                                           decoration: const InputDecoration(
                                             labelText: 'Select Year *',
                                             border: OutlineInputBorder(),
@@ -729,24 +911,20 @@ class _StudentsTabState extends State<StudentsTab> {
                                             filled: true,
                                             fillColor: Colors.white,
                                           ),
-                                          items: const [
-                                            DropdownMenuItem(
-                                              value: 'I',
-                                              child: Text('I Year'),
-                                            ),
-                                            DropdownMenuItem(
-                                              value: 'II',
-                                              child: Text('II Year'),
-                                            ),
-                                            DropdownMenuItem(
-                                              value: 'III',
-                                              child: Text('III Year'),
-                                            ),
-                                            DropdownMenuItem(
-                                              value: 'IV',
-                                              child: Text('IV Year'),
-                                            ),
-                                          ],
+                                          items: (assignedYearsForHod.isNotEmpty
+                                                  ? assignedYearsForHod
+                                                  : [
+                                                      {'value': 'I', 'label': 'I Year'},
+                                                      {'value': 'II', 'label': 'II Year'},
+                                                      {'value': 'III', 'label': 'III Year'},
+                                                      {'value': 'IV', 'label': 'IV Year'},
+                                                    ])
+                                              .map<DropdownMenuItem<String>>((item) {
+                                            return DropdownMenuItem<String>(
+                                              value: item['value'] as String,
+                                              child: Text(item['label'] as String),
+                                            );
+                                          }).toList(),
                                           onChanged: (value) {
                                             setState(() {
                                               filterYear = value;
@@ -976,7 +1154,7 @@ class _StudentsTabState extends State<StudentsTab> {
                 ],
               ),
             ),
-      floatingActionButton: isCc
+      floatingActionButton: canAddStudents
           ? FloatingActionButton.extended(
               onPressed: _showAddStudentOptions,
               backgroundColor: const Color(0xFF11998e),
@@ -1413,7 +1591,11 @@ class _EditStudentDialogState extends State<EditStudentDialog> {
             const SizedBox(height: 12),
             TextField(
               controller: phoneCtrl,
-              keyboardType: TextInputType.phone,
+              keyboardType: TextInputType.number,
+              inputFormatters: [
+                FilteringTextInputFormatter.digitsOnly,
+                LengthLimitingTextInputFormatter(10),
+              ],
               maxLength: 10,
               decoration: const InputDecoration(
                 labelText: 'Phone',
@@ -1432,7 +1614,7 @@ class _EditStudentDialogState extends State<EditStudentDialog> {
                 Text(
                   dob == null
                       ? 'No DOB Selected'
-                      : "DOB: \${dob!.year}-\${dob!.month.toString().padLeft(2, '0')}-\${dob!.day.toString().padLeft(2, '0')}",
+                      : "DOB: ${dob!.year}-${dob!.month.toString().padLeft(2, '0')}-${dob!.day.toString().padLeft(2, '0')}",
                   style: const TextStyle(fontWeight: FontWeight.bold),
                 ),
                 TextButton.icon(
@@ -1480,7 +1662,7 @@ class _EditStudentDialogState extends State<EditStudentDialog> {
                   updatedStudent['academicYear'] = academicYearCtrl.text.trim();
                   if (dob != null) {
                     updatedStudent['dateOfBirth'] =
-                        "\${dob!.year}-\${dob!.month.toString().padLeft(2, '0')}-\${dob!.day.toString().padLeft(2, '0')}";
+                        "${dob!.year}-${dob!.month.toString().padLeft(2, '0')}-${dob!.day.toString().padLeft(2, '0')}";
                   }
                   Navigator.pop(context, updatedStudent);
                 },

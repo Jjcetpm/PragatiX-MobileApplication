@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:pragatix/core/widgets/pragatix_loader.dart';
 import 'package:pragatix/features/admin/repository/admin_repository.dart';
 import 'package:pragatix/core/di/service_locator.dart';
@@ -161,9 +162,16 @@ class _SuperAdminManagementTabState extends State<SuperAdminManagementTab> {
                       const SizedBox(height: 16),
                       TextField(
                         controller: phoneCtrl,
-                        keyboardType: TextInputType.phone,
+                        keyboardType: TextInputType.number,
+                        inputFormatters: [
+                          FilteringTextInputFormatter.digitsOnly,
+                          LengthLimitingTextInputFormatter(10),
+                        ],
+                        maxLength: 10,
                         decoration: const InputDecoration(
                           labelText: 'Phone',
+                          hintText: 'Enter 10-digit phone number',
+                          counterText: '',
                           border: OutlineInputBorder(),
                         ),
                       ),
@@ -227,10 +235,21 @@ class _SuperAdminManagementTabState extends State<SuperAdminManagementTab> {
                               return;
                             }
 
+                            final rawPhone = phoneCtrl.text.trim();
+                            if (rawPhone.isNotEmpty && (rawPhone.length != 10 || !RegExp(r'^\d{10}$').hasMatch(rawPhone))) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Phone number must contain exactly 10 digits'),
+                                  backgroundColor: Colors.redAccent,
+                                ),
+                              );
+                              return;
+                            }
+
                             final data = <String, dynamic>{
                               'fullName': fullNameCtrl.text.trim().toUpperCase(),
                               'email': emailCtrl.text.trim().isNotEmpty ? emailCtrl.text.trim() : null,
-                              'phone': phoneCtrl.text.trim().isNotEmpty ? phoneCtrl.text.trim() : null,
+                              'phone': rawPhone.isNotEmpty ? rawPhone : null,
                               'active': admin?['active'] ?? true,
                               'password': StringUtils.generateSecurePassword(),
                             };

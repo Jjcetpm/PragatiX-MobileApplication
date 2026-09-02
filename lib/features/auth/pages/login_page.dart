@@ -1,5 +1,6 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:pinput/pinput.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -898,6 +899,10 @@ class _LoginPageState extends State<LoginPage> {
                       Pinput(
                         controller: _otpController,
                         length: 4,
+                        keyboardType: TextInputType.number,
+                        inputFormatters: [
+                          FilteringTextInputFormatter.digitsOnly,
+                        ],
                         onCompleted: (pin) {
                           if (!_isLoading) {
                             _handleVerifyOtp();
@@ -905,7 +910,7 @@ class _LoginPageState extends State<LoginPage> {
                         },
                         validator: (v) {
                           if (v == null || v.trim().isEmpty) return 'OTP is required';
-                          if (v.trim().length != 4) return 'OTP must be 4 digits';
+                          if (v.trim().length != 4 || !RegExp(r'^\d{4}$').hasMatch(v.trim())) return 'OTP must be 4 digits';
                           return null;
                         },
                         defaultPinTheme: PinTheme(

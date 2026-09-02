@@ -736,22 +736,7 @@ class GroupedActivitySelectionDialog extends StatelessWidget {
                                                       ),
                                                     ),
                                                   ),
-                                                Container(
-                                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                                  decoration: BoxDecoration(
-                                                    color: act.alreadyMapped ? Colors.grey.shade200 : Colors.green.shade50,
-                                                    borderRadius: BorderRadius.circular(12),
-                                                    border: Border.all(color: act.alreadyMapped ? Colors.grey.shade300 : Colors.green.shade200),
-                                                  ),
-                                                  child: Text(
-                                                    '+\${act.awardXp} XP',
-                                                    style: TextStyle(
-                                                      color: act.alreadyMapped ? Colors.grey.shade600 : Colors.green.shade700,
-                                                      fontWeight: FontWeight.bold,
-                                                      fontSize: 12,
-                                                    ),
-                                                  ),
-                                                ),
+                                                
                                               ],
                                             ),
                                             if (act.description.isNotEmpty) ...[
