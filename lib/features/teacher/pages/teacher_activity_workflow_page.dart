@@ -786,54 +786,68 @@ class _TeacherActivityWorkflowPageState
           ),
           const SizedBox(height: 16),
           Expanded(
-            child: ListView.builder(
-              itemCount: uniqueSections.length,
-              itemBuilder: (ctx, idx) {
-                final sec = uniqueSections[idx];
-                final secName = sec['sectionName'] ?? sec['name'] ?? '';
-                return Card(
-                  margin: const EdgeInsets.only(bottom: 12),
-                  elevation: 1.5,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: InkWell(
-                    borderRadius: BorderRadius.circular(16),
-                    onTap: () => _onSectionSelected(sec),
-                    child: Padding(
-                      padding: const EdgeInsets.all(20),
-                      child: Row(
-                        children: [
-                          CircleAvatar(
-                            backgroundColor: Colors.teal.withOpacity(0.1),
-                            child: const Icon(
-                              Icons.class_rounded,
-                              color: Colors.teal,
-                            ),
-                          ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: Text(
-                              'Section $secName',
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 15,
-                                color: Color(0xFF1E293B),
-                              ),
-                            ),
-                          ),
-                          const Icon(
-                            Icons.arrow_forward_ios_rounded,
-                            size: 16,
-                            color: Colors.grey,
-                          ),
-                        ],
+            child: uniqueSections.isEmpty
+                ? const Center(
+                    child: Text(
+                      'No sections assigned for this department.',
+                      style: TextStyle(
+                        fontSize: 15,
+                        color: Colors.grey,
+                        fontWeight: FontWeight.w500,
                       ),
                     ),
+                  )
+                : ListView.builder(
+                    itemCount: uniqueSections.length,
+                    itemBuilder: (ctx, idx) {
+                      final sec = uniqueSections[idx];
+                      final rawName = (sec['sectionName'] ?? sec['name'] ?? '').toString().trim();
+                      final secName = rawName.toUpperCase().startsWith('SECTION')
+                          ? rawName
+                          : 'Section $rawName';
+                      return Card(
+                        margin: const EdgeInsets.only(bottom: 12),
+                        elevation: 1.5,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(16),
+                          onTap: () => _onSectionSelected(sec),
+                          child: Padding(
+                            padding: const EdgeInsets.all(20),
+                            child: Row(
+                              children: [
+                                CircleAvatar(
+                                  backgroundColor: Colors.teal.withValues(alpha: 0.1),
+                                  child: const Icon(
+                                    Icons.class_rounded,
+                                    color: Colors.teal,
+                                  ),
+                                ),
+                                const SizedBox(width: 16),
+                                Expanded(
+                                  child: Text(
+                                    secName,
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 15,
+                                      color: Color(0xFF1E293B),
+                                    ),
+                                  ),
+                                ),
+                                const Icon(
+                                  Icons.arrow_forward_ios_rounded,
+                                  size: 16,
+                                  color: Colors.grey,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      );
+                    },
                   ),
-                );
-              },
-            ),
           ),
         ],
       ),

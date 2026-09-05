@@ -89,6 +89,56 @@ class _AddStudentDialogState extends State<AddStudentDialog> {
     }).toList();
   }
 
+  List<dynamic> _getAllowedSemestersForYear(int? yearId) {
+    if (yearId == null) return [];
+    final matchedYear = widget.years.firstWhere(
+      (y) => y['id'] == yearId,
+      orElse: () => null,
+    );
+    if (matchedYear == null) return [];
+
+    int yNo = 0;
+    if (matchedYear['yearNo'] != null) {
+      yNo = matchedYear['yearNo'] is int
+          ? matchedYear['yearNo']
+          : int.tryParse(matchedYear['yearNo'].toString()) ?? 0;
+    }
+    if (yNo == 0) {
+      final name = (matchedYear['yearName'] ?? matchedYear['name'] ?? '').toString().toLowerCase();
+      if (name.contains('1') || name.contains('first') || name.contains('i')) {
+        yNo = 1;
+      } else if (name.contains('2') || name.contains('second') || name.contains('ii')) {
+        yNo = 2;
+      } else if (name.contains('3') || name.contains('third') || name.contains('iii')) {
+        yNo = 3;
+      } else if (name.contains('4') || name.contains('fourth') || name.contains('iv')) {
+        yNo = 4;
+      }
+    }
+
+    final uniqueSemesters = _deduplicate(widget.semesters);
+    return uniqueSemesters.where((sem) {
+      int sNo = 0;
+      if (sem['semesterNo'] != null) {
+        sNo = sem['semesterNo'] is int
+            ? sem['semesterNo']
+            : int.tryParse(sem['semesterNo'].toString()) ?? 0;
+      }
+      if (sNo == 0) {
+        final semName = (sem['semesterName'] ?? sem['name'] ?? '').toString().toLowerCase();
+        final match = RegExp(r'\d+').firstMatch(semName);
+        if (match != null) {
+          sNo = int.tryParse(match.group(0)!) ?? 0;
+        }
+      }
+      if (yNo == 1) return sNo == 1 || sNo == 2;
+      if (yNo == 2) return sNo == 3 || sNo == 4;
+      if (yNo == 3) return sNo == 5 || sNo == 6;
+      if (yNo == 4) return sNo == 7 || sNo == 8;
+      return false;
+    }).toList();
+  }
+
   @override
   void initState() {
     super.initState();
@@ -96,7 +146,6 @@ class _AddStudentDialogState extends State<AddStudentDialog> {
 
     final uniqueDepartments = _deduplicate(widget.departments);
     final uniqueYears = _deduplicate(widget.years);
-    final uniqueSemesters = _deduplicate(widget.semesters);
     final uniqueGenders = _deduplicate(widget.genders);
 
     if (uniqueDepartments.isNotEmpty) {
@@ -105,8 +154,11 @@ class _AddStudentDialogState extends State<AddStudentDialog> {
     if (uniqueYears.isNotEmpty) {
       selectedYearId = uniqueYears.first['id'];
     }
-    if (uniqueSemesters.isNotEmpty) {
-      selectedSemesterId = uniqueSemesters.first['id'];
+    final allowedSems = _getAllowedSemestersForYear(selectedYearId);
+    if (allowedSems.isNotEmpty) {
+      selectedSemesterId = allowedSems.first['id'];
+    } else {
+      selectedSemesterId = null;
     }
     if (uniqueGenders.isNotEmpty) {
       selectedGenderId = uniqueGenders.first['id'];
@@ -152,6 +204,10 @@ class _AddStudentDialogState extends State<AddStudentDialog> {
     }
     if (name.isEmpty) {
       _showError('Full Name is required');
+      return;
+    }
+    if (!RegExp(r'^[a-zA-Z\s]+$').hasMatch(name)) {
+      _showError('Full Name must contain letters and spaces only.');
       return;
     }
     if (email.isEmpty) {
@@ -208,6 +264,11 @@ class _AddStudentDialogState extends State<AddStudentDialog> {
     }
     if (selectedSemesterId == null) {
       _showError('Select Semester');
+      return;
+    }
+    final allowedSems = _getAllowedSemestersForYear(selectedYearId);
+    if (!allowedSems.any((s) => s['id'] == selectedSemesterId)) {
+      _showError('Selected semester does not belong to the selected year.');
       return;
     }
 
@@ -335,6 +396,7 @@ class _AddStudentDialogState extends State<AddStudentDialog> {
               controller: widget.nameController,
               textCapitalization: TextCapitalization.characters,
               inputFormatters: [
+                FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z\s]')),
                 UpperCaseTextFormatter(),
               ],
               decoration: const InputDecoration(labelText: 'Full Name *'),
@@ -485,23 +547,32 @@ class _AddStudentDialogState extends State<AddStudentDialog> {
               onChanged: (value) {
                 setState(() {
                   selectedYearId = value;
+                  final allowedSems = _getAllowedSemestersForYear(selectedYearId);
+                  if (allowedSems.isNotEmpty) {
+                    if (selectedSemesterId == null || !allowedSems.any((s) => s['id'] == selectedSemesterId)) {
+                      selectedSemesterId = allowedSems.first['id'];
+                    }
+                  } else {
+                    selectedSemesterId = null;
+                  }
                 });
               },
             ),
             DropdownButtonFormField<int>(
               value: selectedSemesterId,
               decoration: const InputDecoration(labelText: 'Semester *'),
-              items: uniqueSemesters.map((sem) {
+              hint: Text(selectedYearId == null ? 'Select Year first' : 'Select Semester'),
+              items: _getAllowedSemestersForYear(selectedYearId).map((sem) {
                 return DropdownMenuItem<int>(
                   value: sem['id'],
                   child: Text(
                     sem['semesterNo'] != null
                         ? "Semester ${sem['semesterNo']}"
-                        : '',
+                        : (sem['semesterName'] ?? sem['name'] ?? ''),
                   ),
                 );
               }).toList(),
-              onChanged: (value) {
+              onChanged: selectedYearId == null ? null : (value) {
                 setState(() {
                   selectedSemesterId = value;
                 });

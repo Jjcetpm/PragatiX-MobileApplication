@@ -16,6 +16,8 @@ import 'package:pragatix/features/auth/repository/auth_repository.dart';
 import 'package:pragatix/features/captain/pages/captain_dashboard_page.dart';
 import 'package:pragatix/features/enrollment/repository/enrollment_repository.dart';
 import 'package:pragatix/features/enrollment/widgets/student_enrollment_dialog.dart';
+import 'package:pragatix/core/services/server_status_service.dart';
+import 'package:pragatix/core/exceptions/api_exception.dart';
 import 'package:pragatix/features/student/pages/student_dashboard_page.dart';
 import 'package:pragatix/features/teacher/pages/teacher_dashboard.dart';
 
@@ -30,6 +32,7 @@ class _LoginPageState extends State<LoginPage> {
   final _formKey = GlobalKey<FormState>();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _otpController = TextEditingController();
+  final FocusNode _otpFocusNode = FocusNode();
 
   bool _isLoading = false;
   bool _isOtpStep = false;
@@ -52,6 +55,7 @@ class _LoginPageState extends State<LoginPage> {
     super.initState();
     _policyTapRecognizer = TapGestureRecognizer()..onTap = _showPolicyDialog;
     _checkEnrollmentStatus();
+    ServerStatusService.instance.checkServerHealth();
   }
 
   Future<void> _checkEnrollmentStatus() async {
@@ -62,7 +66,13 @@ class _LoginPageState extends State<LoginPage> {
           _enrollmentEnabled = enabled;
         });
       }
-    } catch (_) {}
+    } catch (e) {
+      if (e is ServerMaintenanceException) {
+        ServerStatusService.instance.setMaintenanceMode(true);
+      } else if (e is NoInternetException) {
+        ServerStatusService.instance.setNoInternetMode(true);
+      }
+    }
   }
 
   void _startTimer() {
@@ -117,11 +127,18 @@ class _LoginPageState extends State<LoginPage> {
       setState(() => _isLoading = false);
       LoadingService.hide();
 
-      ErrorHandler.showSnackBar(context, e);
+      if (e is ServerMaintenanceException) {
+        ServerStatusService.instance.setMaintenanceMode(true);
+      } else if (e is NoInternetException) {
+        ServerStatusService.instance.setNoInternetMode(true);
+      } else {
+        ErrorHandler.showSnackBar(context, e);
+      }
     }
   }
 
   Future<void> _handleVerifyOtp() async {
+    if (_isLoading) return;
     if (!_formKey.currentState!.validate()) return;
 
     if (_secondsRemaining == 0) {
@@ -248,7 +265,13 @@ class _LoginPageState extends State<LoginPage> {
       setState(() => _isLoading = false);
       LoadingService.hide();
 
-      ErrorHandler.showSnackBar(context, e);
+      if (e is ServerMaintenanceException) {
+        ServerStatusService.instance.setMaintenanceMode(true);
+      } else if (e is NoInternetException) {
+        ServerStatusService.instance.setNoInternetMode(true);
+      } else {
+        ErrorHandler.showSnackBar(context, e);
+      }
     }
   }
 
@@ -258,6 +281,7 @@ class _LoginPageState extends State<LoginPage> {
     _timer?.cancel();
     _emailController.dispose();
     _otpController.dispose();
+    _otpFocusNode.dispose();
     super.dispose();
   }
 
@@ -897,9 +921,16 @@ class _LoginPageState extends State<LoginPage> {
                     ] else ...[
                       // ── OTP Step ───────────────────────────────────────────────
                       Pinput(
+                        key: const Key('otp_pinput_field'),
                         controller: _otpController,
+                        focusNode: _otpFocusNode,
+                        autofocus: true,
                         length: 4,
                         keyboardType: TextInputType.number,
+                        autofillHints: const [
+                          AutofillHints.oneTimeCode,
+                        ],
+                        smsRetriever: null,
                         inputFormatters: [
                           FilteringTextInputFormatter.digitsOnly,
                         ],
@@ -968,16 +999,18 @@ class _LoginPageState extends State<LoginPage> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text(
-                            _secondsRemaining > 0
-                                ? 'Expires in: ${_formatTimer(_secondsRemaining)}'
-                                : 'OTP expired',
-                            style: TextStyle(
-                              color: _secondsRemaining > 0
-                                  ? const Color(0xFF64748B)
-                                  : Colors.redAccent,
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
+                          Flexible(
+                            child: Text(
+                              _secondsRemaining > 0
+                                  ? 'Expires in: ${_formatTimer(_secondsRemaining)}'
+                                  : 'OTP expired',
+                              style: TextStyle(
+                                color: _secondsRemaining > 0
+                                    ? const Color(0xFF64748B)
+                                    : Colors.redAccent,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                              ),
                             ),
                           ),
                           TextButton(
@@ -1054,6 +1087,7 @@ class _LoginPageState extends State<LoginPage> {
 
                       TextButton(
                         onPressed: () {
+                          _otpFocusNode.unfocus();
                           setState(() {
                             _isOtpStep = false;
                             _otpController.clear();

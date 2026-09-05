@@ -1,11 +1,8 @@
-import 'dart:io';
-import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:pragatix/core/error/error_type.dart';
 import 'package:pragatix/core/exceptions/api_exception.dart';
 import 'package:pragatix/core/utils/error_handler.dart';
 import 'package:pragatix/core/error/pages/no_internet_page.dart';
-import 'package:pragatix/core/error/pages/server_unavailable_page.dart';
 import 'package:pragatix/core/error/pages/request_timeout_page.dart';
 import 'package:pragatix/core/error/pages/unauthorized_page.dart';
 import 'package:pragatix/core/error/pages/permission_denied_page.dart';
@@ -20,57 +17,24 @@ import 'package:pragatix/core/error/pages/unexpected_error_page.dart';
 class AppErrorMapper {
   /// Converts any Exception or Error into an AppErrorType
   static AppErrorType fromException(dynamic error) {
-    if (error is SocketException) {
-      final msg = error.message.toLowerCase();
-      if (msg.contains('connection refused')) {
-        return AppErrorType.serverUnavailable;
-      }
-      return AppErrorType.noInternet;
-    }
+    final classification = ErrorHandler.classify(error);
 
-    if (error is TimeoutException) {
-      return AppErrorType.requestTimeout;
+    switch (classification.category) {
+      case NetworkErrorCategory.noInternet:
+        return AppErrorType.noInternet;
+      case NetworkErrorCategory.serverUnavailable:
+      case NetworkErrorCategory.serverError:
+        return AppErrorType.maintenance;
+      case NetworkErrorCategory.clientError:
+        if (error is ApiException) {
+          if (error.statusCode == 401) return AppErrorType.unauthorized;
+          if (error.statusCode == 403) return AppErrorType.permissionDenied;
+          if (error.statusCode == 404) return AppErrorType.notFound;
+        }
+        return AppErrorType.unexpected;
+      case NetworkErrorCategory.success:
+        return AppErrorType.unexpected;
     }
-
-    final errStr = error.toString().toLowerCase();
-    if (errStr.contains('connection refused')) {
-      return AppErrorType.serverUnavailable;
-    }
-
-    if (errStr.contains('timeout')) {
-      return AppErrorType.requestTimeout;
-    }
-
-    if (ErrorHandler.isNetworkError(error)) {
-      return AppErrorType.noInternet;
-    }
-
-    if (error is ApiException) {
-      switch (error.statusCode) {
-        case 401:
-          return AppErrorType.unauthorized;
-        case 403:
-          return AppErrorType.permissionDenied;
-        case 404:
-          return AppErrorType.notFound;
-        case 408:
-        case 504:
-          return AppErrorType.requestTimeout;
-        case 502:
-        case 503:
-          // Check if error message explicitly implies maintenance
-          if (error.message.toLowerCase().contains('maintenance')) {
-            return AppErrorType.maintenance;
-          }
-          return AppErrorType.serverUnavailable;
-        case 500:
-          return AppErrorType.serverError;
-        default:
-          return AppErrorType.unexpected;
-      }
-    }
-
-    return AppErrorType.unexpected;
   }
 
   /// Returns the corresponding Flutter Widget for a given AppErrorType
@@ -87,7 +51,12 @@ class AppErrorMapper {
       case AppErrorType.noInternet:
         return NoInternetPage(onRetry: onRetry, onBack: onBack);
       case AppErrorType.serverUnavailable:
-        return ServerUnavailablePage(onRetry: onRetry, onBack: onBack);
+      case AppErrorType.maintenance:
+        return MaintenancePage(
+          onRetry: onRetry,
+          onHome: onHome,
+          maintenanceMessage: customMessage ?? 'Please try again later.',
+        );
       case AppErrorType.requestTimeout:
         return RequestTimeoutPage(onRetry: onRetry, onBack: onBack);
       case AppErrorType.unauthorized:
@@ -106,8 +75,6 @@ class AppErrorMapper {
         );
       case AppErrorType.serverError:
         return ServerErrorPage(onRetry: onRetry, onBack: onBack);
-      case AppErrorType.maintenance:
-        return MaintenancePage(onRetry: onRetry, onHome: onHome, maintenanceMessage: customMessage);
       case AppErrorType.uploadError:
         return UploadErrorPage(onRetry: onRetry, onChooseAnother: onBack, detailedReason: customMessage);
       case AppErrorType.downloadError:

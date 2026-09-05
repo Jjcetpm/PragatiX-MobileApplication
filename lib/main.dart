@@ -19,10 +19,15 @@ import 'package:pragatix/features/analytics/providers/xp_analytics_provider.dart
 import 'package:pragatix/features/penalty/providers/penalty_provider.dart';
 import 'package:pragatix/features/admin/providers/department_provider.dart';
 import 'package:pragatix/core/widgets/security_gate.dart';
+import 'package:pragatix/core/widgets/server_maintenance_gate.dart';
+import 'package:pragatix/core/services/server_status_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   setupLocator();
+
+  // Check server health probe on startup
+  ServerStatusService.instance.checkServerHealth();
 
   final authProvider = getIt<AuthProvider>();
   await authProvider.checkAuthStatus();
@@ -57,7 +62,11 @@ class MyApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       title: 'pragatiX – Track. Learn. Grow.',
       theme: AppTheme.light(),
-      builder: (context, child) => SecurityGate(child: child ?? const SizedBox.shrink()),
+      builder: (context, child) => SecurityGate(
+        child: ServerMaintenanceGate(
+          child: child ?? const SizedBox.shrink(),
+        ),
+      ),
       home: Consumer<AuthProvider>(
         builder: (context, auth, _) {
           if (auth.isAuthenticated) {

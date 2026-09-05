@@ -19,13 +19,13 @@ class AttendanceAnalyticsService {
   }
 
   String getExportUrl(Map<String, dynamic> filters) {
-    final queryParams = <String>['access_token=$token'];
+    final queryParams = <String>[];
     filters.forEach((key, value) {
       if (value != null && value.toString().isNotEmpty) {
         queryParams.add('$key=$value');
       }
     });
-    return '$_baseUrl/export?${queryParams.join('&')}';
+    return queryParams.isEmpty ? '$_baseUrl/export' : '$_baseUrl/export?${queryParams.join('&')}';
   }
 
   Future<Map<String, dynamic>> getOverview(Map<String, dynamic> filters) async {

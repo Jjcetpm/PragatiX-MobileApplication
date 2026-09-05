@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:async';
@@ -358,9 +359,23 @@ class _TeachersTabState extends State<TeachersTab> {
     }
   }
 
+  String _computeNextSectionLetter(List<dynamic> sections) {
+    final existing = sections
+        .map((s) => (s['sectionName'] ?? s['name'] ?? '').toString().trim().toUpperCase())
+        .toSet();
+    for (int i = 0; i < 26; i++) {
+      final letter = String.fromCharCode(65 + i);
+      if (!existing.contains(letter)) {
+        return letter;
+      }
+    }
+    return '';
+  }
+
   void _showAddSectionToDeptDialog(int? deptId, void Function(void Function()) setDialogState) {
     if (deptId == null) return;
-    final TextEditingController sectionController = TextEditingController();
+    final nextExpected = _computeNextSectionLetter(dialogSections);
+    final TextEditingController sectionController = TextEditingController(text: nextExpected);
     showDialog(
       context: context,
       builder: (context) {
@@ -368,9 +383,20 @@ class _TeachersTabState extends State<TeachersTab> {
           title: const Text('Add Section'),
           content: TextField(
             controller: sectionController,
-            decoration: const InputDecoration(
-              labelText: 'Section Name',
-              hintText: 'e.g. A, B, C',
+            maxLength: 1,
+            textCapitalization: TextCapitalization.characters,
+            inputFormatters: [
+              FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z]')),
+            ],
+            decoration: InputDecoration(
+              labelText: 'Section Letter',
+              hintText: 'e.g. A, B',
+              counterText: '',
+              helperText: dialogSections.isEmpty
+                  ? "First section starts from 'A'"
+                  : (nextExpected.isNotEmpty
+                      ? "Next in sequence: $nextExpected"
+                      : "All sections (A-Z) created"),
             ),
           ),
           actions: [
@@ -381,7 +407,59 @@ class _TeachersTabState extends State<TeachersTab> {
             ElevatedButton(
               onPressed: () async {
                 final val = sectionController.text.trim().toUpperCase();
-                if (val.isEmpty) return;
+                if (val.isEmpty) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Please enter a section letter'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                  return;
+                }
+                if (!RegExp(r'^[A-Z]$').hasMatch(val)) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Section must be a single letter (e.g. A, B, C)'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                  return;
+                }
+                final existingLetters = dialogSections
+                    .map((s) => (s['sectionName'] ?? s['name'] ?? '').toString().trim().toUpperCase())
+                    .toSet();
+                if (existingLetters.contains(val)) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text("Section '$val' already exists in this department"),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                  return;
+                }
+                final expected = _computeNextSectionLetter(dialogSections);
+                if (expected.isEmpty) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Maximum section limit reached (A-Z)'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                  return;
+                }
+                if (val != expected) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        dialogSections.isEmpty
+                            ? "First section must start from 'A'"
+                            : "Sections must be sequential. Next section must be '$expected'",
+                      ),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                  return;
+                }
                 try {
                   await getIt<AdminRepository>().addDepartmentSection(deptId, val);
                   if (!mounted) return;
@@ -631,12 +709,7 @@ class _TeachersTabState extends State<TeachersTab> {
                       }
                     } catch (e) {
                       if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('No internet connection or something went wrong. Please check your network and try again.'),
-                            backgroundColor: Colors.redAccent,
-                          ),
-                        );
+                        ErrorHandler.showSnackBar(context, e);
                       }
                     }
                   },

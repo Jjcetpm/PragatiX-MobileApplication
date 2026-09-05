@@ -1977,10 +1977,13 @@ extension StudentsTabDialogs on _StudentsTabState {
                       const SizedBox(width: 16),
                       ElevatedButton(
                         onPressed: () {
+                          final rawEmail = emailCtrl.text.trim();
+                          final existingEmail = (student['email'] ?? '').toString().trim();
+                          final effectiveEmail = rawEmail.isNotEmpty ? rawEmail : existingEmail;
                           _editStudent(
                             id: student['id'],
                             fullName: nameCtrl.text.trim(),
-                            email: emailCtrl.text.trim(),
+                            email: effectiveEmail,
                             phone: phoneCtrl.text.trim(),
                             genderId: selectedGenderId,
                             departmentId: selectedDeptId,

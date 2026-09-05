@@ -134,7 +134,7 @@ void main() {
 
     // Top App Bar
     expect(find.text('Leaderboard'), findsOneWidget);
-    expect(find.text('Compete • Earn • Lead'), findsOneWidget);
+    expect(find.text('Track • Learn • Grow'), findsOneWidget);
 
     // Department & Section filters should be present on student view
     expect(find.text('Department'), findsOneWidget);

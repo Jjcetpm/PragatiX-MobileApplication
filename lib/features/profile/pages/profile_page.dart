@@ -289,8 +289,6 @@ class _ProfilePageState extends State<ProfilePage> {
         ],
         SharedProfileRow(label: 'Email', value: _profile!.email ?? (_profile!.username.contains('@') ? _profile!.username : 'Not Available')),
         const SizedBox(height: 4),
-        SharedProfileRow(label: 'Phone', value: _profile!.phone ?? 'Not Available'),
-        const SizedBox(height: 4),
         if (isAdmin) ...[
           SharedProfileRow(label: 'Assigned Year', value: _profile!.adminDetails!.academicYear ?? 'Not Available'),
           const SizedBox(height: 4),

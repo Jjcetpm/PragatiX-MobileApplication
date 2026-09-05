@@ -1,11 +1,12 @@
-import 'package:pragatix/features/auth/providers/auth_provider.dart';
-import 'package:pragatix/core/widgets/pragatix_loader.dart';
-import 'package:provider/provider.dart';
 import 'package:flutter/material.dart';
-import 'package:pragatix/core/utils/error_handler.dart';
-import 'package:pragatix/features/admin/repository/admin_repository.dart';
+import 'package:flutter/services.dart';
 import 'package:pragatix/core/di/service_locator.dart';
+import 'package:pragatix/core/utils/error_handler.dart';
+import 'package:pragatix/core/widgets/pragatix_loader.dart';
 import 'package:pragatix/features/admin/providers/department_provider.dart' as import_provider;
+import 'package:pragatix/features/admin/repository/admin_repository.dart';
+import 'package:pragatix/features/auth/providers/auth_provider.dart';
+import 'package:provider/provider.dart';
 
 Future<List<dynamic>> _apiGetDepartments(String token) async {
   try {
@@ -331,6 +332,19 @@ class _DepartmentsTabState extends State<DepartmentsTab> {
         builder: (pageContext) {
           return StatefulBuilder(
             builder: (context, setPageState) {
+              String computeNextSectionLetter(List<dynamic> sections) {
+                final existing = sections
+                    .map((s) => (s['sectionName'] ?? s['name'] ?? '').toString().trim().toUpperCase())
+                    .toSet();
+                for (int i = 0; i < 26; i++) {
+                  final letter = String.fromCharCode(65 + i);
+                  if (!existing.contains(letter)) {
+                    return letter;
+                  }
+                }
+                return '';
+              }
+
               Future<void> fetchDeptSections() async {
                 if (_departmentType == 'SUB') {
                   setPageState(() => loadingSections = false);
@@ -343,6 +357,7 @@ class _DepartmentsTabState extends State<DepartmentsTab> {
                   setPageState(() {
                     deptSections = sections;
                     loadingSections = false;
+                    sectionNameController.text = computeNextSectionLetter(sections);
                   });
                 } catch (e) {
                   debugPrint('Error fetching dept sections: $e');
@@ -353,14 +368,65 @@ class _DepartmentsTabState extends State<DepartmentsTab> {
               Future<void> addSection() async {
                 final secName =
                     sectionNameController.text.trim().toUpperCase();
-                if (secName.isEmpty) return;
+                if (secName.isEmpty) {
+                  ScaffoldMessenger.of(this.context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Please enter a section letter'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                  return;
+                }
+                if (!RegExp(r'^[A-Z]$').hasMatch(secName)) {
+                  ScaffoldMessenger.of(this.context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Section must be a single letter (e.g. A, B, C)'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                  return;
+                }
+                final existingLetters = deptSections
+                    .map((s) => (s['sectionName'] ?? s['name'] ?? '').toString().trim().toUpperCase())
+                    .toSet();
+                if (existingLetters.contains(secName)) {
+                  ScaffoldMessenger.of(this.context).showSnackBar(
+                    SnackBar(
+                      content: Text("Section '$secName' already exists in this department"),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                  return;
+                }
+                final expectedNext = computeNextSectionLetter(deptSections);
+                if (expectedNext.isEmpty) {
+                  ScaffoldMessenger.of(this.context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Maximum section limit reached (A-Z)'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                  return;
+                }
+                if (secName != expectedNext) {
+                  ScaffoldMessenger.of(this.context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        existingLetters.isEmpty
+                            ? "First section must start from 'A'"
+                            : "Sections must be sequential. Next section must be '$expectedNext'",
+                      ),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                  return;
+                }
                 try {
                   await getIt<AdminRepository>().addDepartmentSection(
                     dept['id'],
                     secName,
                   );
-                  sectionNameController.clear();
-                  fetchDeptSections();
+                  await fetchDeptSections();
                 } catch (e) {
                   if (!mounted) return;
                   ScaffoldMessenger.of(this.context).showSnackBar(
@@ -512,9 +578,21 @@ class _DepartmentsTabState extends State<DepartmentsTab> {
                                       Expanded(
                                         child: TextField(
                                           controller: sectionNameController,
-                                          decoration: const InputDecoration(
-                                            labelText: 'Add Section (e.g. A, B)',
-                                            border: OutlineInputBorder(),
+                                          maxLength: 1,
+                                          textCapitalization: TextCapitalization.characters,
+                                          inputFormatters: [
+                                            FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z]')),
+                                          ],
+                                          decoration: InputDecoration(
+                                            labelText: 'Section Letter',
+                                            hintText: 'e.g. A, B',
+                                            counterText: '',
+                                            helperText: deptSections.isEmpty
+                                                ? "First section starts from 'A'"
+                                                : (computeNextSectionLetter(deptSections).isNotEmpty
+                                                    ? "Next in sequence: ${computeNextSectionLetter(deptSections)}"
+                                                    : "All sections (A-Z) created"),
+                                            border: const OutlineInputBorder(),
                                           ),
                                         ),
                                       ),

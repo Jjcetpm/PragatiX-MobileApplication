@@ -38,14 +38,17 @@ class AttendanceService {
       headers: await _getHeaders(),
     );
 
-    if (response.statusCode == 200) {
+    try {
       final jsonResponse = jsonDecode(response.body);
-      if (jsonResponse['success']) {
+      if (response.statusCode == 200 && jsonResponse['success'] == true) {
         List<dynamic> data = jsonResponse['data'];
         return data.map((e) => StudentAttendanceListItem.fromJson(e)).toList();
       }
+      throw Exception(jsonResponse['message'] ?? 'Failed to load students');
+    } catch (e) {
+      if (e is Exception) rethrow;
+      throw Exception('Failed to load students');
     }
-    throw Exception('Failed to load students');
   }
 
   Future<void> saveAttendance(
@@ -74,7 +77,13 @@ class AttendanceService {
     );
 
     if (response.statusCode != 200) {
-      throw Exception('Failed to save attendance');
+      try {
+        final jsonResponse = jsonDecode(response.body);
+        throw Exception(jsonResponse['message'] ?? 'Failed to save attendance');
+      } catch (e) {
+        if (e is Exception) rethrow;
+        throw Exception('Failed to save attendance');
+      }
     }
   }
 
@@ -110,6 +119,43 @@ class AttendanceService {
       }
     }
     throw Exception('Failed to load admin summary');
+  }
+
+  Future<List<Map<String, dynamic>>> getAdminAttendanceHistory({
+    String? date,
+    int? yearId,
+    int? departmentId,
+    int? sectionId,
+    int? period,
+  }) async {
+    final params = <String>[];
+    if (date != null) params.add('date=$date');
+    if (yearId != null) params.add('yearId=$yearId');
+    if (departmentId != null) params.add('departmentId=$departmentId');
+    if (sectionId != null) params.add('sectionId=$sectionId');
+    if (period != null) params.add('period=$period');
+
+    String url = '$_baseUrl/api/admin/attendance/history';
+    if (params.isNotEmpty) {
+      url += '?${params.join('&')}';
+    }
+
+    final response = await http.get(
+      Uri.parse(url),
+      headers: await _getHeaders(),
+    );
+
+    if (response.statusCode == 200) {
+      final jsonResponse = jsonDecode(response.body);
+      if (jsonResponse is Map && jsonResponse['data'] != null && jsonResponse['data'] is List) {
+        return List<Map<String, dynamic>>.from(jsonResponse['data']);
+      }
+      if (jsonResponse is List) {
+        return List<Map<String, dynamic>>.from(jsonResponse);
+      }
+      return [];
+    }
+    throw Exception('Failed to load attendance history');
   }
 
   // Student Endpoints
@@ -176,5 +222,42 @@ class AttendanceService {
       }
     }
     return 1; // Default to period 1 if error
+  }
+
+  Future<List<Map<String, dynamic>>> getMarkedPeriods(
+    String date,
+    int departmentId, {
+    int? yearId,
+    int? sectionId,
+  }) async {
+    String url =
+        '$_baseUrl/api/teacher/attendance/marked-periods?date=$date&departmentId=$departmentId';
+    if (yearId != null) {
+      url += '&yearId=$yearId';
+    }
+    if (sectionId != null) {
+      url += '&sectionId=$sectionId';
+    }
+
+    try {
+      final response = await http.get(
+        Uri.parse(url),
+        headers: await _getHeaders(),
+      );
+
+      if (response.statusCode == 200) {
+        final jsonResponse = jsonDecode(response.body);
+        if (jsonResponse['success']) {
+          final list = jsonResponse['data'] as List<dynamic>? ?? [];
+          return list.map((e) {
+            if (e is Map<String, dynamic>) return e;
+            if (e is Map) return Map<String, dynamic>.from(e);
+            if (e is num) return {'period': e.toInt(), 'canViewHistory': true, 'isMarkedByMe': true};
+            return <String, dynamic>{};
+          }).toList();
+        }
+      }
+    } catch (_) {}
+    return [];
   }
 }

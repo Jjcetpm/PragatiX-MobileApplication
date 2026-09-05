@@ -24,6 +24,8 @@ class _TeacherAttendanceTabState extends State<TeacherAttendanceTab> {
 
   DateTime _selectedDate = DateTime.now();
   int _selectedPeriod = 1;
+  int _nextPeriod = 1;
+  List<Map<String, dynamic>> _markedPeriods = [];
   int? _academicYearId;
   int? _yearId;
   int? _departmentId;
@@ -183,18 +185,38 @@ class _TeacherAttendanceTabState extends State<TeacherAttendanceTab> {
         yearId: _yearId,
         sectionId: _sectionId,
       );
+      final marked = await _service.getMarkedPeriods(
+        dateStr,
+        _departmentId!,
+        yearId: _yearId,
+        sectionId: _sectionId,
+      );
+
       if (mounted) {
         setState(() {
-          _selectedPeriod = nextPeriod;
+          _nextPeriod = nextPeriod;
+          _markedPeriods = marked;
+
+          final markedThisPeriod = _markedPeriods.firstWhere(
+            (m) => m['period'] == _selectedPeriod,
+            orElse: () => {},
+          );
+          final bool canViewThisPeriod = markedThisPeriod['canViewHistory'] == true;
+
+          // If current selected period is locked or unviewable marked period, adjust selection
+          if (markedThisPeriod.isEmpty && _selectedPeriod != _nextPeriod) {
+            _selectedPeriod = _nextPeriod;
+          } else if (markedThisPeriod.isNotEmpty && !canViewThisPeriod && _selectedPeriod != _nextPeriod) {
+            _selectedPeriod = _nextPeriod;
+          }
         });
       }
     } catch (e) {
-      // Ignore errors silently, it will fallback to Period 1
       print("Failed to fetch next period: $e");
     }
   }
 
-  Future<void> _loadStudents() async {
+  Future<void> _loadStudents({bool isViewHistory = false}) async {
     if ((!isYearAdmin && _yearId == null) || _departmentId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please select Year and Department')),
@@ -234,7 +256,11 @@ class _TeacherAttendanceTabState extends State<TeacherAttendanceTab> {
           const SnackBar(content: Text('No students found for this class.')),
         );
       } else {
-        _showAttendancePopup(students);
+        if (isViewHistory) {
+          _showAttendanceHistoryPopup(students);
+        } else {
+          _showAttendancePopup(students);
+        }
       }
     } catch (e) {
       if (!mounted) return;
@@ -248,6 +274,13 @@ class _TeacherAttendanceTabState extends State<TeacherAttendanceTab> {
             backgroundColor: Colors.red,
           ),
         );
+      } else if (e.toString().contains('not configured') || e.toString().contains('Sunday') || e.toString().contains('Academic Calendar')) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(e.toString().replaceAll('Exception: ', '')),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
       } else {
         if (mounted) {
           ErrorHandler.showSnackBar(context, e);
@@ -258,6 +291,73 @@ class _TeacherAttendanceTabState extends State<TeacherAttendanceTab> {
         setState(() => _isLoading = false);
       }
     }
+  }
+
+  void _showAttendanceHistoryPopup(List<StudentAttendanceListItem> students) {
+    // Resolve Year Name
+    String yearName = '';
+    final foundYear = _years.firstWhere((y) => y['id'] == _yearId, orElse: () => null);
+    if (foundYear != null) {
+      yearName = foundYear['yearName']?.toString() ?? foundYear['yearNo']?.toString() ?? 'Year $_yearId';
+    } else if (isYearAdmin) {
+      yearName = 'Year Admin';
+    } else if (_yearId != null) {
+      yearName = 'Year $_yearId';
+    }
+
+    // Resolve Department Name
+    String departmentName = '';
+    final foundDept = _departments.firstWhere((d) => d['id'] == _departmentId, orElse: () => null);
+    if (foundDept != null) {
+      departmentName = foundDept['deptCode']?.toString() ?? foundDept['code']?.toString() ?? foundDept['deptName']?.toString() ?? foundDept['name']?.toString() ?? 'Dept';
+    }
+
+    // Resolve Section Name
+    String sectionName = '';
+    if (_sectionId != null) {
+      final foundSec = _sections.firstWhere((s) => s['id'] == _sectionId, orElse: () => null);
+      if (foundSec != null) {
+        sectionName = foundSec['sectionName']?.toString() ?? 'Sec $_sectionId';
+      }
+    }
+
+    final dateStr = DateFormat('dd MMM yyyy').format(_selectedDate);
+
+    // Resolve Faculty who marked it
+    final markedInfo = _markedPeriods.firstWhere(
+      (m) => m['period'] == _selectedPeriod,
+      orElse: () => {},
+    );
+    String? facultyName = markedInfo['markedByFacultyName'] as String?;
+    String? facultyDept = markedInfo['markedByFacultyDepartment'] as String?;
+    String? markedAt = markedInfo['markedAt'] as String?;
+
+    if ((facultyName == null || facultyName.isEmpty) && students.isNotEmpty) {
+      facultyName = students.first.markedByFacultyName;
+      facultyDept = students.first.markedByFacultyDepartment;
+      markedAt = students.first.markedAt;
+    }
+
+    showDialog(
+      context: context,
+      useSafeArea: true,
+      builder: (context) {
+        return Dialog(
+          insetPadding: EdgeInsets.zero,
+          child: AttendanceHistoryPopupContent(
+            students: students,
+            yearName: yearName,
+            departmentName: departmentName,
+            sectionName: sectionName,
+            period: _selectedPeriod,
+            dateStr: dateStr,
+            facultyName: facultyName,
+            facultyDepartment: facultyDept,
+            markedAt: markedAt,
+          ),
+        );
+      },
+    );
   }
 
   void _showAttendancePopup(List<StudentAttendanceListItem> initialStudents) {
@@ -553,16 +653,66 @@ class _TeacherAttendanceTabState extends State<TeacherAttendanceTab> {
                     8,
                     (i) {
                       final periodNo = i + 1;
-                      final isEnabled = periodNo == _selectedPeriod;
+                      final markedInfo = _markedPeriods.firstWhere(
+                        (m) => m['period'] == periodNo,
+                        orElse: () => {},
+                      );
+                      final bool isMarked = markedInfo.isNotEmpty;
+                      final bool canViewHistory = markedInfo['canViewHistory'] == true;
+                      final bool isMarkedByMe = markedInfo['isMarkedByMe'] == true;
+                      final String? facultyName = markedInfo['markedByFacultyName'] as String?;
+                      final bool isNext = periodNo == _nextPeriod && !isMarked;
+                      final bool isEnabled = (isMarked && canViewHistory) || isNext;
+
+                      String label = 'Period $periodNo';
+                      if (isMarked) {
+                        if (canViewHistory) {
+                          if (isMarkedByMe) {
+                            label += ' (Marked by you • View History)';
+                          } else {
+                            label += ' (Marked${facultyName != null ? " by $facultyName" : ""} • View History)';
+                          }
+                        } else {
+                          label += ' (Marked${facultyName != null ? " by $facultyName" : ""} • Locked)';
+                        }
+                      } else if (isNext) {
+                        label += ' (Active to Mark)';
+                      } else {
+                        label += ' (Locked)';
+                      }
+
                       return DropdownMenuItem<int>(
                         value: periodNo,
                         enabled: isEnabled,
-                        child: Text(
-                          'Period $periodNo' + (isEnabled ? '' : ' (Locked)'),
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            color: isEnabled ? Colors.black : Colors.grey,
-                          ),
+                        child: Row(
+                          children: [
+                            if (isMarked) ...[
+                              Icon(
+                                canViewHistory ? Icons.check_circle : Icons.lock_outline,
+                                color: canViewHistory ? const Color(0xFF16A34A) : const Color(0xFF94A3B8),
+                                size: 16,
+                              ),
+                              const SizedBox(width: 6),
+                            ] else if (isNext) ...[
+                              const Icon(Icons.play_circle_fill, color: Color(0xFF2563EB), size: 16),
+                              const SizedBox(width: 6),
+                            ] else ...[
+                              const Icon(Icons.lock_outline, color: Color(0xFF94A3B8), size: 16),
+                              const SizedBox(width: 6),
+                            ],
+                            Expanded(
+                              child: Text(
+                                label,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  color: isMarked
+                                      ? (canViewHistory ? const Color(0xFF16A34A) : const Color(0xFF94A3B8))
+                                      : (isNext ? const Color(0xFF1E293B) : const Color(0xFF94A3B8)),
+                                  fontWeight: (isMarked && canViewHistory) || isNext ? FontWeight.w600 : FontWeight.normal,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       );
                     },
@@ -575,11 +725,565 @@ class _TeacherAttendanceTabState extends State<TeacherAttendanceTab> {
             ],
           ),
           const SizedBox(height: 16),
-          ElevatedButton(
-            onPressed: (_isLoading || _isLoadingLookups) ? null : _loadStudents,
-            child: Text(_isLoadingLookups ? 'Preparing Filters...' : 'Load Students'),
+          Builder(builder: (context) {
+            final markedInfo = _markedPeriods.firstWhere(
+              (m) => m['period'] == _selectedPeriod,
+              orElse: () => {},
+            );
+            final bool isSelectedPeriodMarked = markedInfo.isNotEmpty;
+            final bool canViewHistory = markedInfo['canViewHistory'] == true;
+            final String? facultyName = markedInfo['markedByFacultyName'] as String?;
+
+            final bool isButtonDisabled = _isLoading ||
+                _isLoadingLookups ||
+                (isSelectedPeriodMarked && !canViewHistory);
+
+            String buttonLabel;
+            if (_isLoadingLookups) {
+              buttonLabel = 'Preparing Filters...';
+            } else if (isSelectedPeriodMarked) {
+              if (canViewHistory) {
+                buttonLabel = 'View History (Period $_selectedPeriod)';
+              } else {
+                buttonLabel = 'Marked${facultyName != null ? " by $facultyName" : ""} • No Access';
+              }
+            } else {
+              buttonLabel = 'Mark Attendance (Period $_selectedPeriod)';
+            }
+
+            return SizedBox(
+              width: double.infinity,
+              height: 48,
+              child: ElevatedButton.icon(
+                onPressed: isButtonDisabled
+                    ? null
+                    : () => _loadStudents(isViewHistory: isSelectedPeriodMarked),
+                icon: Icon(
+                  isSelectedPeriodMarked
+                      ? (canViewHistory ? Icons.history_edu_rounded : Icons.lock_outline)
+                      : Icons.checklist_rounded,
+                  size: 20,
+                ),
+                label: Text(
+                  buttonLabel,
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14.5),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: isSelectedPeriodMarked
+                      ? (canViewHistory ? const Color(0xFF4F46E5) : const Color(0xFF94A3B8))
+                      : const Color(0xFF1E293B),
+                  foregroundColor: Colors.white,
+                  disabledBackgroundColor: const Color(0xFFE2E8F0),
+                  disabledForegroundColor: const Color(0xFF94A3B8),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  elevation: 2,
+                ),
+              ),
+            );
+          }),
+        ],
+      ),
+    );
+  }
+}
+
+class AttendanceHistoryPopupContent extends StatefulWidget {
+  final List<StudentAttendanceListItem> students;
+  final String? yearName;
+  final String? departmentName;
+  final String? sectionName;
+  final int? period;
+  final String? dateStr;
+  final String? facultyName;
+  final String? facultyDepartment;
+  final String? markedAt;
+
+  const AttendanceHistoryPopupContent({
+    Key? key,
+    required this.students,
+    this.yearName,
+    this.departmentName,
+    this.sectionName,
+    this.period,
+    this.dateStr,
+    this.facultyName,
+    this.facultyDepartment,
+    this.markedAt,
+  }) : super(key: key);
+
+  @override
+  State<AttendanceHistoryPopupContent> createState() => _AttendanceHistoryPopupContentState();
+}
+
+class _AttendanceHistoryPopupContentState extends State<AttendanceHistoryPopupContent> {
+  final TextEditingController _searchController = TextEditingController();
+  String _searchQuery = '';
+  String _activeTab = 'ALL';
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  List<StudentAttendanceListItem> get _filteredStudents {
+    List<StudentAttendanceListItem> list = widget.students;
+    if (_activeTab == 'PRESENT') {
+      list = list.where((s) => s.status == 'PRESENT').toList();
+    } else if (_activeTab == 'ABSENT') {
+      list = list.where((s) => s.status == 'ABSENT').toList();
+    }
+
+    if (_searchQuery.trim().isEmpty) {
+      return list;
+    }
+    final q = _searchQuery.trim().toLowerCase();
+    return list.where((s) {
+      final nameMatches = s.studentName.toLowerCase().contains(q);
+      final regMatches = s.registerNumber.toLowerCase().contains(q);
+      return nameMatches || regMatches;
+    }).toList();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final totalCount = widget.students.length;
+    final presentCount = widget.students.where((s) => s.status == 'PRESENT').length;
+    final absentCount = widget.students.where((s) => s.status == 'ABSENT').length;
+    final presentPct = totalCount > 0 ? (presentCount / totalCount * 100).toStringAsFixed(1) : '0';
+    final absentPct = totalCount > 0 ? (absentCount / totalCount * 100).toStringAsFixed(1) : '0';
+    final filtered = _filteredStudents;
+
+    String facultyDisplay = '';
+    if (widget.facultyName != null && widget.facultyName!.isNotEmpty) {
+      facultyDisplay = widget.facultyName!;
+      if (widget.facultyDepartment != null && widget.facultyDepartment!.isNotEmpty) {
+        facultyDisplay += ' (${widget.facultyDepartment})';
+      }
+    } else {
+      for (final s in widget.students) {
+        if (s.markedByFacultyName != null && s.markedByFacultyName!.isNotEmpty) {
+          facultyDisplay = s.markedByFacultyName!;
+          if (s.markedByFacultyDepartment != null && s.markedByFacultyDepartment!.isNotEmpty) {
+            facultyDisplay += ' (${s.markedByFacultyDepartment})';
+          }
+          break;
+        }
+      }
+    }
+
+    return Container(
+      width: MediaQuery.of(context).size.width * 0.95,
+      height: MediaQuery.of(context).size.height * 0.88,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Column(
+        children: [
+          // ── Header ──
+          Container(
+            padding: const EdgeInsets.fromLTRB(20, 16, 16, 14),
+            decoration: const BoxDecoration(
+              color: Color(0xFF1E293B),
+              borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF334155),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(Icons.history_edu_rounded, color: Colors.white, size: 20),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Attendance History',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 17,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        'Period ${widget.period ?? 1} • ${widget.dateStr ?? ""}${facultyDisplay.isNotEmpty ? " • By $facultyDisplay" : ""}',
+                        style: const TextStyle(
+                          color: Color(0xFF94A3B8),
+                          fontSize: 12,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.close, color: Colors.white70),
+                  onPressed: () => Navigator.pop(context),
+                  tooltip: 'Close',
+                ),
+              ],
+            ),
+          ),
+
+          // ── Class Info Badges ──
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            color: const Color(0xFFF8FAFC),
+            child: Wrap(
+              spacing: 8,
+              runSpacing: 6,
+              children: [
+                if (widget.yearName != null && widget.yearName!.isNotEmpty)
+                  _buildClassInfoChip(Icons.calendar_month_outlined, widget.yearName!, const Color(0xFF2563EB), const Color(0xFFEFF6FF)),
+                if (widget.departmentName != null && widget.departmentName!.isNotEmpty)
+                  _buildClassInfoChip(Icons.domain_outlined, widget.departmentName!, const Color(0xFF7C3AED), const Color(0xFFF3E8FF)),
+                if (widget.sectionName != null && widget.sectionName!.isNotEmpty)
+                  _buildClassInfoChip(Icons.group_outlined, widget.sectionName!, const Color(0xFF0D9488), const Color(0xFFCCFBF1)),
+                if (facultyDisplay.isNotEmpty)
+                  _buildClassInfoChip(Icons.person_pin_rounded, 'Marked by: $facultyDisplay', const Color(0xFFD97706), const Color(0xFFFEF3C7)),
+              ],
+            ),
+          ),
+
+          // ── Metrics Bar ──
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+            child: Row(
+              children: [
+                Expanded(
+                  child: _buildMetricTile(
+                    label: 'Total',
+                    value: '$totalCount',
+                    color: const Color(0xFF475569),
+                    bgColor: const Color(0xFFF1F5F9),
+                    icon: Icons.people_outline,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _buildMetricTile(
+                    label: 'Present',
+                    value: '$presentCount ($presentPct%)',
+                    color: const Color(0xFF16A34A),
+                    bgColor: const Color(0xFFDCFCE7),
+                    icon: Icons.check_circle_outline,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _buildMetricTile(
+                    label: 'Absent',
+                    value: '$absentCount ($absentPct%)',
+                    color: const Color(0xFFDC2626),
+                    bgColor: const Color(0xFFFEE2E2),
+                    icon: Icons.cancel_outlined,
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // ── Filter Tabs & Search Bar ──
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+            child: Column(
+              children: [
+                // Filter Tabs
+                Row(
+                  children: [
+                    _buildTabChip('ALL', 'All ($totalCount)', const Color(0xFF1E293B), const Color(0xFFF1F5F9)),
+                    const SizedBox(width: 8),
+                    _buildTabChip('PRESENT', 'Present ($presentCount)', const Color(0xFF16A34A), const Color(0xFFDCFCE7)),
+                    const SizedBox(width: 8),
+                    _buildTabChip('ABSENT', 'Absent ($absentCount)', const Color(0xFFDC2626), const Color(0xFFFEE2E2)),
+                  ],
+                ),
+                const SizedBox(height: 10),
+
+                // Search Box
+                TextField(
+                  controller: _searchController,
+                  onChanged: (v) => setState(() => _searchQuery = v),
+                  decoration: InputDecoration(
+                    hintText: 'Search student name or reg no...',
+                    prefixIcon: const Icon(Icons.search, size: 20, color: Color(0xFF94A3B8)),
+                    suffixIcon: _searchQuery.isNotEmpty
+                        ? IconButton(
+                            icon: const Icon(Icons.clear, size: 18),
+                            onPressed: () {
+                              _searchController.clear();
+                              setState(() => _searchQuery = '');
+                            },
+                          )
+                        : null,
+                    filled: true,
+                    fillColor: const Color(0xFFF8FAFC),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          const Divider(height: 1),
+
+          // ── Student List (Read-Only) ──
+          Expanded(
+            child: filtered.isEmpty
+                ? Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.person_search_outlined, size: 40, color: Colors.grey.shade400),
+                        const SizedBox(height: 8),
+                        Text(
+                          'No students match filter',
+                          style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
+                        ),
+                      ],
+                    ),
+                  )
+                : ListView.separated(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                    itemCount: filtered.length,
+                    separatorBuilder: (_, __) => const Divider(height: 1),
+                    itemBuilder: (context, index) {
+                      final s = filtered[index];
+                      final isPresent = s.status == 'PRESENT';
+
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 10),
+                        child: Row(
+                          children: [
+                            // Avatar
+                            Container(
+                              width: 38,
+                              height: 38,
+                              decoration: BoxDecoration(
+                                color: isPresent ? const Color(0xFFDCFCE7) : const Color(0xFFFEE2E2),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: Center(
+                                child: Text(
+                                  s.studentName.isNotEmpty ? s.studentName[0].toUpperCase() : 'S',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 15,
+                                    color: isPresent ? const Color(0xFF16A34A) : const Color(0xFFDC2626),
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+
+                            // Student Info
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    s.studentName,
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 14,
+                                      color: Color(0xFF1E293B),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    s.registerNumber,
+                                    style: TextStyle(
+                                      color: Colors.grey.shade600,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                  if (s.remarks != null && s.remarks!.isNotEmpty) ...[
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      'Remark: ${s.remarks}',
+                                      style: const TextStyle(
+                                        color: Color(0xFFD97706),
+                                        fontSize: 11,
+                                        fontStyle: FontStyle.italic,
+                                      ),
+                                    ),
+                                  ],
+                                ],
+                              ),
+                            ),
+
+                            // Status Tag
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                              decoration: BoxDecoration(
+                                color: isPresent ? const Color(0xFFDCFCE7) : const Color(0xFFFEE2E2),
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(
+                                  color: isPresent ? const Color(0xFF86EFAC) : const Color(0xFFFCA5A5),
+                                ),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    isPresent ? Icons.check_circle_rounded : Icons.cancel_rounded,
+                                    size: 14,
+                                    color: isPresent ? const Color(0xFF16A34A) : const Color(0xFFDC2626),
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    isPresent ? 'PRESENT' : 'ABSENT',
+                                    style: TextStyle(
+                                      color: isPresent ? const Color(0xFF16A34A) : const Color(0xFFDC2626),
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 11.5,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+          ),
+
+          // ── Bottom Close Bar ──
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.05),
+                  blurRadius: 8,
+                  offset: const Offset(0, -2),
+                ),
+              ],
+            ),
+            child: SizedBox(
+              width: double.infinity,
+              height: 44,
+              child: ElevatedButton(
+                onPressed: () => Navigator.pop(context),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF1E293B),
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+                child: const Text('Close History', style: TextStyle(fontWeight: FontWeight.bold)),
+              ),
+            ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildClassInfoChip(IconData icon, String label, Color textColor, Color bgColor) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 13, color: textColor),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: TextStyle(
+              color: textColor,
+              fontWeight: FontWeight.bold,
+              fontSize: 11.5,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMetricTile({
+    required String label,
+    required String value,
+    required Color color,
+    required Color bgColor,
+    required IconData icon,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(icon, size: 13, color: color),
+              const SizedBox(width: 4),
+              Text(
+                label,
+                style: TextStyle(fontSize: 10.5, color: color, fontWeight: FontWeight.w600),
+              ),
+            ],
+          ),
+          const SizedBox(height: 2),
+          Text(
+            value,
+            style: TextStyle(fontSize: 12.5, color: color, fontWeight: FontWeight.bold),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTabChip(String tabKey, String label, Color activeColor, Color activeBg) {
+    final isSelected = _activeTab == tabKey;
+    return Expanded(
+      child: InkWell(
+        onTap: () => setState(() => _activeTab = tabKey),
+        borderRadius: BorderRadius.circular(8),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 150),
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: isSelected ? activeBg : const Color(0xFFF1F5F9),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(
+              color: isSelected ? activeColor.withValues(alpha: 0.5) : Colors.transparent,
+              width: 1,
+            ),
+          ),
+          child: Text(
+            label,
+            style: TextStyle(
+              color: isSelected ? activeColor : const Color(0xFF64748B),
+              fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
+              fontSize: 11.5,
+            ),
+          ),
+        ),
       ),
     );
   }

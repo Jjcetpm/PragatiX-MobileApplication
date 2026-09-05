@@ -125,32 +125,75 @@ class _TeamGroupManagementTabState extends State<TeamGroupManagementTab> {
       }
 
       if (isCC || isHOD) {
-        final String? userDeptName =
-            currentUser?['department']?['name'] ?? currentUser?['departmentName'];
-        final String? ccSectionName =
-            currentUser?['section']?['sectionName'] ?? currentUser?['section'];
+        String? userDeptName;
+        int? userDeptId;
+        if (currentUser?['departmentId'] != null) {
+          userDeptId = int.tryParse(currentUser!['departmentId'].toString());
+        } else if (currentUser?['department'] is Map && (currentUser!['department'] as Map)['id'] != null) {
+          userDeptId = int.tryParse((currentUser['department'] as Map)['id'].toString());
+        }
 
-        if (userDeptName != null && _departments.isNotEmpty) {
-          final dMatch = _departments
-              .where((d) => (d['name'] ?? d['deptName']) == userDeptName)
-              .toList();
+        if (currentUser?['department'] is String) {
+          userDeptName = currentUser!['department'] as String;
+        } else if (currentUser?['department'] is Map) {
+          final deptMap = currentUser!['department'] as Map;
+          userDeptName = (deptMap['name'] ?? deptMap['deptName'])?.toString();
+        }
+        userDeptName ??= currentUser?['departmentName']?.toString() ?? currentUser?['deptName']?.toString();
+
+        String? ccSectionName;
+        int? ccSectionId;
+        if (currentUser?['sectionId'] != null) {
+          ccSectionId = int.tryParse(currentUser!['sectionId'].toString());
+        } else if (currentUser?['section'] is Map && (currentUser!['section'] as Map)['id'] != null) {
+          ccSectionId = int.tryParse((currentUser['section'] as Map)['id'].toString());
+        }
+
+        if (currentUser?['section'] is String) {
+          ccSectionName = currentUser!['section'] as String;
+        } else if (currentUser?['section'] is Map) {
+          final secMap = currentUser!['section'] as Map;
+          ccSectionName = (secMap['sectionName'] ?? secMap['name'])?.toString();
+        }
+        ccSectionName ??= currentUser?['sectionName']?.toString() ?? currentUser?['ccDetails']?['section']?.toString();
+
+        final String? ccYear = currentUser?['academicYear']?.toString() ??
+            currentUser?['year']?.toString() ??
+            currentUser?['ccDetails']?['academicYear']?.toString();
+        if (isCC && ccYear != null) {
+          selectedYear = _mapYearToEnumName(ccYear) ?? ccYear;
+        }
+
+        if (userDeptId != null) {
+          selectedDeptId = userDeptId;
+        } else if (userDeptName != null && _departments.isNotEmpty) {
+          final dMatch = _departments.where((d) {
+            final name = (d['name'] ?? d['deptName'] ?? '').toString().toLowerCase();
+            final code = (d['deptCode'] ?? d['code'] ?? '').toString().toLowerCase();
+            final target = userDeptName!.toLowerCase();
+            return name == target || code == target || target.contains(name) || name.contains(target);
+          }).toList();
           if (dMatch.isNotEmpty) {
-            selectedDeptId = dMatch.first['id'];
+            selectedDeptId = dMatch.first['id'] as int?;
           }
-        } else if (currentUser?['department']?['id'] != null) {
-          selectedDeptId = currentUser!['department']['id'];
         }
 
         if (selectedDeptId != null) {
           await _fetchSectionsForDept(selectedDeptId!);
         }
 
-        if (isCC && ccSectionName != null) {
-          final sMatch = _sections
-              .where((s) => s['sectionName'] == ccSectionName)
-              .toList();
-          if (sMatch.isNotEmpty) {
-            selectedSectionId = sMatch.first['id'];
+        if (isCC) {
+          if (ccSectionId != null) {
+            selectedSectionId = ccSectionId;
+          } else if (ccSectionName != null && _sections.isNotEmpty) {
+            final cleanSec = ccSectionName.trim().toUpperCase().replaceAll('SECTION', '').trim();
+            final sMatch = _sections.where((s) {
+              final sName = (s['sectionName'] ?? s['name'] ?? '').toString().trim().toUpperCase().replaceAll('SECTION', '').trim();
+              return sName == cleanSec;
+            }).toList();
+            if (sMatch.isNotEmpty) {
+              selectedSectionId = sMatch.first['id'] as int?;
+            }
           }
         }
       }
@@ -632,7 +675,11 @@ class _TeamGroupManagementTabState extends State<TeamGroupManagementTab> {
                           final created = await Navigator.push<bool>(
                             context,
                             MaterialPageRoute(
-                              builder: (context) => const CreateTeamPage(),
+                              builder: (context) => CreateTeamPage(
+                                initialYear: selectedYear,
+                                initialDeptId: selectedDeptId,
+                                initialSectionId: selectedSectionId,
+                              ),
                             ),
                           );
                           if (created == true) {
@@ -764,7 +811,6 @@ class _TeamGroupManagementTabState extends State<TeamGroupManagementTab> {
                                   itemBuilder: (context, index) {
                                     final g = displayGroups[index];
                                     final captainName = g['captainName'] ?? 'No Captain';
-                                    final viceCaptainName = g['viceCaptainName'] ?? 'No Vice Captain';
                                     final memberCount =
                                         (g['teamMembers'] as List?)?.length ?? 0;
                                     final groupName = g['teamName'] ?? 'Group';

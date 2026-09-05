@@ -11,7 +11,16 @@ import 'package:pragatix/features/team/services/team_proxy_service.dart';
 import 'package:pragatix/shared/widgets/student_search/student_search_field.dart';
 
 class CreateTeamPage extends StatefulWidget {
-  const CreateTeamPage({super.key});
+  final String? initialYear;
+  final int? initialDeptId;
+  final int? initialSectionId;
+
+  const CreateTeamPage({
+    super.key,
+    this.initialYear,
+    this.initialDeptId,
+    this.initialSectionId,
+  });
 
   @override
   State<CreateTeamPage> createState() => _CreateTeamPageState();
@@ -54,6 +63,76 @@ class _CreateTeamPageState extends State<CreateTeamPage> {
     _nameController.dispose();
     _limitController.dispose();
     super.dispose();
+  }
+
+  String _resolveYearDisplay(String rawYear, List<dynamic> yearsList) {
+    final clean = rawYear.trim();
+    for (var y in yearsList) {
+      final yName = (y is Map ? (y['yearName'] ?? y['name'] ?? '') : y).toString().trim();
+      if (yName.isEmpty) continue;
+      if (yName.toLowerCase() == clean.toLowerCase()) return yName;
+      if ((clean == '1' || clean.toUpperCase().contains('FIRST') || clean.toUpperCase().contains('1ST')) &&
+          yName.toLowerCase().contains('first')) {
+        return yName;
+      }
+      if ((clean == '2' || clean.toUpperCase().contains('SECOND') || clean.toUpperCase().contains('2ND')) &&
+          yName.toLowerCase().contains('second')) {
+        return yName;
+      }
+      if ((clean == '3' || clean.toUpperCase().contains('THIRD') || clean.toUpperCase().contains('3RD')) &&
+          yName.toLowerCase().contains('third')) {
+        return yName;
+      }
+      if ((clean == '4' || clean.toUpperCase().contains('FOURTH') || clean.toUpperCase().contains('4TH')) &&
+          yName.toLowerCase().contains('fourth')) {
+        return yName;
+      }
+    }
+    return clean;
+  }
+
+  String get _resolvedDeptDisplayName {
+    if (_selectedDeptId != null && _departments.isNotEmpty) {
+      final match = _departments.where((d) => d['id'] == _selectedDeptId).toList();
+      if (match.isNotEmpty) {
+        final m = match.first;
+        return m['deptCode'] != null
+            ? '${m['deptCode']} - ${m['name']}'
+            : (m['name'] ?? m['deptName'] ?? 'Department');
+      }
+    }
+    final auth = context.read<AuthProvider>();
+    final currentUser = auth.currentUser;
+    if (currentUser?['department'] is String) return currentUser!['department'] as String;
+    if (currentUser?['department'] is Map) {
+      final dMap = currentUser!['department'] as Map;
+      return (dMap['name'] ?? dMap['deptName'])?.toString() ?? 'Department';
+    }
+    return currentUser?['departmentName']?.toString() ?? 'Assigned Department';
+  }
+
+  String get _resolvedSecDisplayName {
+    if (_selectedSectionId != null && _sections.isNotEmpty) {
+      final match = _sections.where((s) => s['id'] == _selectedSectionId).toList();
+      if (match.isNotEmpty) {
+        final m = match.first;
+        final name = m['sectionName'] ?? m['name'] ?? '';
+        return name.toString().toUpperCase().startsWith('SECTION') ? name.toString() : 'Section $name';
+      }
+    }
+    final auth = context.read<AuthProvider>();
+    final currentUser = auth.currentUser;
+    String? name;
+    if (currentUser?['section'] is String) name = currentUser!['section'] as String;
+    if (currentUser?['section'] is Map) {
+      final sMap = currentUser!['section'] as Map;
+      name = (sMap['sectionName'] ?? sMap['name'])?.toString();
+    }
+    name ??= currentUser?['sectionName']?.toString() ?? currentUser?['ccDetails']?['section']?.toString();
+    if (name != null && name.isNotEmpty) {
+      return name.toUpperCase().startsWith('SECTION') ? name : 'Section $name';
+    }
+    return 'Assigned Section';
   }
 
   Future<void> _loadLookups() async {
@@ -104,36 +183,139 @@ class _CreateTeamPageState extends State<CreateTeamPage> {
         return true;
       }).toList();
 
-      // Pre-fill Year for Year Admin
-      if (_isAdmin && !_isSuperAdmin) {
-        final adminYear = currentUser?['academicYear']?.toString() ??
-            currentUser?['adminDetails']?.toString() ??
-            currentUser?['assignedYearName']?.toString();
-        if (adminYear != null && adminYear.isNotEmpty) {
-          _selectedYear = adminYear;
+      // 1. Year Resolution
+      if (_isSuperAdmin) {
+        // Super Admin selects Year manually via dropdown.
+        // Pre-fill with widget.initialYear or auth.selectedAcademicYear if provided
+        if (widget.initialYear != null && widget.initialYear!.isNotEmpty && widget.initialYear != 'All') {
+          _selectedYear = _resolveYearDisplay(widget.initialYear!, _assignedYears);
+        } else if (auth.selectedAcademicYear != null &&
+            auth.selectedAcademicYear!.isNotEmpty &&
+            auth.selectedAcademicYear != 'All') {
+          _selectedYear = _resolveYearDisplay(auth.selectedAcademicYear!, _assignedYears);
+        }
+      } else if (_isAdmin) {
+        // Admin: Year is automatically selected and fixed/locked
+        String? adminYear = widget.initialYear;
+        if (adminYear == null || adminYear.isEmpty || adminYear == 'All') {
+          adminYear = currentUser?['academicYear']?.toString() ??
+              currentUser?['adminDetails']?['academicYear']?.toString() ??
+              currentUser?['year']?.toString() ??
+              currentUser?['assignedYearName']?.toString();
+        }
+        if (adminYear != null && adminYear.isNotEmpty && adminYear != 'All') {
+          _selectedYear = _resolveYearDisplay(adminYear, _assignedYears);
+        } else if (_assignedYears.isNotEmpty) {
+          final first = _assignedYears.first;
+          _selectedYear = (first is Map ? (first['yearName'] ?? first['name']) : first).toString();
+        }
+      } else if (_isCC) {
+        // CC: Year is automatically picked from CC credentials and locked
+        String? ccYear = widget.initialYear;
+        if (ccYear == null || ccYear.isEmpty || ccYear == 'All') {
+          ccYear = currentUser?['academicYear']?.toString() ??
+              currentUser?['year']?.toString() ??
+              currentUser?['ccDetails']?['academicYear']?.toString() ??
+              auth.selectedAcademicYear;
+        }
+        if (ccYear != null && ccYear.isNotEmpty && ccYear != 'All') {
+          _selectedYear = _resolveYearDisplay(ccYear, _assignedYears);
         } else if (_assignedYears.isNotEmpty) {
           final first = _assignedYears.first;
           _selectedYear = (first is Map ? (first['yearName'] ?? first['name']) : first).toString();
         }
       }
 
-      // Pre-fill Department for CC / HOD
+      // 2. Department Resolution
       if (_isCC || _isHOD) {
-        final String? userDeptName =
-            currentUser?['department']?['name'] ?? currentUser?['departmentName'];
-        if (userDeptName != null && _departments.isNotEmpty) {
-          final match = _departments
-              .where((d) => (d['name'] ?? d['deptName']) == userDeptName)
-              .toList();
+        // CC / HOD: Department is automatically resolved and locked
+        int? deptId = widget.initialDeptId;
+        if (deptId == null) {
+          if (currentUser?['departmentId'] != null) {
+            deptId = int.tryParse(currentUser!['departmentId'].toString());
+          } else if (currentUser?['department'] is Map && (currentUser!['department'] as Map)['id'] != null) {
+            deptId = int.tryParse((currentUser['department'] as Map)['id'].toString());
+          }
+        }
+
+        String? deptName;
+        if (currentUser?['department'] is String) {
+          deptName = currentUser!['department'] as String;
+        } else if (currentUser?['department'] is Map) {
+          final deptMap = currentUser!['department'] as Map;
+          deptName = (deptMap['name'] ?? deptMap['deptName'])?.toString();
+        }
+        deptName ??= currentUser?['departmentName']?.toString() ?? currentUser?['deptName']?.toString();
+
+        if (deptId != null) {
+          _selectedDeptId = deptId;
+        } else if (deptName != null && _departments.isNotEmpty) {
+          final match = _departments.where((d) {
+            final dName = (d['name'] ?? d['deptName'] ?? '').toString().toLowerCase();
+            final dCode = (d['deptCode'] ?? d['code'] ?? '').toString().toLowerCase();
+            final target = deptName!.toLowerCase();
+            return dName == target || dCode == target || target.contains(dName) || dName.contains(target);
+          }).toList();
           if (match.isNotEmpty) {
             _selectedDeptId = match.first['id'] as int?;
           }
-        } else if (currentUser?['department']?['id'] != null) {
-          _selectedDeptId = currentUser!['department']['id'] as int?;
+        }
+      } else {
+        // Super Admin & Admin: Manual Department selection (pre-fill from initialDeptId if passed)
+        if (widget.initialDeptId != null) {
+          _selectedDeptId = widget.initialDeptId;
+        }
+      }
+
+      // 3. Fetch Sections for selected department
+      if (_selectedDeptId != null) {
+        try {
+          final secs = await repo.getFilterSections(
+            year: _selectedYear,
+            departmentId: _selectedDeptId,
+          );
+          _sections = secs;
+        } catch (_) {
+          _sections = [];
+        }
+      }
+
+      // 4. Section Resolution
+      if (_isCC) {
+        // CC: Section is automatically resolved and locked
+        int? secId = widget.initialSectionId;
+        if (secId == null) {
+          if (currentUser?['sectionId'] != null) {
+            secId = int.tryParse(currentUser!['sectionId'].toString());
+          } else if (currentUser?['section'] is Map && (currentUser!['section'] as Map)['id'] != null) {
+            secId = int.tryParse((currentUser['section'] as Map)['id'].toString());
+          }
         }
 
-        if (_selectedDeptId != null) {
-          await _fetchSections(_selectedDeptId!);
+        String? secName;
+        if (currentUser?['section'] is String) {
+          secName = currentUser!['section'] as String;
+        } else if (currentUser?['section'] is Map) {
+          final secMap = currentUser!['section'] as Map;
+          secName = (secMap['sectionName'] ?? secMap['name'])?.toString();
+        }
+        secName ??= currentUser?['sectionName']?.toString() ?? currentUser?['ccDetails']?['section']?.toString();
+
+        if (secId != null) {
+          _selectedSectionId = secId;
+        } else if (secName != null && _sections.isNotEmpty) {
+          final cleanSec = secName.trim().toUpperCase().replaceAll('SECTION', '').trim();
+          final match = _sections.where((s) {
+            final sName = (s['sectionName'] ?? s['name'] ?? '').toString().trim().toUpperCase().replaceAll('SECTION', '').trim();
+            return sName == cleanSec;
+          }).toList();
+          if (match.isNotEmpty) {
+            _selectedSectionId = match.first['id'] as int?;
+          }
+        }
+      } else {
+        if (widget.initialSectionId != null) {
+          _selectedSectionId = widget.initialSectionId;
         }
       }
 
@@ -151,7 +333,9 @@ class _CreateTeamPageState extends State<CreateTeamPage> {
   Future<void> _fetchSections(int deptId) async {
     setState(() {
       _isLoadingSections = true;
-      _selectedSectionId = null;
+      if (!_isCC) {
+        _selectedSectionId = null;
+      }
       _sections = [];
     });
 
@@ -189,7 +373,7 @@ class _CreateTeamPageState extends State<CreateTeamPage> {
       return;
     }
 
-    if (_isSuperAdmin && (_selectedYear == null || _selectedYear!.isEmpty)) {
+    if (_selectedYear == null || _selectedYear!.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Please select a Year for the team.'),
@@ -199,7 +383,7 @@ class _CreateTeamPageState extends State<CreateTeamPage> {
       return;
     }
 
-    if (!_isCC && !_isHOD && _selectedDeptId == null) {
+    if (_selectedDeptId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Please select a Department for the team.'),
@@ -325,7 +509,9 @@ class _CreateTeamPageState extends State<CreateTeamPage> {
                     _buildSectionHeader(
                       icon: Icons.account_tree_outlined,
                       title: 'Class Hierarchy',
-                      subtitle: 'Select the Year and Department for this team',
+                      subtitle: _isCC
+                          ? 'Assigned class details for your team'
+                          : 'Select the Year and Department for this team',
                     ),
                     const SizedBox(height: 12),
                     Container(
@@ -345,200 +531,55 @@ class _CreateTeamPageState extends State<CreateTeamPage> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // 1. Year Field (Label: "Year")
-                          _buildFieldLabel('Year', isRequired: true),
-                          const SizedBox(height: 6),
-                          if (_isAdmin && !_isSuperAdmin) ...[
-                            Container(
-                              width: double.infinity,
-                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFFF1F5F9),
-                                borderRadius: BorderRadius.circular(12),
-                                border: Border.all(color: const Color(0xFFCBD5E1)),
-                              ),
-                              child: Row(
-                                children: [
-                                  const Icon(Icons.calendar_today_rounded, size: 18, color: Color(0xFF2563EB)),
-                                  const SizedBox(width: 10),
-                                  Expanded(
-                                    child: Text(
-                                      _selectedYear ?? 'Assigned Year',
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.w700,
-                                        color: Color(0xFF1E293B),
-                                        fontSize: 14,
-                                      ),
-                                    ),
-                                  ),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                    decoration: BoxDecoration(
-                                      color: const Color(0xFFE0E7FF),
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
-                                    child: const Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Icon(Icons.lock_rounded, size: 12, color: Color(0xFF3730A3)),
-                                        SizedBox(width: 4),
-                                        Text(
-                                          'Assigned',
-                                          style: TextStyle(
-                                            fontSize: 11,
-                                            fontWeight: FontWeight.w700,
-                                            color: Color(0xFF3730A3),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ],
-                              ),
+                          if (_isCC) ...[
+                            // CC: Auto-populated and locked Class Hierarchy (no manual selection)
+                            _buildLockedInfoTile(
+                              label: 'Year',
+                              icon: Icons.calendar_today_rounded,
+                              value: _selectedYear ?? 'Assigned Year',
+                              badgeText: 'Assigned',
+                            ),
+                            const SizedBox(height: 12),
+                            _buildLockedInfoTile(
+                              label: 'Department',
+                              icon: Icons.school_rounded,
+                              value: _resolvedDeptDisplayName,
+                              badgeText: 'Assigned',
+                            ),
+                            const SizedBox(height: 12),
+                            _buildLockedInfoTile(
+                              label: 'Section',
+                              icon: Icons.meeting_room_rounded,
+                              value: _resolvedSecDisplayName,
+                              badgeText: 'Assigned',
                             ),
                           ] else ...[
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 14),
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(12),
-                                border: Border.all(color: const Color(0xFFCBD5E1)),
-                              ),
-                              child: DropdownButtonHideUnderline(
-                                child: DropdownButton<String>(
-                                  isExpanded: true,
-                                  value: _selectedYear,
-                                  hint: const Text('Select Year', style: TextStyle(fontSize: 13.5, color: Color(0xFF94A3B8))),
-                                  items: _assignedYears.map((y) {
-                                    final yName = (y is Map ? (y['yearName'] ?? y['name'] ?? 'Year ${y['yearNo'] ?? ''}') : y.toString()).toString();
-                                    return DropdownMenuItem<String>(
-                                      value: yName,
-                                      child: Row(
-                                        children: [
-                                          const Icon(Icons.calendar_today_rounded, size: 16, color: Color(0xFF2563EB)),
-                                          const SizedBox(width: 8),
-                                          Text(yName, style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600)),
-                                        ],
-                                      ),
-                                    );
-                                  }).toList(),
-                                  onChanged: (val) {
-                                    setState(() {
-                                      _selectedYear = val;
-                                      _selectedCaptain = null;
-                                    });
-                                    if (_selectedDeptId != null) {
-                                      _fetchSections(_selectedDeptId!);
-                                    }
-                                  },
-                                ),
-                              ),
-                            ),
-                          ],
-                          const SizedBox(height: 16),
-
-                          // 2. Department Field
-                          if (!_isCC && !_isHOD) ...[
-                            _buildFieldLabel('Department', isRequired: true),
+                            // Super Admin & Admin Class Hierarchy:
+                            // 1. Year Field
+                            _buildFieldLabel('Year', isRequired: true),
                             const SizedBox(height: 6),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 14),
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(12),
-                                border: Border.all(color: const Color(0xFFCBD5E1)),
-                              ),
-                              child: DropdownButtonHideUnderline(
-                                child: DropdownButton<int>(
-                                  isExpanded: true,
-                                  value: _selectedDeptId,
-                                  hint: const Text('Select Department (9 Main Departments)', style: TextStyle(fontSize: 13.5, color: Color(0xFF94A3B8))),
-                                  items: _departments.map((d) {
-                                    final dId = d['id'] as int;
-                                    final dName = d['deptCode'] != null ? '${d['deptCode']} - ${d['name']}' : (d['name'] ?? 'Department');
-                                    return DropdownMenuItem<int>(
-                                      value: dId,
-                                      child: Text(
-                                        dName.toString(),
-                                        style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600),
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                    );
-                                  }).toList(),
-                                  onChanged: (val) {
-                                    setState(() {
-                                      _selectedDeptId = val;
-                                      _selectedCaptain = null;
-                                    });
-                                    if (val != null) {
-                                      _fetchSections(val);
-                                    } else {
-                                      setState(() {
-                                        _selectedSectionId = null;
-                                        _sections = [];
-                                      });
-                                    }
-                                  },
-                                ),
-                              ),
-                            ),
+                            if (_isAdmin && !_isSuperAdmin) ...[
+                              // Admin: Year is automatically selected and fixed/locked
+                              _buildLockedYearTile(),
+                            ] else ...[
+                              // Super Admin: Year is manually selected via dropdown
+                              _buildYearDropdown(),
+                            ],
                             const SizedBox(height: 16),
-                          ],
 
-                          // 3. Section Field (Optional Cascaded)
-                          _buildFieldLabel('Section', isRequired: false),
-                          const SizedBox(height: 6),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 14),
-                            decoration: BoxDecoration(
-                              color: _selectedDeptId == null ? const Color(0xFFF8FAFC) : Colors.white,
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: _selectedDeptId == null ? const Color(0xFFE2E8F0) : const Color(0xFFCBD5E1)),
-                            ),
-                            child: DropdownButtonHideUnderline(
-                              child: DropdownButton<int>(
-                                isExpanded: true,
-                                value: _selectedSectionId,
-                                hint: _isLoadingSections
-                                    ? const Row(
-                                        children: [
-                                          SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2)),
-                                          SizedBox(width: 8),
-                                          Text('Loading sections...', style: TextStyle(fontSize: 13)),
-                                        ],
-                                      )
-                                    : Text(
-                                        _selectedDeptId == null
-                                            ? 'Select Department first'
-                                            : (_sections.isEmpty ? 'All / No Specific Section' : 'Select Section'),
-                                        style: TextStyle(
-                                          fontSize: 13.5,
-                                          color: _selectedDeptId == null ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
-                                        ),
-                                      ),
-                                items: [
-                                  const DropdownMenuItem<int>(
-                                    value: null,
-                                    child: Text('All / No Specific Section', style: TextStyle(fontSize: 13.5)),
-                                  ),
-                                  ..._sections.map((sec) {
-                                    final secId = sec['id'] as int;
-                                    final secName = sec['sectionName'] ?? sec['name'] ?? 'Section';
-                                    return DropdownMenuItem<int>(
-                                      value: secId,
-                                      child: Text(secName.toString(), style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600)),
-                                    );
-                                  }),
-                                ],
-                                onChanged: _selectedDeptId == null ? null : (val) {
-                                  setState(() {
-                                    _selectedSectionId = val;
-                                    _selectedCaptain = null;
-                                  });
-                                },
-                              ),
-                            ),
-                          ),
+                            // 2. Department Field
+                            if (!_isHOD) ...[
+                              _buildFieldLabel('Department', isRequired: true),
+                              const SizedBox(height: 6),
+                              _buildDepartmentDropdown(),
+                              const SizedBox(height: 16),
+                            ],
+
+                            // 3. Section Field
+                            _buildFieldLabel('Section', isRequired: false),
+                            const SizedBox(height: 6),
+                            _buildSectionDropdown(),
+                          ],
                         ],
                       ),
                     ),
@@ -668,24 +709,6 @@ class _CreateTeamPageState extends State<CreateTeamPage> {
                           const SizedBox(height: 6),
                           Builder(
                             builder: (context) {
-                              String? deptName;
-                              if (_selectedDeptId != null && _departments.isNotEmpty) {
-                                final match = _departments.where((d) => d['id'] == _selectedDeptId).toList();
-                                if (match.isNotEmpty) {
-                                  deptName = match.first['deptCode'] != null
-                                      ? '${match.first['deptCode']} - ${match.first['name']}'
-                                      : (match.first['name'] ?? match.first['deptName']);
-                                }
-                              }
-
-                              String? secName;
-                              if (_selectedSectionId != null && _sections.isNotEmpty) {
-                                final match = _sections.where((s) => s['id'] == _selectedSectionId).toList();
-                                if (match.isNotEmpty) {
-                                  secName = match.first['sectionName'] ?? match.first['name'];
-                                }
-                              }
-
                               final bool isClassConfigured = _selectedYear != null &&
                                   _selectedYear!.isNotEmpty &&
                                   _selectedDeptId != null;
@@ -695,16 +718,18 @@ class _CreateTeamPageState extends State<CreateTeamPage> {
                                 unassignedOnly: true,
                                 year: _selectedYear,
                                 departmentId: _selectedDeptId,
-                                departmentName: deptName,
+                                departmentName: _resolvedDeptDisplayName,
                                 sectionId: _selectedSectionId,
-                                sectionName: secName,
+                                sectionName: _resolvedSecDisplayName,
                                 enabled: isClassConfigured,
                                 labelText: 'Search Captain',
                                 onDisabledTap: () {
                                   ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                      content: Text('Please select Year and Department first before picking a Captain.'),
-                                      backgroundColor: Color(0xFFEF4444),
+                                    SnackBar(
+                                      content: Text(_selectedYear == null || _selectedYear!.isEmpty
+                                          ? 'Please select Year first before picking a Captain.'
+                                          : 'Please select Department first before picking a Captain.'),
+                                      backgroundColor: const Color(0xFFEF4444),
                                     ),
                                   );
                                 },
@@ -750,7 +775,7 @@ class _CreateTeamPageState extends State<CreateTeamPage> {
                                         ),
                                         const SizedBox(height: 2),
                                         Text(
-                                          "${_selectedCaptain!['regNo']} • ${_selectedCaptain!['departmentName'] ?? _selectedCaptain!['department'] ?? 'Department'}",
+                                          'Reg No: ${_selectedCaptain!['regNo'] ?? 'N/A'} • ${_selectedCaptain!['department'] ?? ''}',
                                           style: const TextStyle(
                                             fontSize: 12,
                                             color: Color(0xFF3B82F6),
@@ -761,12 +786,13 @@ class _CreateTeamPageState extends State<CreateTeamPage> {
                                     ),
                                   ),
                                   IconButton(
-                                    icon: const Icon(Icons.close_rounded, color: Color(0xFF64748B), size: 18),
+                                    icon: const Icon(Icons.close_rounded, size: 18, color: Color(0xFF64748B)),
                                     onPressed: () {
                                       setState(() {
                                         _selectedCaptain = null;
                                       });
                                     },
+                                    tooltip: 'Remove Captain',
                                   ),
                                 ],
                               ),
@@ -775,23 +801,23 @@ class _CreateTeamPageState extends State<CreateTeamPage> {
                         ],
                       ),
                     ),
-                    const SizedBox(height: 32),
+                    const SizedBox(height: 28),
 
                     // Submit Button
                     SizedBox(
                       width: double.infinity,
                       height: 52,
                       child: ElevatedButton(
+                        onPressed: _isSubmitting ? null : _submitCreateTeam,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFF2563EB),
                           foregroundColor: Colors.white,
+                          disabledBackgroundColor: const Color(0xFF93C5FD),
                           elevation: 2,
-                          shadowColor: const Color(0xFF2563EB).withValues(alpha: 0.3),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(14),
                           ),
                         ),
-                        onPressed: _isSubmitting ? null : _submitCreateTeam,
                         child: _isSubmitting
                             ? const Row(
                                 mainAxisAlignment: MainAxisAlignment.center,
@@ -829,6 +855,258 @@ class _CreateTeamPageState extends State<CreateTeamPage> {
                 ),
               ),
             ),
+    );
+  }
+
+  Widget _buildLockedInfoTile({
+    required String label,
+    required IconData icon,
+    required String value,
+    required String badgeText,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildFieldLabel(label, isRequired: true),
+        const SizedBox(height: 6),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+          decoration: BoxDecoration(
+            color: const Color(0xFFF1F5F9),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: const Color(0xFFCBD5E1)),
+          ),
+          child: Row(
+            children: [
+              Icon(icon, size: 18, color: const Color(0xFF2563EB)),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  value,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF1E293B),
+                    fontSize: 14,
+                  ),
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFE0E7FF),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.lock_rounded, size: 12, color: Color(0xFF3730A3)),
+                    const SizedBox(width: 4),
+                    Text(
+                      badgeText,
+                      style: const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF3730A3),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildLockedYearTile() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF1F5F9),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFCBD5E1)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.calendar_today_rounded, size: 18, color: Color(0xFF2563EB)),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              _selectedYear ?? 'Assigned Year',
+              style: const TextStyle(
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF1E293B),
+                fontSize: 14,
+              ),
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: const Color(0xFFE0E7FF),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: const Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.lock_rounded, size: 12, color: Color(0xFF3730A3)),
+                SizedBox(width: 4),
+                Text(
+                  'Assigned',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF3730A3),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildYearDropdown() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFCBD5E1)),
+      ),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<String>(
+          isExpanded: true,
+          value: _selectedYear,
+          hint: const Text('Select Year', style: TextStyle(fontSize: 13.5, color: Color(0xFF94A3B8))),
+          items: _assignedYears.map((y) {
+            final yName = (y is Map ? (y['yearName'] ?? y['name'] ?? 'Year ${y['yearNo'] ?? ''}') : y.toString()).toString();
+            return DropdownMenuItem<String>(
+              value: yName,
+              child: Row(
+                children: [
+                  const Icon(Icons.calendar_today_rounded, size: 16, color: Color(0xFF2563EB)),
+                  const SizedBox(width: 8),
+                  Text(yName, style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600)),
+                ],
+              ),
+            );
+          }).toList(),
+          onChanged: (val) {
+            setState(() {
+              _selectedYear = val;
+              _selectedCaptain = null;
+            });
+            if (_selectedDeptId != null) {
+              _fetchSections(_selectedDeptId!);
+            }
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDepartmentDropdown() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFCBD5E1)),
+      ),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<int>(
+          isExpanded: true,
+          value: _selectedDeptId,
+          hint: const Text('Select Department (9 Main Departments)', style: TextStyle(fontSize: 13.5, color: Color(0xFF94A3B8))),
+          items: _departments.map((d) {
+            final dId = d['id'] as int;
+            final dName = d['deptCode'] != null ? '${d['deptCode']} - ${d['name']}' : (d['name'] ?? 'Department');
+            return DropdownMenuItem<int>(
+              value: dId,
+              child: Text(
+                dName.toString(),
+                style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600),
+                overflow: TextOverflow.ellipsis,
+              ),
+            );
+          }).toList(),
+          onChanged: (val) {
+            setState(() {
+              _selectedDeptId = val;
+              _selectedCaptain = null;
+            });
+            if (val != null) {
+              _fetchSections(val);
+            } else {
+              setState(() {
+                _selectedSectionId = null;
+                _sections = [];
+              });
+            }
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSectionDropdown() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14),
+      decoration: BoxDecoration(
+        color: _selectedDeptId == null ? const Color(0xFFF8FAFC) : Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: _selectedDeptId == null ? const Color(0xFFE2E8F0) : const Color(0xFFCBD5E1)),
+      ),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<int>(
+          isExpanded: true,
+          value: _selectedSectionId,
+          hint: _isLoadingSections
+              ? const Row(
+                  children: [
+                    SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2)),
+                    SizedBox(width: 8),
+                    Text('Loading sections...', style: TextStyle(fontSize: 13)),
+                  ],
+                )
+              : Text(
+                  _selectedDeptId == null
+                      ? 'Select Department first'
+                      : (_sections.isEmpty ? 'All / No Specific Section' : 'Select Section'),
+                  style: TextStyle(
+                    fontSize: 13.5,
+                    color: _selectedDeptId == null ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                  ),
+                ),
+          items: [
+            const DropdownMenuItem<int>(
+              value: null,
+              child: Text('All / No Specific Section', style: TextStyle(fontSize: 13.5)),
+            ),
+            ..._sections.map((sec) {
+              final secId = sec['id'] as int;
+              final secName = sec['sectionName'] ?? sec['name'] ?? 'Section';
+              return DropdownMenuItem<int>(
+                value: secId,
+                child: Text(secName.toString(), style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600)),
+              );
+            }),
+          ],
+          onChanged: _selectedDeptId == null
+              ? null
+              : (val) {
+                  setState(() {
+                    _selectedSectionId = val;
+                    _selectedCaptain = null;
+                  });
+                },
+        ),
+      ),
     );
   }
 

@@ -1,79 +1,174 @@
-import 'dart:io';
-import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:pragatix/core/exceptions/api_exception.dart';
 import 'package:pragatix/core/error/error_type.dart';
 import 'package:pragatix/core/error/error_mapper.dart';
 
+class ErrorClassification {
+  final NetworkErrorCategory category;
+  final String title;
+  final String message;
+
+  const ErrorClassification({
+    required this.category,
+    required this.title,
+    required this.message,
+  });
+
+  bool get isMaintenance =>
+      category == NetworkErrorCategory.serverUnavailable ||
+      category == NetworkErrorCategory.serverError;
+
+  bool get isNoInternet => category == NetworkErrorCategory.noInternet;
+  bool get isClientError => category == NetworkErrorCategory.clientError;
+  bool get isSuccess => category == NetworkErrorCategory.success;
+}
+
 class ErrorHandler {
-  /// Checks whether an exception or error message represents a network/connectivity failure.
-  static bool isNetworkError(dynamic error) {
-    if (error is SocketException ||
-        error is TimeoutException ||
-        error is HttpException ||
-        error is HandshakeException) {
-      return true;
+  /// Checks whether an exception or error indicates the device has no internet connection.
+  static bool isDeviceOfflineError(dynamic error) {
+    if (error is NoInternetException) return true;
+    final errStr = error.toString().toLowerCase();
+    return errStr.contains('no internet') ||
+        errStr.contains('network is unreachable') ||
+        errStr.contains('network is down') ||
+        errStr.contains('no route to host') ||
+        errStr.contains('failed host lookup') ||
+        errStr.contains('enetunreach') ||
+        errStr.contains('enetdown');
+  }
+
+  /// Checks whether an exception indicates the backend server is offline, unreachable, or under maintenance.
+  static bool isServerMaintenanceError(dynamic error) {
+    if (error is ServerMaintenanceException) return true;
+    if (error is ApiException) {
+      if (error.statusCode >= 500) {
+        return true;
+      }
+      final lowerMsg = error.message.toLowerCase();
+      if (lowerMsg.contains('maintenance') ||
+          lowerMsg.contains('bad gateway') ||
+          lowerMsg.contains('service unavailable') ||
+          lowerMsg.contains('gateway timeout') ||
+          lowerMsg.contains('html')) {
+        return true;
+      }
     }
     final errStr = error.toString().toLowerCase();
-    return errStr.contains('socketexception') ||
-        errStr.contains('clientexception') ||
-        errStr.contains('failed host lookup') ||
-        errStr.contains('network is unreachable') ||
-        errStr.contains('network error') ||
+    return errStr.contains('maintenance') ||
         errStr.contains('connection refused') ||
         errStr.contains('connection reset') ||
         errStr.contains('connection closed') ||
-        errStr.contains('connection timed out') ||
-        errStr.contains('connection failed') ||
-        errStr.contains('failed to connect') ||
-        errStr.contains('handshakeexception') ||
-        errStr.contains('httpexception') ||
-        errStr.contains('timeoutexception') ||
-        errStr.contains('timed out') ||
-        errStr.contains('no internet') ||
-        errStr.contains('no address associated') ||
-        errStr.contains('xmlhttprequest') ||
-        errStr.contains('host is down') ||
-        errStr.contains('no route to host') ||
         errStr.contains('broken pipe') ||
+        errStr.contains('host is down') ||
+        errStr.contains('server unavailable') ||
+        errStr.contains('timed out') ||
+        errStr.contains('timeout') ||
+        errStr.contains('bad gateway') ||
+        errStr.contains('service unavailable') ||
         errStr.contains('software caused connection abort') ||
-        errStr.contains('os error:');
+        errStr.contains('failed to connect') ||
+        errStr.contains('connection failed') ||
+        errStr.contains('clientexception');
+  }
+
+  /// Checks whether an exception represents a network/connectivity failure.
+  static bool isNetworkError(dynamic error) {
+    return isDeviceOfflineError(error) || isServerMaintenanceError(error);
+  }
+
+  /// Centralized classification mechanism
+  /// Conceptually maps to:
+  /// - NO_INTERNET
+  /// - SERVER_UNAVAILABLE
+  /// - SERVER_ERROR
+  /// - CLIENT_ERROR
+  /// - SUCCESS
+  static ErrorClassification classify(dynamic error) {
+    if (error == null) {
+      return const ErrorClassification(
+        category: NetworkErrorCategory.success,
+        title: 'Success',
+        message: '',
+      );
+    }
+
+    // 1. Device Internet OFF
+    if (error is NoInternetException || isDeviceOfflineError(error)) {
+      return const ErrorClassification(
+        category: NetworkErrorCategory.noInternet,
+        title: 'No Internet Connection',
+        message: 'Please check your internet connection and try again.',
+      );
+    }
+
+    // 2. API Exceptions (HTTP responses from backend)
+    if (error is ApiException) {
+      // 5xx -> Server Error / Maintenance
+      if (error.statusCode >= 500) {
+        return const ErrorClassification(
+          category: NetworkErrorCategory.serverError,
+          title: 'Server is currently under maintenance.',
+          message: 'Please try again later.',
+        );
+      }
+      // 4xx -> Client Errors (preserve authentication/authorization)
+      if (error.statusCode == 401) {
+        return const ErrorClassification(
+          category: NetworkErrorCategory.clientError,
+          title: 'Session Expired',
+          message: 'Session expired. Please login again.',
+        );
+      }
+      if (error.statusCode == 403) {
+        return const ErrorClassification(
+          category: NetworkErrorCategory.clientError,
+          title: 'Permission Denied',
+          message: 'You do not have permission to perform this action.',
+        );
+      }
+      if (error.statusCode == 404) {
+        return const ErrorClassification(
+          category: NetworkErrorCategory.clientError,
+          title: 'Not Found',
+          message: 'Requested resource was not found.',
+        );
+      }
+      return ErrorClassification(
+        category: NetworkErrorCategory.clientError,
+        title: 'Request Error',
+        message: error.message,
+      );
+    }
+
+    // 3. Server Unavailable / Maintenance (TCP connection refused, timeout, handshake failure)
+    if (error is ServerMaintenanceException || isServerMaintenanceError(error)) {
+      return const ErrorClassification(
+        category: NetworkErrorCategory.serverUnavailable,
+        title: 'Server is currently under maintenance.',
+        message: 'Please try again later.',
+      );
+    }
+
+    final errStr = error.toString().replaceAll('Exception: ', '').trim();
+    if (isDeviceOfflineError(errStr)) {
+      return const ErrorClassification(
+        category: NetworkErrorCategory.noInternet,
+        title: 'No Internet Connection',
+        message: 'Please check your internet connection and try again.',
+      );
+    }
+
+    return const ErrorClassification(
+      category: NetworkErrorCategory.serverUnavailable,
+      title: 'Server is currently under maintenance.',
+      message: 'Please try again later.',
+    );
   }
 
   /// Extracts a clean, user-friendly error message from any error or exception.
   static String getErrorMessage(dynamic error) {
-    if (error == null) return "Unexpected error occurred.";
-
-    if (error is ApiException) {
-      if (error.statusCode == 401) {
-        return "Session expired. Please login again.";
-      } else if (error.statusCode == 403) {
-        return "You do not have permission to perform this action.";
-      } else if (error.statusCode == 404) {
-        return "Requested resource was not found.";
-      } else if (error.statusCode >= 500) {
-        if (error.message.isNotEmpty &&
-            !error.message.contains("Exception") &&
-            !error.message.contains("500") &&
-            !error.message.contains("<html>")) {
-          return error.message;
-        }
-        return "Unexpected server error. Please contact the administrator.";
-      } else {
-        return error.message;
-      }
-    }
-
-    if (isNetworkError(error)) {
-      return "Network Error: Please check your internet connection.";
-    }
-
-    final errStr = error.toString().replaceAll("Exception: ", "").trim();
-    if (isNetworkError(errStr)) {
-      return "Network Error: Please check your internet connection.";
-    }
-
-    return errStr.isNotEmpty ? errStr : "Unexpected error occurred.";
+    if (error == null) return 'Unexpected error occurred.';
+    return classify(error).message;
   }
 
   static void showSnackBar(

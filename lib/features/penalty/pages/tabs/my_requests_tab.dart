@@ -104,9 +104,39 @@ class MyRequestsTab extends StatelessWidget {
                 ),
               ],
             ),
-            const SizedBox(height: 8),
-            Text('Register No: ${request.regNo ?? 'N/A'}'),
-            const Divider(height: 24),
+            const SizedBox(height: 6),
+            Text(
+              'Register No: ${request.regNo ?? 'N/A'}',
+              style: const TextStyle(
+                fontSize: 13.5,
+                color: Color(0xFF475569),
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            const SizedBox(height: 5),
+            _buildClassHierarchyRow(request),
+            if (request.ccName != null &&
+                request.ccName!.trim().isNotEmpty &&
+                request.ccName!.trim().toUpperCase() != 'N/A') ...[
+              const SizedBox(height: 5),
+              Row(
+                children: [
+                  const Icon(Icons.person_pin_rounded, size: 15, color: Color(0xFF2563EB)),
+                  const SizedBox(width: 5),
+                  Expanded(
+                    child: Text(
+                      'CC: ${request.ccName}',
+                      style: const TextStyle(
+                        fontSize: 13,
+                        color: Color(0xFF1D4ED8),
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+            const Divider(height: 22),
             Text(
               'Activity: ${request.penaltyActivity ?? 'Custom Penalty'}',
               style: const TextStyle(fontWeight: FontWeight.w600),
@@ -171,5 +201,55 @@ class MyRequestsTab extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  Widget _buildClassHierarchyRow(PenaltyRequest request) {
+    final List<String> parts = [];
+
+    final yearStr = _formatYear(request.year);
+    if (yearStr.isNotEmpty) parts.add(yearStr);
+
+    if (request.department != null &&
+        request.department!.trim().isNotEmpty &&
+        request.department!.trim().toUpperCase() != 'N/A') {
+      parts.add(request.department!.trim());
+    }
+
+    if (request.section != null &&
+        request.section!.trim().isNotEmpty &&
+        request.section!.trim().toUpperCase() != 'N/A' &&
+        request.section!.trim().toUpperCase() != 'NULL') {
+      final sec = request.section!.trim();
+      parts.add(sec.toUpperCase().startsWith('SECTION') ? sec : 'Sec: $sec');
+    }
+
+    if (parts.isEmpty) return const SizedBox.shrink();
+
+    return Row(
+      children: [
+        const Icon(Icons.school_outlined, size: 15, color: Color(0xFF64748B)),
+        const SizedBox(width: 5),
+        Expanded(
+          child: Text(
+            parts.join(' • '),
+            style: const TextStyle(
+              fontSize: 13,
+              color: Color(0xFF334155),
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  String _formatYear(String? year) {
+    if (year == null || year.trim().isEmpty || year.trim().toUpperCase() == 'N/A') return '';
+    final clean = year.trim().toUpperCase();
+    if (clean == '1' || clean.contains('FIRST') || clean == 'I' || clean.contains('1ST')) return '1st Year';
+    if (clean == '2' || clean.contains('SECOND') || clean == 'II' || clean.contains('2ND')) return '2nd Year';
+    if (clean == '3' || clean.contains('THIRD') || clean == 'III' || clean.contains('3RD')) return '3rd Year';
+    if (clean == '4' || clean.contains('FOURTH') || clean == 'IV' || clean.contains('4TH')) return '4th Year';
+    return year.trim();
   }
 }

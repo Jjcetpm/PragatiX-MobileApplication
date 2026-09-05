@@ -15,8 +15,8 @@ class ServerUnavailablePage extends StatelessWidget {
   Widget build(BuildContext context) {
     return AppErrorView(
       icon: Icons.cloud_off_rounded,
-      title: 'Server Unavailable',
-      message: 'We couldn\'t connect to the server. Please try again later.',
+      title: 'Server Under Maintenance',
+      message: 'Server is currently under maintenance. Please try again later.\n\n(Daily maintenance window: 11:00 PM – 04:00 AM)',
       primaryButtonText: onRetry != null ? 'Retry' : null,
       onPrimaryPressed: onRetry,
       secondaryButtonText: onBack != null ? 'Go Back' : null,

@@ -1,3 +1,3 @@
 class ApiConfig {
-  static const String baseUrl = 'https://pragatix.in';
+  static const String baseUrl = 'https://pragatixa-app-production.up.railway.app';
 }

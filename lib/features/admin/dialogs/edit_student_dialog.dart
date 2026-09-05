@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:pragatix/core/widgets/pragatix_loader.dart';
 import 'package:pragatix/core/utils/string_utils.dart';
 
 class EditStudentDialog extends StatefulWidget {
@@ -22,6 +21,7 @@ class EditStudentDialog extends StatefulWidget {
   final Future<List<dynamic>> Function(int?) fetchSectionsForDept;
   final Future<void> Function({
     required int id,
+    required String regNo,
     required String fullName,
     required String email,
     required String phone,
@@ -99,6 +99,56 @@ class _EditStudentDialogState extends State<EditStudentDialog> {
     }).toList();
   }
 
+  List<dynamic> _getAllowedSemestersForYear(int? yearId) {
+    if (yearId == null) return [];
+    final matchedYear = widget.years.firstWhere(
+      (y) => y['id'] == yearId,
+      orElse: () => null,
+    );
+    if (matchedYear == null) return [];
+
+    int yNo = 0;
+    if (matchedYear['yearNo'] != null) {
+      yNo = matchedYear['yearNo'] is int
+          ? matchedYear['yearNo']
+          : int.tryParse(matchedYear['yearNo'].toString()) ?? 0;
+    }
+    if (yNo == 0) {
+      final name = (matchedYear['yearName'] ?? matchedYear['name'] ?? '').toString().toLowerCase();
+      if (name.contains('1') || name.contains('first') || name.contains('i')) {
+        yNo = 1;
+      } else if (name.contains('2') || name.contains('second') || name.contains('ii')) {
+        yNo = 2;
+      } else if (name.contains('3') || name.contains('third') || name.contains('iii')) {
+        yNo = 3;
+      } else if (name.contains('4') || name.contains('fourth') || name.contains('iv')) {
+        yNo = 4;
+      }
+    }
+
+    final uniqueSemesters = _deduplicate(widget.semesters);
+    return uniqueSemesters.where((sem) {
+      int sNo = 0;
+      if (sem['semesterNo'] != null) {
+        sNo = sem['semesterNo'] is int
+            ? sem['semesterNo']
+            : int.tryParse(sem['semesterNo'].toString()) ?? 0;
+      }
+      if (sNo == 0) {
+        final semName = (sem['semesterName'] ?? sem['name'] ?? '').toString().toLowerCase();
+        final match = RegExp(r'\d+').firstMatch(semName);
+        if (match != null) {
+          sNo = int.tryParse(match.group(0)!) ?? 0;
+        }
+      }
+      if (yNo == 1) return sNo == 1 || sNo == 2;
+      if (yNo == 2) return sNo == 3 || sNo == 4;
+      if (yNo == 3) return sNo == 5 || sNo == 6;
+      if (yNo == 4) return sNo == 7 || sNo == 8;
+      return false;
+    }).toList();
+  }
+
   @override
   void initState() {
     super.initState();
@@ -165,11 +215,11 @@ class _EditStudentDialogState extends State<EditStudentDialog> {
       selectedYearId = null;
     }
 
-    final uniqueSemesters = _deduplicate(widget.semesters);
+    final allowedSems = _getAllowedSemestersForYear(selectedYearId);
     selectedSemesterId = s['semesterId'];
     if (selectedSemesterId != null &&
-        !uniqueSemesters.any((sem) => sem['id'] == selectedSemesterId)) {
-      selectedSemesterId = null;
+        !allowedSems.any((sem) => sem['id'] == selectedSemesterId)) {
+      selectedSemesterId = allowedSems.isNotEmpty ? allowedSems.first['id'] : null;
     }
 
     final uniqueGenders = _deduplicate(widget.genders);
@@ -203,8 +253,11 @@ class _EditStudentDialogState extends State<EditStudentDialog> {
   }
 
   void _validateAndSubmit() {
+    final regNo = widget.regNoController.text.trim();
     final name = widget.nameController.text.trim();
-    final email = widget.emailController.text.trim();
+    final rawEmail = widget.emailController.text.trim();
+    final existingEmail = (widget.student['email'] ?? '').toString().trim();
+    final email = rawEmail.isNotEmpty ? rawEmail : existingEmail;
     final phone = widget.phoneController.text.trim();
     final guardianName = widget.guardianNameController.text.trim();
     final guardianRel = selectedGuardianRel ?? widget.guardianRelController.text.trim();
@@ -214,8 +267,16 @@ class _EditStudentDialogState extends State<EditStudentDialog> {
     final now = DateTime.now();
     final maxAllowedDob = DateTime(now.year - 16, now.month, now.day);
 
+    if (regNo.isEmpty) {
+      _showError('Register Number is required');
+      return;
+    }
     if (name.isEmpty) {
       _showError('Full Name is required');
+      return;
+    }
+    if (!RegExp(r'^[a-zA-Z\s]+$').hasMatch(name)) {
+      _showError('Full Name must contain letters and spaces only.');
       return;
     }
     if (email.isEmpty) {
@@ -240,6 +301,10 @@ class _EditStudentDialogState extends State<EditStudentDialog> {
         _showError('Guardian Name is required');
         return;
       }
+      if (guardianRel.isEmpty) {
+        _showError('Guardian Relationship is required');
+        return;
+      }
       if (guardianPhone.isEmpty) {
         _showError('Guardian Phone is required');
         return;
@@ -258,8 +323,17 @@ class _EditStudentDialogState extends State<EditStudentDialog> {
       return;
     }
 
+    if (selectedYearId != null && selectedSemesterId != null) {
+      final allowedSems = _getAllowedSemestersForYear(selectedYearId);
+      if (!allowedSems.any((s) => s['id'] == selectedSemesterId)) {
+        _showError('Selected semester does not belong to the selected year.');
+        return;
+      }
+    }
+
     widget.onEditStudent(
       id: widget.student['id'],
+      regNo: regNo.toUpperCase(),
       fullName: name.toUpperCase(),
       email: email,
       phone: phone,
@@ -396,13 +470,13 @@ class _EditStudentDialogState extends State<EditStudentDialog> {
                         UpperCaseTextFormatter(),
                       ],
                       decoration: inputDecoration('Register Number *'),
-                      readOnly: true,
                     ),
                     const SizedBox(height: 16),
                     TextField(
                       controller: widget.nameController,
                       textCapitalization: TextCapitalization.characters,
                       inputFormatters: [
+                        FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z\s]')),
                         UpperCaseTextFormatter(),
                       ],
                       decoration: inputDecoration('Full Name *'),
@@ -606,26 +680,36 @@ class _EditStudentDialogState extends State<EditStudentDialog> {
                             ),
                           )
                           .toList(),
-                      onChanged: (val) =>
-                          setState(() => selectedYearId = val),
+                      onChanged: (val) => setState(() {
+                        selectedYearId = val;
+                        final allowedSems = _getAllowedSemestersForYear(selectedYearId);
+                        if (allowedSems.isNotEmpty) {
+                          if (selectedSemesterId == null || !allowedSems.any((s) => s['id'] == selectedSemesterId)) {
+                            selectedSemesterId = allowedSems.first['id'];
+                          }
+                        } else {
+                          selectedSemesterId = null;
+                        }
+                      }),
                     ),
                     const SizedBox(height: 16),
                     DropdownButtonFormField<int>(
                       value: selectedSemesterId,
                       decoration: inputDecoration('Semester'),
-                      items: uniqueSemesters
+                      hint: Text(selectedYearId == null ? 'Select Year first' : 'Select Semester'),
+                      items: _getAllowedSemestersForYear(selectedYearId)
                           .map(
                             (sem) => DropdownMenuItem<int>(
                               value: sem['id'],
                               child: Text(
                                 sem['semesterNo'] != null
                                     ? "Semester ${sem['semesterNo']}"
-                                    : '',
+                                    : (sem['semesterName'] ?? sem['name'] ?? ''),
                               ),
                             ),
                           )
                           .toList(),
-                      onChanged: (val) =>
+                      onChanged: selectedYearId == null ? null : (val) =>
                           setState(() => selectedSemesterId = val),
                     ),
                     const SizedBox(height: 16),

@@ -13,6 +13,7 @@ import '../../leaderboard/pages/shared_leaderboard_page.dart';
 import '../../recycle_bin/screens/recycle_bin_screen.dart';
 import '../../recycle_bin/services/recycle_bin_service.dart';
 import 'package:pragatix/features/admin/pages/admin_levels_page.dart';
+import 'package:pragatix/core/utils/error_handler.dart';
 
 class OverviewTab extends StatefulWidget {
   const OverviewTab({super.key});
@@ -31,6 +32,7 @@ class _OverviewTabState extends State<OverviewTab> {
   int recycleBinCount = 0;
   bool isLoading = true;
   bool hasError = false;
+  dynamic errorObject;
 
   @override
   void initState() {
@@ -44,6 +46,7 @@ class _OverviewTabState extends State<OverviewTab> {
     setState(() {
       isLoading = true;
       hasError = false;
+      errorObject = null;
     });
     try {
       final stats = await getIt<AdminRepository>().getStats();
@@ -70,6 +73,7 @@ class _OverviewTabState extends State<OverviewTab> {
       if (!mounted) return;
       setState(() {
         hasError = true;
+        errorObject = e;
         isLoading = false;
       });
     }
@@ -903,6 +907,9 @@ class _OverviewTabState extends State<OverviewTab> {
   // ── Error View ───────────────────────────────────────────────────────────────
 
   Widget _buildErrorView() {
+    final classification = ErrorHandler.classify(errorObject);
+    final isMaintenance = classification.isMaintenance;
+
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(24.0),
@@ -911,32 +918,34 @@ class _OverviewTabState extends State<OverviewTab> {
           children: [
             Container(
               padding: const EdgeInsets.all(16),
-              decoration: const BoxDecoration(
-                color: Color(0xFFFEE2E2),
+              decoration: BoxDecoration(
+                color: isMaintenance ? const Color(0xFFFEF3C7) : const Color(0xFFFEE2E2),
                 shape: BoxShape.circle,
               ),
-              child: const Icon(
-                Icons.error_outline_rounded,
-                color: Color(0xFFEF4444),
+              child: Icon(
+                isMaintenance ? Icons.construction_rounded : Icons.wifi_off_rounded,
+                color: isMaintenance ? const Color(0xFFD97706) : const Color(0xFFEF4444),
                 size: 40,
               ),
             ),
             const SizedBox(height: 16),
-            const Text(
-              'Failed to load dashboard data',
-              style: TextStyle(
+            Text(
+              classification.title,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
                 color: Color(0xFF0F172A),
-                fontSize: 16,
+                fontSize: 18,
                 fontWeight: FontWeight.w700,
               ),
             ),
-            const SizedBox(height: 6),
-            const Text(
-              'Please check your network connection and try again.',
+            const SizedBox(height: 8),
+            Text(
+              classification.message,
               textAlign: TextAlign.center,
-              style: TextStyle(
+              style: const TextStyle(
                 color: Color(0xFF64748B),
                 fontSize: 13,
+                height: 1.4,
               ),
             ),
             const SizedBox(height: 20),

@@ -165,5 +165,37 @@ void main() {
 
       expect(find.byType(ActivityDetailsScreen), findsOneWidget);
     });
+
+    testWidgets('Renders penalty activities with Penalty label and red badge', (tester) async {
+      final stageData = {
+        'id': 1,
+        'name': 'Stage 1',
+        'expectedXp': 100,
+        'stageStatus': 'ACTIVE',
+        'subgroups': [
+          {
+            'name': 'Must',
+            'threshold': 50,
+            'activities': [
+              {
+                'id': 201,
+                'activityName': 'Late Attendance Penalty',
+                'xpType': 'PENALTY',
+                'penaltyXp': 20,
+                'rewardXp': 0,
+                'awardedXp': 0,
+                'status': 'PENDING',
+              }
+            ]
+          }
+        ]
+      };
+
+      await tester.pumpWidget(createWidgetUnderTest(stageData));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Late Attendance Penalty'), findsOneWidget);
+      expect(find.text('Penalty: -20 XP'), findsOneWidget);
+    });
   });
 }

@@ -2,7 +2,7 @@ import 'package:pragatix/features/auth/providers/auth_provider.dart';
 import 'package:pragatix/core/widgets/pragatix_loader.dart';
 import 'package:provider/provider.dart';
 import 'package:pragatix/core/config/api_config.dart';
-import 'package:http/http.dart' as http;
+import 'package:pragatix/core/utils/api_client.dart' as http;
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -1569,6 +1569,11 @@ class _EditStudentDialogState extends State<EditStudentDialog> {
           children: [
             TextField(
               controller: nameCtrl,
+              textCapitalization: TextCapitalization.characters,
+              inputFormatters: [
+                FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z\s]')),
+                UpperCaseTextFormatter(),
+              ],
               decoration: const InputDecoration(labelText: 'Full Name'),
             ),
             const SizedBox(height: 12),

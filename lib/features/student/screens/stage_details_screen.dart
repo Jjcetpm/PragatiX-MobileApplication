@@ -454,9 +454,27 @@ class StageDetailsScreen extends StatelessWidget {
   }) {
     final String name = activity['activityName'] ?? activity['name'] ?? 'Activity';
     final int rewardXp = (activity['rewardXp'] ?? activity['xp'] ?? 0) as int;
+    final int penaltyXp = (activity['penaltyXp'] ?? 0) as int;
     final int awardedXp = (activity['awardedXp'] ?? 0) as int;
     final String status = (activity['status'] ?? 'PENDING').toString().toUpperCase();
     final bool isActCompleted = status == 'COMPLETED' || awardedXp > 0;
+    final String xpType = (activity['xpType'] ?? '').toString().toUpperCase();
+    final bool isPenalty = xpType == 'PENALTY' || (penaltyXp > 0 && rewardXp == 0);
+    final bool isBoth = xpType == 'BOTH' || (rewardXp > 0 && penaltyXp > 0);
+
+    final String xpLabel;
+    final Color xpColor;
+    if (isPenalty) {
+      final val = penaltyXp > 0 ? penaltyXp : rewardXp;
+      xpLabel = 'Penalty: -$val XP';
+      xpColor = const Color(0xFFEF4444);
+    } else if (isBoth) {
+      xpLabel = 'Reward: $rewardXp • Penalty: -$penaltyXp XP';
+      xpColor = const Color(0xFF6366F1);
+    } else {
+      xpLabel = 'Reward: $rewardXp XP';
+      xpColor = const Color(0xFF6366F1);
+    }
 
     final String numStr = indexNumber.toString().padLeft(2, '0');
 
@@ -513,14 +531,18 @@ class StageDetailsScreen extends StatelessWidget {
                   width: 40,
                   height: 40,
                   decoration: BoxDecoration(
-                    color: isActCompleted ? const Color(0xFFDCFCE7) : const Color(0xFFEEF2FF),
+                    color: isActCompleted
+                        ? const Color(0xFFDCFCE7)
+                        : (isPenalty ? const Color(0xFFFEE2E2) : const Color(0xFFEEF2FF)),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Center(
                     child: Text(
                       numStr,
                       style: TextStyle(
-                        color: isActCompleted ? const Color(0xFF16A34A) : const Color(0xFF4F46E5),
+                        color: isActCompleted
+                            ? const Color(0xFF16A34A)
+                            : (isPenalty ? const Color(0xFFEF4444) : const Color(0xFF4F46E5)),
                         fontWeight: FontWeight.w800,
                         fontSize: 14,
                       ),
@@ -544,11 +566,11 @@ class StageDetailsScreen extends StatelessWidget {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        'Reward: $rewardXp XP',
-                        style: const TextStyle(
+                        xpLabel,
+                        style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w600,
-                          color: Color(0xFF6366F1),
+                          color: xpColor,
                         ),
                       ),
                     ],

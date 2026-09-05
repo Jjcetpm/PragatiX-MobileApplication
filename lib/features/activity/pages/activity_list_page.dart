@@ -8,6 +8,7 @@ import 'package:pragatix/features/activity/pages/create_activity_page.dart';
 import 'package:pragatix/features/activity/pages/edit_activity_page.dart';
 import 'package:pragatix/features/activity/pages/activity_execution_page.dart';
 import 'package:pragatix/features/activity/pages/group_activity_year_page.dart';
+import 'package:pragatix/features/activity/pages/admin_activity_details_page.dart';
 import 'package:pragatix/features/activity/pages/assign_staff_page.dart';
 import 'package:pragatix/features/activity/repository/activity_repository.dart';
 import 'package:pragatix/core/di/service_locator.dart';
@@ -414,8 +415,35 @@ class _ActivityListPageState extends State<ActivityListPage> {
                           isCc: widget.isCc,
                           isReadOnly: widget.isMyActivitiesOnly,
                           showGlobalActions: true,
+                          showCardActions: !widget.isAdmin,
+                          showInlineAssignments: !widget.isAdmin,
                           onTap: widget.isAdmin
-                              ? null
+                              ? () async {
+                                  await Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => AdminActivityDetailsPage(
+                                        activity: act,
+                                        provider: _provider,
+                                        stageId: widget.stageId,
+                                        subgroupName: widget.subgroupName,
+                                        academicYear: widget.academicYear,
+                                        isCc: widget.isCc,
+                                      ),
+                                    ),
+                                  );
+                                  if (mounted) {
+                                    if (widget.isMyActivitiesOnly) {
+                                      _provider.loadMyActivities();
+                                    } else {
+                                      _provider.loadActivities(
+                                        stageId: widget.stageId,
+                                        subgroupName: widget.subgroupName,
+                                        academicYear: widget.academicYear,
+                                      );
+                                    }
+                                  }
+                                }
                               : (widget.isMyActivitiesOnly
                                   ? () {
                                       Navigator.push(
@@ -425,12 +453,10 @@ class _ActivityListPageState extends State<ActivityListPage> {
                                             final bool isGroupActivity = act.type.toLowerCase().contains('group');
                                             if (isGroupActivity) {
                                               return GroupActivityYearPage(
-                                                
                                                 activityId: act.id,
                                               );
                                             } else {
                                               return ActivityExecutionPage(
-                                                
                                                 activityId: act.id,
                                               );
                                             }

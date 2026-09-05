@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:pragatix/core/utils/api_client.dart' as http;
 import 'package:pragatix/features/student/services/student_service.dart';
 
 class StudentRepository {
@@ -7,14 +8,13 @@ class StudentRepository {
   StudentRepository(this._studentService);
 
   Future<List<Map<String, dynamic>>> getLeaderboardStudents() async {
-    final response = await _studentService.getRawStudents(
-      page: 0,
-      size: 1000,
-      sortBy: 'fullName',
+    final response = await http.get(
+      Uri.parse('${StudentService.baseUrl}/api/v1/leaderboard'),
+      headers: {'Authorization': 'Bearer ${_studentService.token}'},
     );
     final data = jsonDecode(response.body);
     if (response.statusCode == 200 && data['success'] == true) {
-      final List<dynamic> content = data['data']['content'] ?? [];
+      final List<dynamic> content = data['data'] ?? [];
       return content
           .map(
             (s) => {

@@ -5,6 +5,7 @@ class PenaltyRequest {
   final String? department;
   final String? year;
   final String? section;
+  final String? ccName;
   final String? penaltyActivity;
   final int penaltyXP;
   final String? reason;
@@ -22,6 +23,7 @@ class PenaltyRequest {
     this.department,
     this.year,
     this.section,
+    this.ccName,
     this.penaltyActivity,
     required this.penaltyXP,
     this.reason,
@@ -41,6 +43,7 @@ class PenaltyRequest {
       department: json['department'],
       year: json['year'],
       section: json['section'],
+      ccName: json['ccName'],
       penaltyActivity: json['penaltyActivity'],
       penaltyXP: json['penaltyXP'] ?? 0,
       reason: json['reason'],

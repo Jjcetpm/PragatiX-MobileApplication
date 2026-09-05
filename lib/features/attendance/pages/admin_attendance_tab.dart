@@ -14,6 +14,7 @@ import '../models/student_attendance_matrix_item.dart';
 import '../services/attendance_service.dart';
 import '../../admin/pages/attendance_settings_page.dart';
 import '../../admin/pages/attendance_settings_year_selection_page.dart';
+import 'admin_attendance_history_sheet.dart';
 import 'package:pragatix/core/utils/error_handler.dart';
 import 'package:pragatix/features/admin/repository/admin_repository.dart';
 
@@ -340,6 +341,27 @@ class _AdminAttendanceTabState extends State<AdminAttendanceTab> {
                       Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
+                          _buildHeaderActionButton(
+                            icon: Icons.history_rounded,
+                            tooltip: 'Attendance History',
+                            onPressed: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => AdminAttendanceHistorySheet(
+                                    initialYearId: isYearAdmin ? -1 : _yearId,
+                                    initialDepartmentId: _departmentId,
+                                    initialSectionId: _sectionId,
+                                    initialDate: _selectedDate,
+                                    initialPeriod: _period,
+                                    years: _years,
+                                    departments: _departments,
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                          const SizedBox(width: 6),
                           _buildHeaderActionButton(
                             icon: Icons.file_download_outlined,
                             tooltip: 'Export to Excel',
@@ -824,18 +846,22 @@ class _AdminAttendanceTabState extends State<AdminAttendanceTab> {
                       color: Colors.grey.shade300,
                       width: 0.5,
                     ),
-                    columns: const [
-                      DataColumn(label: Text('#')),
-                      DataColumn(label: Text('Reg. No')),
-                      DataColumn(label: Text('Student Name')),
-                      DataColumn(label: Text('P1')),
-                      DataColumn(label: Text('P2')),
-                      DataColumn(label: Text('P3')),
-                      DataColumn(label: Text('P4')),
-                      DataColumn(label: Text('P5')),
-                      DataColumn(label: Text('P6')),
-                      DataColumn(label: Text('P7')),
-                      DataColumn(label: Text('P8')),
+                    columns: [
+                      const DataColumn(label: Text('#')),
+                      const DataColumn(label: Text('Reg. No')),
+                      const DataColumn(label: Text('Student Name')),
+                      if (_period != null)
+                        DataColumn(label: Text('Period $_period'))
+                      else ...[
+                        const DataColumn(label: Text('P1')),
+                        const DataColumn(label: Text('P2')),
+                        const DataColumn(label: Text('P3')),
+                        const DataColumn(label: Text('P4')),
+                        const DataColumn(label: Text('P5')),
+                        const DataColumn(label: Text('P6')),
+                        const DataColumn(label: Text('P7')),
+                        const DataColumn(label: Text('P8')),
+                      ],
                     ],
                     rows: students.asMap().entries.map((entry) {
                       final idx = entry.key;
@@ -861,11 +887,14 @@ class _AdminAttendanceTabState extends State<AdminAttendanceTab> {
                               overflow: TextOverflow.ellipsis,
                             ),
                           )),
-                          ...List.generate(8, (i) {
-                            final period = i + 1;
-                            final status = student.periodStatuses[period] ?? '—';
-                            return DataCell(_buildPeriodCell(status));
-                          }),
+                          if (_period != null)
+                            DataCell(_buildPeriodCell(student.periodStatuses[_period] ?? '—'))
+                          else
+                            ...List.generate(8, (i) {
+                              final period = i + 1;
+                              final status = student.periodStatuses[period] ?? '—';
+                              return DataCell(_buildPeriodCell(status));
+                            }),
                         ],
                       );
                     }).toList(),

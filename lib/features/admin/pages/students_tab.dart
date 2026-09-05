@@ -377,6 +377,7 @@ class _StudentsTabState extends State<StudentsTab> {
 
   Future<void> _editStudent({
     required int id,
+    required String regNo,
     required String fullName,
     required String email,
     required String phone,
@@ -392,7 +393,9 @@ class _StudentsTabState extends State<StudentsTab> {
     required bool active,
     required String password,
   }) async {
-    if (fullName.isEmpty || email.isEmpty) {
+    final studentObj = studentsList.firstWhere((s) => s['id'] == id, orElse: () => null);
+    final effectiveEmail = email.isNotEmpty ? email : (studentObj?['email'] ?? '').toString().trim();
+    if (fullName.isEmpty || effectiveEmail.isEmpty || regNo.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Required fields cannot be empty.')),
       );
@@ -405,8 +408,9 @@ class _StudentsTabState extends State<StudentsTab> {
           ? "${dob.year}-${dob.month.toString().padLeft(2, '0')}-${dob.day.toString().padLeft(2, '0')}"
           : null;
       await getIt<AdminRepository>().updateStudent(id, {
+        'regNo': regNo.trim().toUpperCase(),
         'fullName': fullName.trim().toUpperCase(),
-        'email': email,
+        'email': effectiveEmail,
         'phone': phone,
         'sprNo': sprNo,
         if (formattedDob != null) 'dateOfBirth': formattedDob,
@@ -560,6 +564,7 @@ class _StudentsTabState extends State<StudentsTab> {
         onEditStudent:
             ({
               required id,
+              required regNo,
               required fullName,
               required email,
               required phone,
@@ -576,6 +581,7 @@ class _StudentsTabState extends State<StudentsTab> {
             }) async {
               await _editStudent(
                 id: id,
+                regNo: regNo,
                 fullName: fullName,
                 email: email,
                 phone: phone,

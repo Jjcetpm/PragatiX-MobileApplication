@@ -16,6 +16,8 @@ class ActivityCard extends StatelessWidget {
   final bool isCc;
   final bool isReadOnly;
   final bool showGlobalActions;
+  final bool showCardActions;
+  final bool showInlineAssignments;
 
   static const Color _dark = AppColors.darkSlate;
 
@@ -30,6 +32,8 @@ class ActivityCard extends StatelessWidget {
     this.isCc = false,
     this.isReadOnly = false,
     this.showGlobalActions = false,
+    this.showCardActions = true,
+    this.showInlineAssignments = false,
   });
 
   @override
@@ -60,7 +64,13 @@ class ActivityCard extends StatelessWidget {
                       ),
                     ),
                   ),
-                  if (!isReadOnly) ...[
+                  if (!showCardActions)
+                    const Icon(
+                      Icons.chevron_right_rounded,
+                      color: Color(0xFF94A3B8),
+                      size: 24,
+                    )
+                  else if (!isReadOnly) ...[
                     if (onAssign != null && !isCc)
                       IconButton(
                         icon: const Icon(
@@ -149,92 +159,94 @@ class ActivityCard extends StatelessWidget {
               const SizedBox(height: 10),
 
               // ── Owner/Assignments row ──
-              if (activity.assignmentSummary.isEmpty)
-                Row(
-                  children: [
-                    const Icon(
-                      Icons.assignment_ind_outlined,
-                      size: 15,
-                      color: Color(0xFF2563EB),
-                    ),
-                    const SizedBox(width: 6),
-                    Expanded(
-                      child: Text(
-                        'Department: ${activity.ownerDepartment.isNotEmpty ? activity.ownerDepartment : "Unassigned"} (No assignments yet)',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey.shade700,
-                          fontWeight: FontWeight.w500,
-                        ),
+              if (showInlineAssignments) ...[
+                if (activity.assignmentSummary.isEmpty)
+                  Row(
+                    children: [
+                      const Icon(
+                        Icons.assignment_ind_outlined,
+                        size: 15,
+                        color: Color(0xFF2563EB),
                       ),
-                    ),
-                  ],
-                )
-              else
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        const Icon(
-                          Icons.assignment_ind_outlined,
-                          size: 15,
-                          color: Color(0xFF2563EB),
-                        ),
-                        const SizedBox(width: 6),
-                        Expanded(
-                          child: Text(
-                            activity.assignmentMode == 'GLOBAL'
-                                ? 'Assignment Mode: Global (All Departments)'
-                                : 'Assignments (${activity.ownerDepartment}):',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.grey.shade800,
-                              fontWeight: FontWeight.bold,
-                            ),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          'Department: ${activity.ownerDepartment.isNotEmpty ? activity.ownerDepartment : "Unassigned"} (No assignments yet)',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey.shade700,
+                            fontWeight: FontWeight.w500,
                           ),
                         ),
-                      ],
-                    ),
-                    const SizedBox(height: 4),
-                    Padding(
-                      padding: const EdgeInsets.only(left: 21),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: (() {
-                          final uniqueAssignments = <String>{};
-                          final uniqueWidgets = <Widget>[];
-                          for (final assign in activity.assignmentSummary) {
-                            final secName = assign['section'] as String?;
-                            final teachName =
-                                assign['teacher'] as String? ??
-                                'Unknown Teacher';
-                            final text = secName != null
-                                ? 'Section $secName → $teachName'
-                                : 'Assigned to → $teachName';
+                      ),
+                    ],
+                  )
+                else
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          const Icon(
+                            Icons.assignment_ind_outlined,
+                            size: 15,
+                            color: Color(0xFF2563EB),
+                          ),
+                          const SizedBox(width: 6),
+                          Expanded(
+                            child: Text(
+                              activity.assignmentMode == 'GLOBAL'
+                                  ? 'Assignment Mode: Global (All Departments)'
+                                  : 'Assignments (${activity.ownerDepartment}):',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey.shade800,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Padding(
+                        padding: const EdgeInsets.only(left: 21),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: (() {
+                            final uniqueAssignments = <String>{};
+                            final uniqueWidgets = <Widget>[];
+                            for (final assign in activity.assignmentSummary) {
+                              final secName = assign['section'] as String?;
+                              final teachName =
+                                  assign['teacher'] as String? ??
+                                  'Unknown Teacher';
+                              final text = secName != null
+                                  ? 'Section $secName → $teachName'
+                                  : 'Assigned to → $teachName';
 
-                            if (!uniqueAssignments.contains(text)) {
-                              uniqueAssignments.add(text);
-                              uniqueWidgets.add(
-                                Padding(
-                                  padding: const EdgeInsets.only(bottom: 2),
-                                  child: Text(
-                                    '• $text',
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      color: Colors.grey.shade700,
+                              if (!uniqueAssignments.contains(text)) {
+                                uniqueAssignments.add(text);
+                                uniqueWidgets.add(
+                                  Padding(
+                                    padding: const EdgeInsets.only(bottom: 2),
+                                    child: Text(
+                                      '• $text',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: Colors.grey.shade700,
+                                      ),
                                     ),
                                   ),
-                                ),
-                              );
+                                );
+                              }
                             }
-                          }
-                          return uniqueWidgets;
-                        })(),
+                            return uniqueWidgets;
+                          })(),
+                        ),
                       ),
-                    ),
-                  ],
-                ),
+                    ],
+                  ),
+              ],
 
               // ── Evidence ──
               if (activity.evidence.isNotEmpty) ...[

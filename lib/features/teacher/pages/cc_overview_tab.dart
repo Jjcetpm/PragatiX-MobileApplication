@@ -14,6 +14,7 @@ import 'package:pragatix/features/teacher/pages/performance_activities_tab.dart'
 import 'package:pragatix/features/teacher/pages/students_tab.dart';
 import 'package:pragatix/features/attendance/pages/teacher_attendance_tab.dart';
 import 'package:pragatix/features/penalty/providers/penalty_provider.dart';
+import 'package:pragatix/core/utils/error_handler.dart';
 
 class CCOverviewTab extends StatefulWidget {
   final List<String> subRoles;
@@ -31,6 +32,7 @@ class _CCOverviewTabState extends State<CCOverviewTab> {
   int pendingPenaltyRequests = 0;
   bool isLoading = true;
   bool hasError = false;
+  dynamic errorObject;
 
   @override
   void initState() {
@@ -42,6 +44,7 @@ class _CCOverviewTabState extends State<CCOverviewTab> {
     setState(() {
       isLoading = true;
       hasError = false;
+      errorObject = null;
     });
     try {
       final token = context.read<AuthProvider>().token;
@@ -92,6 +95,7 @@ class _CCOverviewTabState extends State<CCOverviewTab> {
     } catch (e) {
       setState(() {
         hasError = true;
+        errorObject = e;
         isLoading = false;
       });
     }
@@ -131,25 +135,47 @@ class _CCOverviewTabState extends State<CCOverviewTab> {
             ? const Center(child: PragatiXLoader())
             : hasError
             ? Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(
-                      Icons.error_outline,
-                      color: Colors.red,
-                      size: 48,
-                    ),
-                    const SizedBox(height: 16),
-                    const Text(
-                      'Failed to load dashboard data',
-                      style: TextStyle(color: Colors.white, fontSize: 16),
-                    ),
-                    const SizedBox(height: 16),
-                    ElevatedButton(
-                      onPressed: _fetchStats,
-                      child: const Text('Retry'),
-                    ),
-                  ],
+                child: Padding(
+                  padding: const EdgeInsets.all(24.0),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        ErrorHandler.isServerMaintenanceError(errorObject) ||
+                                !ErrorHandler.isDeviceOfflineError(errorObject)
+                            ? Icons.construction_rounded
+                            : Icons.wifi_off_rounded,
+                        color: Colors.amberAccent,
+                        size: 48,
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        ErrorHandler.isServerMaintenanceError(errorObject) ||
+                                !ErrorHandler.isDeviceOfflineError(errorObject)
+                            ? 'Server Under Maintenance'
+                            : 'No Internet Connection',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        ErrorHandler.getErrorMessage(errorObject),
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          color: Colors.white70,
+                          fontSize: 14,
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                      ElevatedButton(
+                        onPressed: _fetchStats,
+                        child: const Text('Retry'),
+                      ),
+                    ],
+                  ),
                 ),
               )
             : SingleChildScrollView(

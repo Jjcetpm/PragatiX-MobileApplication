@@ -239,8 +239,70 @@ class _EnrollmentAdminPageState extends State<EnrollmentAdminPage> with SingleTi
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (ctx) => _EnrolledStudentDetailsModal(item: item),
+      builder: (ctx) => _EnrolledStudentDetailsModal(
+        item: item,
+        onDelete: () => _deleteStudentDirect(item),
+      ),
     );
+  }
+
+  Future<void> _deleteStudentDirect(EnrollmentItem item) async {
+    final isEnrolled = item.status.toUpperCase() == 'ENROLLED';
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: const [
+            Icon(Icons.delete_outline_rounded, color: Colors.red),
+            SizedBox(width: 8),
+            Text('Move to Recycle Bin?'),
+          ],
+        ),
+        content: Text(
+          isEnrolled
+              ? 'Are you sure you want to delete enrolled student "${item.fullName}" (Reg: ${item.enrolledStudentRegNo ?? 'N/A'})?\n\nThis will move the student to the Recycle Bin. You can restore or permanently delete them from the Recycle Bin.'
+              : 'Are you sure you want to remove "${item.fullName}" from the pending enrollment list?\n\nThis will move the record to the Recycle Bin.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Move to Recycle Bin'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true) return;
+
+    try {
+      await _enrollmentRepository.deleteEnrollment(item.id);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('"${item.fullName}" moved to Recycle Bin.'),
+          backgroundColor: Colors.green,
+        ),
+      );
+      _fetchPending();
+      _fetchEnrolled();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(e.toString().replaceAll('Exception: ', '')),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
   @override
@@ -702,6 +764,19 @@ class _EnrollmentAdminPageState extends State<EnrollmentAdminPage> with SingleTi
                                 size: 18,
                                 color: isDark ? Colors.white70 : const Color(0xFF2563EB),
                               ),
+                              const SizedBox(width: 4),
+                              InkWell(
+                                onTap: () => _deleteStudentDirect(item),
+                                borderRadius: BorderRadius.circular(20),
+                                child: Padding(
+                                  padding: const EdgeInsets.all(4.0),
+                                  child: Icon(
+                                    Icons.delete_outline_rounded,
+                                    size: 18,
+                                    color: Colors.red.shade400,
+                                  ),
+                                ),
+                              ),
                             ],
                           ),
                           const SizedBox(height: 4),
@@ -869,6 +944,19 @@ class _EnrollmentAdminPageState extends State<EnrollmentAdminPage> with SingleTi
                                 Icons.info_outline_rounded,
                                 size: 18,
                                 color: isDark ? Colors.white70 : const Color(0xFF2563EB),
+                              ),
+                              const SizedBox(width: 4),
+                              InkWell(
+                                onTap: () => _deleteStudentDirect(item),
+                                borderRadius: BorderRadius.circular(20),
+                                child: Padding(
+                                  padding: const EdgeInsets.all(4.0),
+                                  child: Icon(
+                                    Icons.delete_outline_rounded,
+                                    size: 18,
+                                    color: Colors.red.shade400,
+                                  ),
+                                ),
                               ),
                             ],
                           ),
@@ -1552,6 +1640,7 @@ class _EditStudentModalState extends State<_EditStudentModal> {
                       enabled: !_isLoading && !_isDeleting,
                       textCapitalization: TextCapitalization.characters,
                       inputFormatters: [
+                        FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z\s]')),
                         UpperCaseTextFormatter(),
                       ],
                       decoration: InputDecoration(
@@ -1567,6 +1656,9 @@ class _EditStudentModalState extends State<_EditStudentModal> {
                       validator: (val) {
                         if (val == null || val.trim().isEmpty) {
                           return 'Full name is required';
+                        }
+                        if (!RegExp(r'^[a-zA-Z\s]+$').hasMatch(val.trim())) {
+                          return 'Full name must contain letters and spaces only';
                         }
                         return null;
                       },
@@ -1788,8 +1880,12 @@ class _EditStudentModalState extends State<_EditStudentModal> {
 
 class _EnrolledStudentDetailsModal extends StatelessWidget {
   final EnrollmentItem item;
+  final VoidCallback? onDelete;
 
-  const _EnrolledStudentDetailsModal({required this.item});
+  const _EnrolledStudentDetailsModal({
+    required this.item,
+    this.onDelete,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -1797,7 +1893,7 @@ class _EnrolledStudentDetailsModal extends StatelessWidget {
     final isDark = theme.brightness == Brightness.dark;
 
     return Container(
-      height: MediaQuery.of(context).size.height * 0.65,
+      height: MediaQuery.of(context).size.height * 0.72,
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF1E293B) : Colors.white,
@@ -1841,6 +1937,29 @@ class _EnrolledStudentDetailsModal extends StatelessWidget {
               ],
             ),
           ),
+          if (onDelete != null) ...[
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              height: 48,
+              child: OutlinedButton.icon(
+                onPressed: () {
+                  Navigator.pop(context);
+                  onDelete!();
+                },
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: Colors.red,
+                  side: BorderSide(color: Colors.red.shade300),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                ),
+                icon: const Icon(Icons.delete_outline_rounded, size: 20),
+                label: const Text(
+                  'Move to Recycle Bin',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                ),
+              ),
+            ),
+          ],
         ],
       ),
     );

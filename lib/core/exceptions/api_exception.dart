@@ -5,12 +5,29 @@ import 'package:pragatix/core/services/navigator_service.dart';
 import 'package:pragatix/core/di/service_locator.dart';
 import 'package:pragatix/features/auth/providers/auth_provider.dart';
 import 'package:pragatix/features/auth/pages/login_page.dart';
+import 'package:pragatix/core/services/server_status_service.dart';
 
 class ApiException implements Exception {
   final int statusCode;
   final String message;
 
   ApiException(this.statusCode, this.message);
+
+  @override
+  String toString() => message;
+}
+
+class NoInternetException implements Exception {
+  final String message;
+  NoInternetException([this.message = 'Please check your internet connection and try again.']);
+
+  @override
+  String toString() => message;
+}
+
+class ServerMaintenanceException implements Exception {
+  final String message;
+  ServerMaintenanceException([this.message = 'Please try again later.']);
 
   @override
   String toString() => message;
@@ -43,20 +60,41 @@ Future<http.Response> processResponse(http.Response response) async {
     }
   }
 
+  // Handle server down / maintenance HTTP status codes (500, 502, 503, 504)
+  if (response.statusCode >= 500) {
+    ServerStatusService.instance.setMaintenanceMode(true);
+    throw ServerMaintenanceException('Please try again later.');
+  }
+
   if (response.statusCode >= 400 || (response.body.isNotEmpty && response.body.trim().startsWith('<'))) {
     String message = 'An error occurred';
     try {
       if (response.body.trim().startsWith('<')) {
-        message = 'Server returned an HTML page (Possible Backend Error or Gateway Timeout)';
+        // Backend offline / gateway error returned HTML
+        ServerStatusService.instance.setMaintenanceMode(true);
+        throw ServerMaintenanceException('Please try again later.');
       } else {
         final data = jsonDecode(response.body);
         message = data['message'] ?? data['error'] ?? message;
       }
+    } on ServerMaintenanceException {
+      rethrow;
     } catch (_) {}
-    // If it was a 200 OK with HTML, we treat it as a 500 server error logically.
+
+    final lowerMsg = message.toLowerCase();
+    if (lowerMsg.contains('maintenance') ||
+        lowerMsg.contains('service unavailable') ||
+        lowerMsg.contains('bad gateway')) {
+      ServerStatusService.instance.setMaintenanceMode(true);
+      throw ServerMaintenanceException('Please try again later.');
+    }
+
     final statusCode = response.statusCode < 400 ? 500 : response.statusCode;
+    if (statusCode >= 500) {
+      ServerStatusService.instance.setMaintenanceMode(true);
+      throw ServerMaintenanceException('Please try again later.');
+    }
     throw ApiException(statusCode, message);
   }
   return response;
 }
-

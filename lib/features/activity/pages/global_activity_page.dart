@@ -3,6 +3,7 @@ import 'package:pragatix/core/widgets/pragatix_loader.dart';
 import '../models/activity_model.dart';
 import '../providers/activity_provider.dart';
 import '../../../shared/widgets/activity_card.dart';
+import 'admin_activity_details_page.dart';
 import 'edit_activity_page.dart';
 import 'assign_staff_page.dart';
 import '../../../core/utils/error_handler.dart';
@@ -250,13 +251,29 @@ class _GlobalActivityPageState extends State<GlobalActivityPage>
                           EditActivityPage(provider: _provider, activity: act),
                     ),
                   ).then((value) {
-                    if (value == true) _provider.loadActivities();
+                    if (value == true) _provider.loadActivities(academicYear: _selectedYear);
                   });
                 },
                 onDelete: () => _handleDelete(act),
                 isCc: false,
                 isReadOnly: false,
                 showGlobalActions: true,
+                showCardActions: false,
+                showInlineAssignments: false,
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => AdminActivityDetailsPage(
+                        activity: act,
+                        provider: _provider,
+                        academicYear: _selectedYear,
+                      ),
+                    ),
+                  ).then((_) {
+                    _provider.loadActivities(academicYear: _selectedYear);
+                  });
+                },
                 onAssign: () {
                   Navigator.push(
                     context,

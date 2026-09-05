@@ -246,6 +246,8 @@ class _CCActivityListPageState extends State<CCActivityListPage> {
                               activity: activity,
                               isReadOnly: false,
                               isCc: true,
+                              showCardActions: false,
+                              showInlineAssignments: false,
                               onEdit: () {},
                               onDelete: () {},
                               onTap: () => _openAssignPage(activity),

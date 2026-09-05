@@ -72,10 +72,7 @@ class _SharedLeaderboardPageState extends State<SharedLeaderboardPage> {
   }
 
   bool get _isSectionFilterEnabled {
-    if (_effectiveShowYearFilter) {
-      return selectedYear != null && selectedDept != null;
-    }
-    return selectedDept != null;
+    return selectedDept != null && selectedDept!.isNotEmpty && selectedDept != 'All';
   }
 
   @override
@@ -128,28 +125,30 @@ class _SharedLeaderboardPageState extends State<SharedLeaderboardPage> {
       );
 
       List<Map<String, dynamic>> rawYears = List<Map<String, dynamic>>.from(filters['years'] ?? []);
-      try {
-        final yearAdmins = await getIt<AdminRepository>().getYearAdmins();
-        final Set<String> assignedYearNames = {};
-        for (var a in yearAdmins) {
-          if (a is Map) {
-            final ay = a['academicYear']?.toString().toUpperCase().replaceAll('_', ' ');
-            if (ay != null && ay.isNotEmpty) assignedYearNames.add(ay);
-            final yr = a['year']?.toString().toUpperCase().replaceAll('_', ' ');
-            if (yr != null && yr.isNotEmpty) assignedYearNames.add(yr);
-            final aId = a['assignedYearId']?.toString();
-            if (aId != null && aId.isNotEmpty) assignedYearNames.add(aId);
+      if (getIt.isRegistered<AdminRepository>()) {
+        try {
+          final yearAdmins = await getIt<AdminRepository>().getYearAdmins();
+          final Set<String> assignedYearNames = {};
+          for (var a in yearAdmins) {
+            if (a is Map) {
+              final ay = a['academicYear']?.toString().toUpperCase().replaceAll('_', ' ');
+              if (ay != null && ay.isNotEmpty) assignedYearNames.add(ay);
+              final yr = a['year']?.toString().toUpperCase().replaceAll('_', ' ');
+              if (yr != null && yr.isNotEmpty) assignedYearNames.add(yr);
+              final aId = a['assignedYearId']?.toString();
+              if (aId != null && aId.isNotEmpty) assignedYearNames.add(aId);
+            }
           }
+          if (assignedYearNames.isNotEmpty) {
+            rawYears = rawYears.where((y) {
+              final name = (y['name'] ?? '').toString().toUpperCase().replaceAll('_', ' ');
+              final id = (y['id'] ?? '').toString();
+              return assignedYearNames.any((ay) => name.contains(ay) || ay.contains(name) || id == ay);
+            }).toList();
+          }
+        } catch (e) {
+          debugPrint('Error filtering year admins in leaderboard: $e');
         }
-        if (assignedYearNames.isNotEmpty) {
-          rawYears = rawYears.where((y) {
-            final name = (y['name'] ?? '').toString().toUpperCase().replaceAll('_', ' ');
-            final id = (y['id'] ?? '').toString();
-            return assignedYearNames.any((ay) => name.contains(ay) || ay.contains(name) || id == ay);
-          }).toList();
-        }
-      } catch (e) {
-        debugPrint('Error filtering year admins in leaderboard: $e');
       }
 
       if (mounted) {
@@ -357,14 +356,43 @@ class _SharedLeaderboardPageState extends State<SharedLeaderboardPage> {
                                         student['regNo'].toString().trim().toLowerCase() ==
                                             currentUserId!.trim().toLowerCase());
 
-                                    final String deptStr = student['departmentName'] ??
-                                        student['department'] ??
-                                        'Computer Science & Engineering';
-                                    final String rawSec = student['section'] ?? 'A';
-                                    final String cleanSec = _cleanSectionName(rawSec.toString());
-                                    final String subSec =
-                                        '${student['year'] ?? '1'} ($cleanSec)';
-                                    final String fullSubtitle = '$deptStr\n(Cyber Security) - $subSec';
+                                    final String deptStr = (student['departmentName'] ??
+                                            student['department'] ??
+                                            '')
+                                        .toString()
+                                        .trim();
+                                    final String rawSec = (student['sectionName'] ??
+                                            student['section'] ??
+                                            '')
+                                        .toString()
+                                        .trim();
+                                    final String cleanSec = _cleanSectionName(rawSec);
+                                    final String rawYear =
+                                        (student['year']?.toString() ?? '').trim();
+
+                                    final List<String> details = [];
+                                    if (rawYear.isNotEmpty && rawYear != 'null') {
+                                      details.add(rawYear.toLowerCase().startsWith('year')
+                                          ? rawYear
+                                          : 'Year $rawYear');
+                                    }
+                                    if (cleanSec.isNotEmpty &&
+                                        cleanSec != 'null' &&
+                                        cleanSec.toLowerCase() != 'section') {
+                                      details.add('Sec $cleanSec');
+                                    }
+
+                                    final String detailsStr = details.join(' • ');
+                                    final String fullSubtitle;
+                                    if (deptStr.isNotEmpty && detailsStr.isNotEmpty) {
+                                      fullSubtitle = '$deptStr • $detailsStr';
+                                    } else if (deptStr.isNotEmpty) {
+                                      fullSubtitle = deptStr;
+                                    } else if (detailsStr.isNotEmpty) {
+                                      fullSubtitle = detailsStr;
+                                    } else {
+                                      fullSubtitle = 'Student';
+                                    }
 
                                     final int score = (student['totalXp'] is num)
                                         ? (student['totalXp'] as num).toInt()
@@ -546,41 +574,13 @@ class _SharedLeaderboardPageState extends State<SharedLeaderboardPage> {
             isEnabled: isSectionEnabled,
             onTap: () {
               if (!isSectionEnabled) {
-                if (_effectiveShowYearFilter) {
-                  if (selectedYear == null && selectedDept == null) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Please select Year and Department first to filter by Section'),
-                        duration: Duration(seconds: 2),
-                        behavior: SnackBarBehavior.floating,
-                      ),
-                    );
-                  } else if (selectedYear == null) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Please select Year first'),
-                        duration: Duration(seconds: 2),
-                        behavior: SnackBarBehavior.floating,
-                      ),
-                    );
-                  } else {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Please select Department first'),
-                        duration: Duration(seconds: 2),
-                        behavior: SnackBarBehavior.floating,
-                      ),
-                    );
-                  }
-                } else {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Please select Department first to filter by Section'),
-                      duration: Duration(seconds: 2),
-                      behavior: SnackBarBehavior.floating,
-                    ),
-                  );
-                }
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Please select Department first to filter by Section'),
+                    duration: Duration(seconds: 2),
+                    behavior: SnackBarBehavior.floating,
+                  ),
+                );
                 return;
               }
               if (sectionOptions.isEmpty) {
@@ -927,11 +927,9 @@ class _SharedLeaderboardPageState extends State<SharedLeaderboardPage> {
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(color: const Color(0xFFE2E8F0)),
                       ),
-                      child: Text(
-                        _effectiveShowYearFilter
-                            ? 'Select Year and Department first'
-                            : 'Select Department first',
-                        style: const TextStyle(color: Color(0xFF94A3B8), fontSize: 13),
+                      child: const Text(
+                        'Select Department first',
+                        style: TextStyle(color: Color(0xFF94A3B8), fontSize: 13),
                       ),
                     ),
                     const SizedBox(height: 20),

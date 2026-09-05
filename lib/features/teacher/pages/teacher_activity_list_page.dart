@@ -273,6 +273,8 @@ class _TeacherActivityListPageState extends State<TeacherActivityListPage> {
                               activity: activity,
                               isReadOnly: true,
                               isCc: false,
+                              showCardActions: false,
+                              showInlineAssignments: false,
                               onEdit: () {},
                               onDelete: () {},
                               onTap: () => _onActivityTapped(activity),
