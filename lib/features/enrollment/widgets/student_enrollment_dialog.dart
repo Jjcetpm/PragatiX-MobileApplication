@@ -605,13 +605,30 @@ class _StudentEnrollmentDialogState extends State<StudentEnrollmentDialog> {
                 _buildConfirmRow('Full Name', _selectedStudent!.fullName, Icons.person_outline, isDark),
                 const Divider(height: 24),
                 _buildConfirmRow('Department', _selectedStudent!.departmentName, Icons.school_outlined, isDark),
-                if (_selectedStudent!.email != null && _selectedStudent!.email!.isNotEmpty) ...[
-                  const Divider(height: 24),
-                  _buildConfirmRow('Email ID', _selectedStudent!.email!, Icons.mail_outline, isDark),
-                ] else if (_selectedStudent!.maskedEmail != null && _selectedStudent!.maskedEmail!.isNotEmpty) ...[
-                  const Divider(height: 24),
-                  _buildConfirmRow('Email ID', _selectedStudent!.maskedEmail!, Icons.mail_outline, isDark),
-                ],
+
+                Builder(
+                  builder: (context) {
+                    final rawEmail = _selectedStudent!.email;
+                    final maskedEmail = _selectedStudent!.maskedEmail;
+                    String? displayEmail;
+
+                    if (rawEmail != null && rawEmail.trim().isNotEmpty && !rawEmail.startsWith('ENC:')) {
+                      displayEmail = rawEmail.trim();
+                    } else if (maskedEmail != null && maskedEmail.trim().isNotEmpty && !maskedEmail.startsWith('ENC:')) {
+                      displayEmail = maskedEmail.trim();
+                    }
+
+                    if (displayEmail != null && displayEmail.isNotEmpty) {
+                      return Column(
+                        children: [
+                          const Divider(height: 24),
+                          _buildConfirmRow('Email ID', displayEmail, Icons.mail_outline, isDark),
+                        ],
+                      );
+                    }
+                    return const SizedBox.shrink();
+                  },
+                ),
                 const Divider(height: 24),
                 _buildConfirmRow('Registered Mobile', _selectedStudent!.maskedMobile, Icons.phone_locked_outlined, isDark),
               ],

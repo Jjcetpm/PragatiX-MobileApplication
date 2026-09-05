@@ -207,6 +207,7 @@ class _RecycleBinScreenState extends State<RecycleBinScreen> {
     if (upper.contains('TEAM') || upper.contains('GROUP')) return Icons.groups_rounded;
     if (upper.contains('STAGE')) return Icons.stairs_rounded;
     if (upper.contains('ACTIVITY')) return Icons.local_activity_rounded;
+    if (upper.contains('SECTION')) return Icons.grid_view_rounded;
     return Icons.delete_outline_rounded;
   }
 
@@ -219,6 +220,7 @@ class _RecycleBinScreenState extends State<RecycleBinScreen> {
     if (upper.contains('LEVEL')) return const Color(0xFFD97706);
     if (upper.contains('BADGE')) return const Color(0xFF16A34A);
     if (upper.contains('STAGE')) return const Color(0xFFF59E0B);
+    if (upper.contains('SECTION')) return const Color(0xFF0D9488);
     return const Color(0xFF64748B);
   }
 

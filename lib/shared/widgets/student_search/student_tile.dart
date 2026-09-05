@@ -15,8 +15,14 @@ class StudentTile extends StatelessWidget {
     final String dept =
         student['departmentName'] ?? student['department'] ?? 'Unknown Dept';
     final String year = student['year'] ?? 'Unknown Year';
-    final String section =
-        student['sectionName'] ?? student['section'] ?? 'Unknown Section';
+    final dynamic rawSec = student['sectionName'] ?? student['section'];
+    final String secStr = rawSec?.toString().trim() ?? '';
+    final bool hasSection = secStr.isNotEmpty &&
+        secStr.toLowerCase() != 'null' &&
+        secStr.toLowerCase() != 'unknown section' &&
+        secStr.toLowerCase() != 'n/a' &&
+        secStr.toLowerCase() != 'none';
+    final String section = hasSection ? secStr : 'No Section';
 
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
@@ -52,7 +58,7 @@ class StudentTile extends StatelessWidget {
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
-                  '$year - $dept - $section',
+                  hasSection ? '$year - $dept - $section' : '$year - $dept (No Section)',
                   style: TextStyle(
                     color: Theme.of(context).primaryColor,
                     fontWeight: FontWeight.w500,

@@ -1,12 +1,8 @@
 import 'dart:async';
-import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:file_picker/file_picker.dart';
-import 'package:open_filex/open_filex.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:permission_handler/permission_handler.dart';
 import 'package:pragatix/core/di/service_locator.dart';
 import 'package:pragatix/features/enrollment/models/enrollment_model.dart';
 import 'package:pragatix/features/enrollment/repository/enrollment_repository.dart';
@@ -785,7 +781,7 @@ class _EnrollmentAdminPageState extends State<EnrollmentAdminPage> with SingleTi
                               Icon(Icons.school_outlined, size: 14, color: isDark ? Colors.white60 : const Color(0xFF64748B)),
                               const SizedBox(width: 4),
                               Text(
-                                item.deptCode.isNotEmpty ? item.deptCode : item.departmentName,
+                                '${item.deptCode.isNotEmpty ? item.deptCode : item.departmentName}${item.sectionName != null && item.sectionName!.isNotEmpty ? ' (${item.sectionName})' : ''}',
                                 style: TextStyle(
                                   fontSize: 12,
                                   color: isDark ? Colors.white70 : const Color(0xFF64748B),
@@ -966,7 +962,7 @@ class _EnrollmentAdminPageState extends State<EnrollmentAdminPage> with SingleTi
                               Icon(Icons.school_outlined, size: 14, color: isDark ? Colors.white60 : const Color(0xFF64748B)),
                               const SizedBox(width: 4),
                               Text(
-                                item.deptCode.isNotEmpty ? item.deptCode : item.departmentName,
+                                '${item.deptCode.isNotEmpty ? item.deptCode : item.departmentName}${item.sectionName != null && item.sectionName!.isNotEmpty ? ' (${item.sectionName})' : ''}',
                                 style: TextStyle(
                                   fontSize: 12,
                                   color: isDark ? Colors.white70 : const Color(0xFF64748B),
@@ -1041,6 +1037,7 @@ class _SingleStudentModalState extends State<_SingleStudentModal> {
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
   final _mobileController = TextEditingController();
+  final _sectionController = TextEditingController();
   String _selectedGender = 'Male';
   int? _selectedDepartmentId;
   bool _isLoading = false;
@@ -1094,6 +1091,7 @@ class _SingleStudentModalState extends State<_SingleStudentModal> {
     _nameController.dispose();
     _emailController.dispose();
     _mobileController.dispose();
+    _sectionController.dispose();
     super.dispose();
   }
 
@@ -1116,6 +1114,7 @@ class _SingleStudentModalState extends State<_SingleStudentModal> {
         email: _emailController.text.trim(),
         mobile: _mobileController.text.trim(),
         departmentId: _selectedDepartmentId!,
+        section: _sectionController.text.trim().isNotEmpty ? _sectionController.text.trim().toUpperCase() : null,
       );
       if (!mounted) return;
       Navigator.pop(context);
@@ -1333,6 +1332,28 @@ class _SingleStudentModalState extends State<_SingleStudentModal> {
                             onChanged: _isLoading ? null : (v) => setState(() => _selectedDepartmentId = v),
                             validator: (val) => val == null ? 'Department is required' : null,
                           ),
+                    const SizedBox(height: 14),
+
+                    // Section (Optional)
+                    TextFormField(
+                      controller: _sectionController,
+                      enabled: !_isLoading,
+                      textCapitalization: TextCapitalization.characters,
+                      inputFormatters: [
+                        UpperCaseTextFormatter(),
+                        LengthLimitingTextInputFormatter(10),
+                      ],
+                      decoration: InputDecoration(
+                        labelText: 'Section (Optional)',
+                        hintText: 'e.g. A, B, C (Optional)',
+                        isDense: true,
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                        prefixIcon: const Icon(Icons.group_outlined),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                        filled: true,
+                        fillColor: isDark ? const Color(0xFF334155) : const Color(0xFFF8FAFC),
+                      ),
+                    ),
                     const SizedBox(height: 20),
 
                     // Submit Button
@@ -1424,6 +1445,7 @@ class _EditStudentModalState extends State<_EditStudentModal> {
   late TextEditingController _nameController;
   late TextEditingController _emailController;
   late TextEditingController _mobileController;
+  late TextEditingController _sectionController;
   late String _selectedGender;
   int? _selectedDepartmentId;
   bool _isLoading = false;
@@ -1438,6 +1460,7 @@ class _EditStudentModalState extends State<_EditStudentModal> {
     _nameController = TextEditingController(text: widget.item.fullName);
     _emailController = TextEditingController(text: widget.item.email);
     _mobileController = TextEditingController(text: widget.item.mobile);
+    _sectionController = TextEditingController(text: widget.item.sectionName ?? '');
 
     const validGenders = ['Male', 'Female', 'Other'];
     _selectedGender = validGenders.contains(widget.item.gender) ? widget.item.gender : 'Male';
@@ -1487,6 +1510,7 @@ class _EditStudentModalState extends State<_EditStudentModal> {
     _nameController.dispose();
     _emailController.dispose();
     _mobileController.dispose();
+    _sectionController.dispose();
     super.dispose();
   }
 
@@ -1510,6 +1534,7 @@ class _EditStudentModalState extends State<_EditStudentModal> {
         email: _emailController.text.trim(),
         mobile: _mobileController.text.trim(),
         departmentId: _selectedDepartmentId!,
+        section: _sectionController.text.trim().isNotEmpty ? _sectionController.text.trim().toUpperCase() : null,
       );
       if (!mounted) return;
       Navigator.pop(context);
@@ -1780,6 +1805,28 @@ class _EditStudentModalState extends State<_EditStudentModal> {
                                 : (v) => setState(() => _selectedDepartmentId = v),
                             validator: (val) => val == null ? 'Department is required' : null,
                           ),
+                    const SizedBox(height: 14),
+
+                    // Section (Optional)
+                    TextFormField(
+                      controller: _sectionController,
+                      enabled: !_isLoading && !_isDeleting,
+                      textCapitalization: TextCapitalization.characters,
+                      inputFormatters: [
+                        UpperCaseTextFormatter(),
+                        LengthLimitingTextInputFormatter(10),
+                      ],
+                      decoration: InputDecoration(
+                        labelText: 'Section (Optional)',
+                        hintText: 'e.g. A, B, C (Leave blank to remove section)',
+                        isDense: true,
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                        prefixIcon: const Icon(Icons.group_outlined),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                        filled: true,
+                        fillColor: isDark ? const Color(0xFF334155) : const Color(0xFFF8FAFC),
+                      ),
+                    ),
                     const SizedBox(height: 24),
 
                     // Action Buttons Row (Delete + Save)
@@ -1929,6 +1976,8 @@ class _EnrolledStudentDetailsModal extends StatelessWidget {
                 _buildInfoTile('Full Name', item.fullName, Icons.person_outline_rounded, isDark),
                 _buildInfoTile('Register No', item.enrolledStudentRegNo ?? 'Assigned on enrollment', Icons.badge_outlined, isDark),
                 _buildInfoTile('Department', '${item.deptCode} - ${item.departmentName}', Icons.school_outlined, isDark),
+                if (item.sectionName != null && item.sectionName!.isNotEmpty)
+                  _buildInfoTile('Section', item.sectionName!, Icons.group_outlined, isDark),
                 _buildInfoTile('Gender', item.gender.isNotEmpty ? item.gender : 'Not specified', Icons.wc_rounded, isDark),
                 _buildInfoTile('Mobile', item.maskedMobile, Icons.phone_outlined, isDark),
                 _buildInfoTile('Status', 'ENROLLED', Icons.check_circle_outline_rounded, isDark, isGreen: true),

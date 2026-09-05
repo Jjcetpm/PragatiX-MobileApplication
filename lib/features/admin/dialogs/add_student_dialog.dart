@@ -583,15 +583,21 @@ class _AddStudentDialogState extends State<AddStudentDialog> {
                     padding: EdgeInsets.all(8.0),
                     child: CircularProgressIndicator(),
                   )
-                : DropdownButtonFormField<int>(
+                : DropdownButtonFormField<int?>(
                     value: selectedSectionId,
-                    decoration: const InputDecoration(labelText: 'Section'),
-                    items: uniqueSections.map((sec) {
-                      return DropdownMenuItem<int>(
-                        value: sec['id'],
-                        child: Text(sec['sectionName'] ?? ''),
-                      );
-                    }).toList(),
+                    decoration: const InputDecoration(labelText: 'Section (Optional)'),
+                    items: [
+                      const DropdownMenuItem<int?>(
+                        value: null,
+                        child: Text('None / No Section'),
+                      ),
+                      ...uniqueSections.map((sec) {
+                        return DropdownMenuItem<int?>(
+                          value: sec['id'] as int?,
+                          child: Text(sec['sectionName'] ?? ''),
+                        );
+                      }),
+                    ],
                     onChanged: (value) {
                       setState(() {
                         selectedSectionId = value;

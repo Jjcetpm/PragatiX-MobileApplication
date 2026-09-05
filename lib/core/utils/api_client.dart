@@ -101,8 +101,7 @@ Future<T> _wrapNetworkCall<T>(Future<T> Function() call) async {
       ServerStatusService.instance.setNoInternetMode(true);
       throw NoInternetException('Please check your internet connection and try again.');
     }
-    ServerStatusService.instance.setMaintenanceMode(true);
-    throw ServerMaintenanceException('Please try again later.');
+    rethrow;
   }
 }
 

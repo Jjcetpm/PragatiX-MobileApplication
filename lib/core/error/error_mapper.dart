@@ -23,8 +23,9 @@ class AppErrorMapper {
       case NetworkErrorCategory.noInternet:
         return AppErrorType.noInternet;
       case NetworkErrorCategory.serverUnavailable:
-      case NetworkErrorCategory.serverError:
         return AppErrorType.maintenance;
+      case NetworkErrorCategory.serverError:
+        return AppErrorType.serverError;
       case NetworkErrorCategory.clientError:
         if (error is ApiException) {
           if (error.statusCode == 401) return AppErrorType.unauthorized;

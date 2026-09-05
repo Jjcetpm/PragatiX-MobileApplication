@@ -103,12 +103,20 @@ class ErrorHandler {
 
     // 2. API Exceptions (HTTP responses from backend)
     if (error is ApiException) {
-      // 5xx -> Server Error / Maintenance
-      if (error.statusCode >= 500) {
+      // 502, 503, 504 -> Server Maintenance
+      if (error.statusCode == 502 || error.statusCode == 503 || error.statusCode == 504) {
         return const ErrorClassification(
-          category: NetworkErrorCategory.serverError,
+          category: NetworkErrorCategory.serverUnavailable,
           title: 'Server is currently under maintenance.',
           message: 'Please try again later.',
+        );
+      }
+      // 500 -> Server Error, display actual backend message
+      if (error.statusCode >= 500) {
+        return ErrorClassification(
+          category: NetworkErrorCategory.serverError,
+          title: 'Server Error',
+          message: error.message.isNotEmpty ? error.message : 'An internal server error occurred. Please try again.',
         );
       }
       // 4xx -> Client Errors (preserve authentication/authorization)
@@ -136,7 +144,7 @@ class ErrorHandler {
       return ErrorClassification(
         category: NetworkErrorCategory.clientError,
         title: 'Request Error',
-        message: error.message,
+        message: error.message.isNotEmpty ? error.message : 'An error occurred with your request.',
       );
     }
 
@@ -158,10 +166,10 @@ class ErrorHandler {
       );
     }
 
-    return const ErrorClassification(
-      category: NetworkErrorCategory.serverUnavailable,
-      title: 'Server is currently under maintenance.',
-      message: 'Please try again later.',
+    return ErrorClassification(
+      category: NetworkErrorCategory.clientError,
+      title: 'Error',
+      message: errStr.isNotEmpty ? errStr : 'An unexpected error occurred.',
     );
   }
 

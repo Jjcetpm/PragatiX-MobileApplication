@@ -160,10 +160,16 @@ class TeamMemberCard extends StatelessWidget {
                           ),
                     ],
                   ),
-                  const SizedBox(height: 2),
                   Text(
-                    "${member["regNo"] ?? ''} • ${member["department"] ?? ''} ${member["year"] ?? ''} ${member["section"] ?? ''}"
-                        .trim(),
+                    [
+                      if ((member['regNo'] ?? '').toString().trim().isNotEmpty) member['regNo'],
+                      if ((member['department'] ?? '').toString().trim().isNotEmpty) member['department'],
+                      if ((member['year'] ?? '').toString().trim().isNotEmpty) 'Year ${member['year']}',
+                      if ((member['section'] ?? '').toString().trim().isNotEmpty &&
+                          (member['section'] ?? '').toString().trim().toLowerCase() != 'null' &&
+                          (member['section'] ?? '').toString().trim().toLowerCase() != 'none')
+                        'Sec ${member['section']}',
+                    ].join(' • '),
                     style: TextStyle(color: Colors.grey.shade600, fontSize: 11),
                   ),
                   const SizedBox(height: 6),

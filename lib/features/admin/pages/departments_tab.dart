@@ -445,6 +445,14 @@ class _DepartmentsTabState extends State<DepartmentsTab> {
                   await getIt<AdminRepository>()
                       .deleteDepartmentSection(sectionId);
                   fetchDeptSections();
+                  if (mounted) {
+                    ScaffoldMessenger.of(this.context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Section moved to Recycle Bin'),
+                        backgroundColor: Color(0xFF16A34A),
+                      ),
+                    );
+                  }
                 } catch (e) {
                   if (!mounted) return;
                   ScaffoldMessenger.of(this.context).showSnackBar(

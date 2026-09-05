@@ -187,7 +187,12 @@ class _TeacherStudentDetailState extends State<TeacherStudentDetail> {
     final String dept = _studentData['departmentName'] ?? _studentData['department'] ?? _studentData['dept'] ?? 'N/A';
     final String year = (_studentData['year'] ?? '-').toString().trim();
     final String semester = (_studentData['semester'] ?? '-').toString().trim();
-    final String section = (_studentData['section'] ?? _studentData['sectionName'] ?? '-').toString().trim();
+    final String rawSec = (_studentData['section'] ?? _studentData['sectionName'] ?? '-').toString().trim();
+    final bool hasSec = rawSec.isNotEmpty &&
+        rawSec != '-' &&
+        rawSec.toLowerCase() != 'null' &&
+        rawSec.toLowerCase() != 'none';
+    final String section = hasSec ? rawSec : 'None';
     final String email = (_studentData['email'] ?? '-').toString().trim();
     final String phone = (_studentData['phone'] ?? '-').toString().trim();
     final String gender = (_studentData['gender'] ?? '-').toString().trim();
@@ -334,7 +339,13 @@ class _TeacherStudentDetailState extends State<TeacherStudentDetail> {
                 padding: const EdgeInsets.all(16.0),
                 child: Column(
                   children: [
-                    _buildInfoRow(Icons.school_outlined, 'Year / Sem / Sec', 'Year: $year  •  Sem: $semester  •  Sec: $section'),
+                    _buildInfoRow(
+                      Icons.school_outlined,
+                      hasSec ? 'Year / Sem / Sec' : 'Year / Semester',
+                      hasSec
+                          ? 'Year: $year  •  Sem: $semester  •  Sec: $section'
+                          : 'Year: $year  •  Sem: $semester  •  No Section',
+                    ),
                     if (sprNo.isNotEmpty) ...[
                       const Divider(height: 16),
                       _buildInfoRow(Icons.badge_outlined, 'SPR Number', sprNo),

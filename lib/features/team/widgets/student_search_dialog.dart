@@ -421,7 +421,7 @@ class _StudentSearchDialogState extends State<StudentSearchDialog> {
                                     style: TextStyle(color: isSelectionDisabled ? Colors.grey.shade600 : null),
                                   ),
                                   Text(
-                                    '${s.departmentName ?? ''} • Year ${s.year ?? ''} • Sec ${s.section ?? ''}',
+                                    '${s.departmentName ?? ''} • Year ${s.year ?? ''}${(s.section != null && s.section!.isNotEmpty && s.section != 'null' && s.section != 'N/A') ? ' • Sec ${s.section}' : ''}',
                                     style: TextStyle(color: isSelectionDisabled ? Colors.grey.shade600 : null),
                                   ),
                                   if (s.teamName != null)

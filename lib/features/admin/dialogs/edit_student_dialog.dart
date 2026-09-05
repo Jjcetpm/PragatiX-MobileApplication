@@ -727,19 +727,23 @@ class _EditStudentDialogState extends State<EditStudentDialog> {
                               ),
                             ),
                           )
-                        : DropdownButtonFormField<int>(
+                        : DropdownButtonFormField<int?>(
                             value: selectedSectionId,
-                            decoration: inputDecoration('Section'),
-                            items: uniqueSections
-                                .map(
-                                  (sec) => DropdownMenuItem<int>(
-                                    value: sec['id'],
-                                    child: Text(
-                                      sec['sectionName'] ?? '',
-                                    ),
+                            decoration: inputDecoration('Section (Optional)'),
+                            items: [
+                              const DropdownMenuItem<int?>(
+                                value: null,
+                                child: Text('None / No Section'),
+                              ),
+                              ...uniqueSections.map(
+                                (sec) => DropdownMenuItem<int?>(
+                                  value: sec['id'] as int?,
+                                  child: Text(
+                                    sec['sectionName'] ?? '',
                                   ),
-                                )
-                                .toList(),
+                                ),
+                              ),
+                            ],
                             onChanged: (val) =>
                                 setState(() => selectedSectionId = val),
                           ),

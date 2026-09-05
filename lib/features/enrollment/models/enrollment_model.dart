@@ -27,6 +27,8 @@ class PendingStudent {
   final int? departmentId;
   final String departmentName;
   final String deptCode;
+  final int? sectionId;
+  final String? sectionName;
 
   PendingStudent({
     required this.id,
@@ -37,6 +39,8 @@ class PendingStudent {
     this.departmentId,
     required this.departmentName,
     required this.deptCode,
+    this.sectionId,
+    this.sectionName,
   });
 
   factory PendingStudent.fromJson(Map<String, dynamic> json) {
@@ -49,6 +53,8 @@ class PendingStudent {
       departmentId: json['departmentId'] != null ? (json['departmentId'] is int ? json['departmentId'] : int.tryParse(json['departmentId'].toString())) : null,
       departmentName: json['departmentName']?.toString() ?? '',
       deptCode: json['deptCode']?.toString() ?? '',
+      sectionId: json['sectionId'] != null ? (json['sectionId'] is int ? json['sectionId'] : int.tryParse(json['sectionId'].toString())) : null,
+      sectionName: json['sectionName']?.toString(),
     );
   }
 }
@@ -63,6 +69,8 @@ class EnrollmentItem {
   final int? departmentId;
   final String departmentName;
   final String deptCode;
+  final int? sectionId;
+  final String? sectionName;
   final String status;
   final int? enrolledStudentId;
   final String? enrolledStudentRegNo;
@@ -80,6 +88,8 @@ class EnrollmentItem {
     this.departmentId,
     required this.departmentName,
     required this.deptCode,
+    this.sectionId,
+    this.sectionName,
     required this.status,
     this.enrolledStudentId,
     this.enrolledStudentRegNo,
@@ -99,6 +109,8 @@ class EnrollmentItem {
       departmentId: json['departmentId'] != null ? (json['departmentId'] is int ? json['departmentId'] : int.tryParse(json['departmentId'].toString())) : null,
       departmentName: json['departmentName']?.toString() ?? '',
       deptCode: json['deptCode']?.toString() ?? '',
+      sectionId: json['sectionId'] != null ? (json['sectionId'] is int ? json['sectionId'] : int.tryParse(json['sectionId'].toString())) : null,
+      sectionName: json['sectionName']?.toString(),
       status: json['status']?.toString() ?? 'PENDING',
       enrolledStudentId: json['enrolledStudentId'] != null ? (json['enrolledStudentId'] is int ? json['enrolledStudentId'] : int.tryParse(json['enrolledStudentId'].toString())) : null,
       enrolledStudentRegNo: json['enrolledStudentRegNo']?.toString(),

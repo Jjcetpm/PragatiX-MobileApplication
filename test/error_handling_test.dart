@@ -63,20 +63,20 @@ void main() {
     test('4. HTTP 503 -> SERVER_ERROR / maintenance', () {
       final e = ApiException(503, 'Service Unavailable');
       final c = ErrorHandler.classify(e);
-      expect(c.category, NetworkErrorCategory.serverError);
+      expect(c.category, NetworkErrorCategory.serverUnavailable);
       expect(c.title, 'Server is currently under maintenance.');
       expect(c.message, 'Please try again later.');
       expect(AppErrorMapper.fromException(e), AppErrorType.maintenance);
     });
 
-    // 5. HTTP 500 -> SERVER_ERROR / maintenance
-    test('5. HTTP 500 -> SERVER_ERROR / maintenance', () {
+    // 5. HTTP 500 -> SERVER_ERROR (shows Server Error with actual backend message, NOT maintenance)
+    test('5. HTTP 500 -> SERVER_ERROR', () {
       final e = ApiException(500, 'Internal Server Error');
       final c = ErrorHandler.classify(e);
       expect(c.category, NetworkErrorCategory.serverError);
-      expect(c.title, 'Server is currently under maintenance.');
-      expect(c.message, 'Please try again later.');
-      expect(AppErrorMapper.fromException(e), AppErrorType.maintenance);
+      expect(c.title, 'Server Error');
+      expect(c.message, 'Internal Server Error');
+      expect(AppErrorMapper.fromException(e), AppErrorType.serverError);
     });
 
     // 6. HTTP 401 -> CLIENT/AUTH ERROR (preserve auth)

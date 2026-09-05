@@ -60,10 +60,10 @@ Future<http.Response> processResponse(http.Response response) async {
     }
   }
 
-  // Handle server down / maintenance HTTP status codes (500, 502, 503, 504)
-  if (response.statusCode >= 500) {
+  // Handle true gateway downtime (502, 503, 504)
+  if (response.statusCode == 502 || response.statusCode == 503 || response.statusCode == 504) {
     ServerStatusService.instance.setMaintenanceMode(true);
-    throw ServerMaintenanceException('Please try again later.');
+    throw ServerMaintenanceException('Server is currently under maintenance. Please try again later.');
   }
 
   if (response.statusCode >= 400 || (response.body.isNotEmpty && response.body.trim().startsWith('<'))) {
@@ -82,7 +82,8 @@ Future<http.Response> processResponse(http.Response response) async {
     } catch (_) {}
 
     final lowerMsg = message.toLowerCase();
-    if (lowerMsg.contains('maintenance') ||
+    if (lowerMsg.contains('server is currently under maintenance') ||
+        lowerMsg.contains('server maintenance') ||
         lowerMsg.contains('service unavailable') ||
         lowerMsg.contains('bad gateway')) {
       ServerStatusService.instance.setMaintenanceMode(true);
@@ -90,10 +91,6 @@ Future<http.Response> processResponse(http.Response response) async {
     }
 
     final statusCode = response.statusCode < 400 ? 500 : response.statusCode;
-    if (statusCode >= 500) {
-      ServerStatusService.instance.setMaintenanceMode(true);
-      throw ServerMaintenanceException('Please try again later.');
-    }
     throw ApiException(statusCode, message);
   }
   return response;

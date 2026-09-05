@@ -152,14 +152,23 @@ class EnrollmentRepository {
     required String email,
     required String mobile,
     required int departmentId,
+    String? section,
+    int? sectionId,
   }) async {
-    final response = await _adminService.post('/api/v1/admin/enrollment/single', {
+    final Map<String, dynamic> body = {
       'fullName': fullName.trim(),
       'gender': gender,
       'email': email.trim().toLowerCase(),
       'mobile': mobile.trim(),
       'departmentId': departmentId,
-    });
+    };
+    if (section != null && section.trim().isNotEmpty) {
+      body['section'] = section.trim();
+    }
+    if (sectionId != null) {
+      body['sectionId'] = sectionId;
+    }
+    final response = await _adminService.post('/api/v1/admin/enrollment/single', body);
     final data = jsonDecode(response.body);
     if (response.statusCode == 200 && data['success'] == true) {
       return EnrollmentItem.fromJson(data['data']);
@@ -174,14 +183,27 @@ class EnrollmentRepository {
     required String email,
     required String mobile,
     required int departmentId,
+    String? section,
+    int? sectionId,
   }) async {
-    final response = await _adminService.put('/api/v1/admin/enrollment/$id', {
+    final Map<String, dynamic> body = {
       'fullName': fullName.trim(),
       'gender': gender,
       'email': email.trim().toLowerCase(),
       'mobile': mobile.trim(),
       'departmentId': departmentId,
-    });
+    };
+    if (section != null && section.trim().isNotEmpty) {
+      body['section'] = section.trim();
+    } else {
+      body['section'] = null;
+    }
+    if (sectionId != null) {
+      body['sectionId'] = sectionId;
+    } else {
+      body['sectionId'] = null;
+    }
+    final response = await _adminService.put('/api/v1/admin/enrollment/$id', body);
     final data = jsonDecode(response.body);
     if (response.statusCode == 200 && data['success'] == true) {
       return EnrollmentItem.fromJson(data['data']);
