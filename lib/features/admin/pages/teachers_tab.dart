@@ -782,6 +782,9 @@ class _TeachersTabState extends State<TeachersTab> {
             var response = await request.send();
             var responseBody = await response.stream.bytesToString();
             var parsedResponse = jsonDecode(responseBody);
+            if (http.TransitCrypto.containsEncryptedData(responseBody)) {
+              parsedResponse = await http.TransitCrypto.decryptPayload(parsedResponse);
+            }
 
             updateProgress(0.95, 'Preparing preview...');
             return parsedResponse;

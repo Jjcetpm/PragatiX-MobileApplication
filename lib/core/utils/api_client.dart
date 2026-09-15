@@ -5,7 +5,9 @@ import 'package:pragatix/core/exceptions/api_exception.dart';
 import 'package:pragatix/core/services/server_status_service.dart';
 import 'package:pragatix/core/utils/connectivity_utils.dart';
 import 'dart:convert';
+import 'package:pragatix/core/crypto/transit_crypto.dart';
 
+export 'package:pragatix/core/crypto/transit_crypto.dart' show TransitCrypto;
 export 'package:pragatix/core/exceptions/api_exception.dart'
     show ApiException, NoInternetException, ServerMaintenanceException;
 export 'package:pragatix/core/utils/connectivity_utils.dart'
@@ -126,6 +128,23 @@ Future<real_http.Response> get(
   });
 }
 
+Future<Object?> _prepareRequestBody(Object? body) async {
+  if (body == null) return null;
+  if (body is Map) {
+    return await TransitCrypto.encryptPayload(body);
+  }
+  if (body is String && (body.trim().startsWith('{') || body.trim().startsWith('['))) {
+    try {
+      final decoded = jsonDecode(body);
+      final encrypted = await TransitCrypto.encryptPayload(decoded);
+      return jsonEncode(encrypted);
+    } catch (_) {
+      return body;
+    }
+  }
+  return body;
+}
+
 Future<Response> post(
   Uri url, {
   Map<String, String>? headers,
@@ -134,8 +153,9 @@ Future<Response> post(
   Duration timeout = _defaultTimeout,
 }) async {
   return _wrapNetworkCall(() async {
+    final finalBody = await _prepareRequestBody(body);
     final res = await real_http
-        .post(url, headers: headers, body: body, encoding: encoding)
+        .post(url, headers: headers, body: finalBody, encoding: encoding)
         .timeout(timeout);
     return processResponse(res);
   });
@@ -149,8 +169,9 @@ Future<Response> put(
   Duration timeout = _defaultTimeout,
 }) async {
   return _wrapNetworkCall(() async {
+    final finalBody = await _prepareRequestBody(body);
     final res = await real_http
-        .put(url, headers: headers, body: body, encoding: encoding)
+        .put(url, headers: headers, body: finalBody, encoding: encoding)
         .timeout(timeout);
     return processResponse(res);
   });
@@ -184,11 +205,12 @@ Future<Response> patch(
   Duration timeout = _defaultTimeout,
 }) async {
   return _wrapNetworkCall(() async {
+    final finalBody = await _prepareRequestBody(body);
     final res = await real_http
         .patch(
           url,
           headers: headers,
-          body: body,
+          body: finalBody,
           encoding: encoding,
         )
         .timeout(timeout);

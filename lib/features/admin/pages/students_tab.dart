@@ -1601,6 +1601,9 @@ class _StudentsTabState extends State<StudentsTab> {
         var response = await request.send();
         var responseBody = await response.stream.bytesToString();
         var parsedResponse = jsonDecode(responseBody);
+        if (http.TransitCrypto.containsEncryptedData(responseBody)) {
+          parsedResponse = await http.TransitCrypto.decryptPayload(parsedResponse);
+        }
         
         if (response.statusCode == 200 && parsedResponse['success'] == true) {
           List<dynamic> parsedData = parsedResponse['data'] ?? [];

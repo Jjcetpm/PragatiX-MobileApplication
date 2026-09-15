@@ -643,7 +643,10 @@ class _StudentsTabState extends State<StudentsTab> {
 
       final response = await request.send();
       final responseBody = await response.stream.bytesToString();
-      final data = jsonDecode(responseBody);
+      dynamic data = jsonDecode(responseBody);
+      if (http.TransitCrypto.containsEncryptedData(responseBody)) {
+        data = await http.TransitCrypto.decryptPayload(data);
+      }
 
       if (!mounted) return;
       setState(() => isLoading = false);

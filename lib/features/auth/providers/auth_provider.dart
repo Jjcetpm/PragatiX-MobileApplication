@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:pragatix/core/utils/api_client.dart' as http;
 import 'package:pragatix/core/config/api_config.dart';
+import 'package:pragatix/core/crypto/transit_crypto.dart';
 
 /// Keys used in SharedPreferences for session persistence.
 class _SessionKeys {
@@ -48,7 +49,8 @@ class AuthProvider extends ChangeNotifier {
   Future<void> login(String token, String role, Map<String, dynamic> user) async {
     _token = token;
     _role = role;
-    _currentUser = user;
+    final decryptedUser = await TransitCrypto.decryptPayload(user);
+    _currentUser = decryptedUser is Map<String, dynamic> ? decryptedUser : user;
 
     // Calculate session expiry: now + 16 hours
     final sessionExpiry = DateTime.now().add(_sessionDuration);
@@ -56,7 +58,7 @@ class AuthProvider extends ChangeNotifier {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_SessionKeys.token, token);
     await prefs.setString(_SessionKeys.role, role);
-    await prefs.setString(_SessionKeys.user, jsonEncode(user));
+    await prefs.setString(_SessionKeys.user, jsonEncode(_currentUser));
     await prefs.setString(_SessionKeys.sessionExpiry, sessionExpiry.toIso8601String());
 
     notifyListeners();
@@ -136,15 +138,22 @@ class AuthProvider extends ChangeNotifier {
       _token = savedToken;
       _role = savedRole;
       _selectedAcademicYear = savedYear;
-      _currentUser = jsonDecode(savedUserJson) as Map<String, dynamic>;
-      notifyListeners(); // â† Dashboard shown immediately, no flicker
+      final rawUser = jsonDecode(savedUserJson) as Map<String, dynamic>;
+      if (TransitCrypto.containsEncryptedData(savedUserJson)) {
+        final decrypted = await TransitCrypto.decryptPayload(rawUser);
+        _currentUser = decrypted is Map<String, dynamic> ? decrypted : rawUser;
+        await prefs.setString(_SessionKeys.user, jsonEncode(_currentUser));
+      } else {
+        _currentUser = rawUser;
+      }
+      notifyListeners(); // — Dashboard shown immediately, no flicker
     } catch (_) {
-      // Corrupted stored data â€” force re-login
+      // Corrupted stored data — force re-login
       await logout();
       return;
     }
 
-    // â”€â”€ Background verification (does NOT block startup) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Background verification (does NOT block startup) ──
     // Only logs out on 401 (JWT truly expired/revoked by server).
     // All other errors (network, 500, timeout) are ignored to preserve session.
     _silentVerify(savedToken, prefs);
