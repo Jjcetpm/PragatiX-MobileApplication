@@ -112,7 +112,6 @@ void main() {
 
       // Verify Headers
       expect(find.text('XP Summary'), findsOneWidget);
-      expect(find.text('This Week'), findsOneWidget);
 
       // Verify Category Cards
       expect(find.text('Individual XP'), findsOneWidget);
@@ -170,7 +169,7 @@ void main() {
       expect(find.text('0 XP'), findsNWidgets(3));
     });
 
-    testWidgets('Renders XP Submission History cards with details and status', (tester) async {
+    testWidgets('Renders XP Submission History cards with details, status, and staff name', (tester) async {
       when(() => mockXp.streaks).thenReturn([]);
       when(() => mockXp.stages).thenReturn([]);
       when(() => mockXp.xpByCategory).thenReturn({
@@ -183,6 +182,7 @@ void main() {
           'activityName': 'Captain Weekly Reward - Week 4',
           'submittedAt': '2026-08-27T10:00:00.000Z',
           'status': 'APPROVED',
+          'approvedBy': 'Prof. John',
           'xpPoints': 100,
           'category': 'LEADERSHIP',
           'description': 'Weekly leadership coordination tasks completed',
@@ -194,16 +194,16 @@ void main() {
 
       // Verify History Header
       expect(find.text('XP Submission History'), findsOneWidget);
-      expect(find.text('View All'), findsOneWidget);
 
       // Verify History Item
       expect(find.text('Captain Weekly Reward - Week 4'), findsOneWidget);
       expect(find.text('2026 08 27'), findsOneWidget);
       expect(find.text('APPROVED'), findsOneWidget);
+      expect(find.text('• Prof. John'), findsOneWidget);
       expect(find.text('+100 XP'), findsOneWidget);
     });
 
-    testWidgets('Tapping history item opens submission details bottom sheet', (tester) async {
+    testWidgets('Tapping history item opens submission details bottom sheet with awarding staff name', (tester) async {
       when(() => mockXp.streaks).thenReturn([]);
       when(() => mockXp.stages).thenReturn([]);
       when(() => mockXp.xpByCategory).thenReturn({});
@@ -212,6 +212,7 @@ void main() {
           'activityName': 'Captain Weekly Reward - Week 4',
           'submittedAt': '2026-08-27T10:00:00.000Z',
           'status': 'APPROVED',
+          'approvedBy': 'Prof. John',
           'xpPoints': 100,
           'category': 'LEADERSHIP',
           'description': 'Weekly leadership coordination tasks completed',
@@ -227,74 +228,9 @@ void main() {
 
       // Verify details modal content
       expect(find.text('Category: LEADERSHIP'), findsOneWidget);
+      expect(find.text('Awarded by: '), findsOneWidget);
+      expect(find.text('Prof. John'), findsOneWidget);
       expect(find.text('Weekly leadership coordination tasks completed'), findsOneWidget);
-    });
-
-    testWidgets('Switching time filter to All Time dynamically displays all activities', (tester) async {
-      when(() => mockXp.streaks).thenReturn([]);
-      when(() => mockXp.stages).thenReturn([]);
-      when(() => mockXp.xpByCategory).thenReturn({
-        'individualXp': 50,
-        'groupXp': 30,
-        'mustXp': 20,
-      });
-      when(() => mockXp.history).thenReturn([
-        {
-          'activityName': 'Older Past Task',
-          'submittedAt': '2025-01-10T10:00:00.000Z',
-          'status': 'APPROVED',
-          'xpPoints': 50,
-          'category': 'INDIVIDUAL',
-        },
-        {
-          'activityName': 'Captain Weekly Reward - Week 4',
-          'submittedAt': DateTime.now().toIso8601String(),
-          'status': 'APPROVED',
-          'xpPoints': 100,
-          'category': 'LEADERSHIP',
-        }
-      ]);
-
-      await tester.pumpWidget(createWidgetUnderTest());
-      await tester.pumpAndSettle();
-
-      // Tap the filter dropdown
-      await tester.tap(find.text('This Week'));
-      await tester.pumpAndSettle();
-
-      // Select 'All Time'
-      await tester.tap(find.text('All Time').last);
-      await tester.pumpAndSettle();
-
-      // Verify 'All Time' is selected and both activities are present
-      expect(find.text('All Time'), findsOneWidget);
-      expect(find.text('Older Past Task'), findsOneWidget);
-      expect(find.text('Captain Weekly Reward - Week 4'), findsOneWidget);
-    });
-
-    testWidgets('Tapping View All switches filter to All Time', (tester) async {
-      when(() => mockXp.streaks).thenReturn([]);
-      when(() => mockXp.stages).thenReturn([]);
-      when(() => mockXp.xpByCategory).thenReturn({});
-      when(() => mockXp.history).thenReturn([
-        {
-          'activityName': 'Past Month Task',
-          'submittedAt': '2025-01-10T10:00:00.000Z',
-          'status': 'APPROVED',
-          'xpPoints': 40,
-          'category': 'SKILL',
-        }
-      ]);
-
-      await tester.pumpWidget(createWidgetUnderTest());
-      await tester.pumpAndSettle();
-
-      // Tapping View All
-      await tester.tap(find.text('View All'));
-      await tester.pumpAndSettle();
-
-      expect(find.text('All Time'), findsOneWidget);
-      expect(find.text('Past Month Task'), findsOneWidget);
     });
   });
 }

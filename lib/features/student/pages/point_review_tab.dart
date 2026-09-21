@@ -9,11 +9,12 @@ import 'package:pragatix/features/xp/providers/xp_provider.dart';
 import 'package:pragatix/core/di/service_locator.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:pragatix/features/attendance/providers/attendance_provider.dart';
-import 'package:pragatix/features/attendance/widgets/fire_streak_icon.dart';
 import 'package:pragatix/core/widgets/pragatix_loader.dart';
 
 class PointReviewTab extends StatefulWidget {
-  const PointReviewTab({super.key});
+  final VoidCallback? onBack;
+
+  const PointReviewTab({super.key, this.onBack});
 
   @override
   State<PointReviewTab> createState() => _PointReviewTabState();
@@ -78,7 +79,7 @@ class _PointReviewTabState extends State<PointReviewTab> {
     },
   };
 
-  String _selectedTimeFilter = 'This Week';
+  String _selectedTimeFilter = 'All Time';
 
   @override
   void initState() {
@@ -87,40 +88,49 @@ class _PointReviewTabState extends State<PointReviewTab> {
   }
 
   Future<void> _loadProfileAndData() async {
-    setState(() => isLoading = true);
+    if (mounted) setState(() => isLoading = true);
     try {
+      final token = context.read<AuthProvider>().token ?? '';
+      if (token.isEmpty || token == 'debug_token') {
+        if (mounted) setState(() => isLoading = false);
+        return;
+      }
+
       final response = await getIt<StudentProxyService>().get(
         Uri.parse('${ApiConfig.baseUrl}/api/v1/auth/me'),
         headers: {
-          'Authorization': 'Bearer ${context.read<AuthProvider>().token!}',
+          'Authorization': 'Bearer $token',
         },
-      );
+      ).timeout(const Duration(seconds: 8));
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         if (data['success'] == true) {
           final resData = data['data'];
-          setState(() {
-            regNo = resData['username'] ?? '';
-            currentStage = resData['stage'] ?? 1;
-          });
+          if (mounted) {
+            setState(() {
+              regNo = resData['username'] ?? '';
+              currentStage = resData['stage'] ?? 1;
+            });
+          }
         }
       }
-    } catch (e) {
-      // Fallback
-    }
 
-    if (!context.mounted) return;
-    final xpProv = Provider.of<XpProvider>(context, listen: false);
-    if (!context.mounted) return;
-    await xpProv.fetchSummary(regNo, context.read<AuthProvider>().token!);
-    if (!context.mounted) return;
-    await xpProv.fetchHistory(regNo, context.read<AuthProvider>().token!);
-    if (xpProv.stages.isEmpty) {
-      if (!context.mounted) return;
-      await xpProv.fetchStages(context.read<AuthProvider>().token!);
+      if (!mounted) return;
+      final xpProv = Provider.of<XpProvider>(context, listen: false);
+
+      await Future.wait([
+        xpProv.fetchSummary(regNo, token).catchError((_) {}),
+        xpProv.fetchHistory(regNo, token).catchError((_) {}),
+        if (xpProv.stages.isEmpty) xpProv.fetchStages(token).catchError((_) {}),
+      ]).timeout(const Duration(seconds: 8), onTimeout: () => []);
+    } catch (e) {
+      debugPrint('Error in point review _loadProfileAndData: $e');
+    } finally {
+      if (mounted) {
+        setState(() => isLoading = false);
+      }
     }
-    setState(() => isLoading = false);
   }
 
   @override
@@ -150,90 +160,107 @@ class _PointReviewTabState extends State<PointReviewTab> {
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
-      body: SafeArea(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const SizedBox(height: 16),
-            // Top Header Section with Title, Subtitle, Trophy Artwork & Streak
-            _buildTopHeader(attendanceProvider.currentStreak),
-            const SizedBox(height: 16),
+      body: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Top Header Section with Sky Blue Gradient
+          _buildTopHeader(attendanceProvider.currentStreak),
+          const SizedBox(height: 16),
 
-            // Active Streak Bonuses Banner
-            if (hasCodingBonus)
-              Container(
-                width: double.infinity,
-                margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                decoration: BoxDecoration(
-                  color: Colors.indigo.shade600,
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: const Row(
-                  children: [
-                    Text('🔥 ', style: TextStyle(fontSize: 16)),
-                    Expanded(
-                      child: Text(
-                        '7-Day Coding Streak Active — 2x XP all coding this week!',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 13,
-                        ),
+          // Active Streak Bonuses Banner
+          if (hasCodingBonus)
+            Container(
+              width: double.infinity,
+              margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              decoration: BoxDecoration(
+                color: const Color(0xFF0284C7),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: const Row(
+                children: [
+                  Text('🔥 ', style: TextStyle(fontSize: 16)),
+                  Expanded(
+                    child: Text(
+                      '7-Day Coding Streak Active — 2x XP all coding this week!',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 13,
                       ),
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
+            ),
 
-            // XP Summary Header & Dropdown
-            _buildSummaryHeader(),
-            const SizedBox(height: 12),
+          // XP Summary Header & Dropdown
+          _buildSummaryHeader(),
+          const SizedBox(height: 12),
 
-            // XP Summary Cards (dynamically computed for selected timeframe)
-            _buildSummaryCards(_getFilteredSummary(xpProvider.xpByCategory, xpProvider.history)),
+          // XP Summary Cards (dynamically computed for selected timeframe)
+          _buildSummaryCards(_getFilteredSummary(xpProvider.xpByCategory, xpProvider.history)),
 
-            const SizedBox(height: 20),
+          const SizedBox(height: 20),
 
-            // XP Submission History Header
-            _buildHistoryHeader(_getFilteredHistory(xpProvider.history)),
-            const SizedBox(height: 8),
+          // XP Submission History Header
+          _buildHistoryHeader(_getFilteredHistory(xpProvider.history)),
+          const SizedBox(height: 8),
 
-            // XP Submission History List (filtered by selected timeframe)
-            Expanded(child: _buildHistoryList(_getFilteredHistory(xpProvider.history))),
-          ],
-        ),
+          // XP Submission History List (filtered by selected timeframe)
+          Expanded(child: _buildHistoryList(_getFilteredHistory(xpProvider.history))),
+        ],
       ),
     );
   }
 
   // ── Section 0: Top Header ──────────────────────────────────────────────────
   Widget _buildTopHeader(int streakCount) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16.0),
-      child: Stack(
-        clipBehavior: Clip.none,
-        children: [
-          // Decorative trophy illustration on top-right background
-          Positioned(
-            right: 40,
-            top: -12,
-            child: Opacity(
-              opacity: 0.9,
-              child: Image.asset(
-                'assets/images/activities_trophy.png',
-                height: 80,
-                fit: BoxFit.contain,
-                errorBuilder: (_, __, ___) => const SizedBox.shrink(),
-              ),
-            ),
-          ),
-
-          // Title & Subtitle + Streak Pill Row
-          Row(
+    return Container(
+      width: double.infinity,
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Color(0xFF0284C7), Color(0xFF38BDF8)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+      ),
+      child: SafeArea(
+        bottom: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(18, 14, 18, 18),
+          child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
+              if (widget.onBack != null || Navigator.canPop(context)) ...[
+                InkWell(
+                  onTap: () {
+                    if (widget.onBack != null) {
+                      widget.onBack!();
+                    } else if (Navigator.canPop(context)) {
+                      Navigator.pop(context);
+                    }
+                  },
+                  borderRadius: BorderRadius.circular(12),
+                  child: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.14),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.25),
+                        width: 1.2,
+                      ),
+                    ),
+                    child: const Icon(
+                      Icons.arrow_back_rounded,
+                      size: 20,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+              ],
               const Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -241,38 +268,35 @@ class _PointReviewTabState extends State<PointReviewTab> {
                     Text(
                       'XP Tracker',
                       style: TextStyle(
-                        fontSize: 24,
+                        fontSize: 22,
                         fontWeight: FontWeight.w800,
-                        color: Color(0xFF1E293B),
+                        color: Colors.white,
                         letterSpacing: -0.5,
                       ),
                     ),
-                    SizedBox(height: 5),
+                    SizedBox(height: 4),
                     Text(
                       'Monitor your XP breakdown\nand activity submission history.',
                       style: TextStyle(
                         fontSize: 13,
-                        color: Color(0xFF64748B),
+                        color: Colors.white,
                         height: 1.35,
                       ),
                     ),
                   ],
                 ),
               ),
+              const SizedBox(width: 8),
               // Streak pill badge
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                 decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: const Color(0xFFF1F5F9), width: 1.5),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.04),
-                      blurRadius: 6,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
+                  color: Colors.white.withValues(alpha: 0.14),
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: 0.25),
+                    width: 1.2,
+                  ),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
@@ -284,7 +308,7 @@ class _PointReviewTabState extends State<PointReviewTab> {
                       style: const TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 13,
-                        color: Color(0xFF1E293B),
+                        color: Colors.white,
                       ),
                     ),
                   ],
@@ -292,7 +316,7 @@ class _PointReviewTabState extends State<PointReviewTab> {
               ),
             ],
           ),
-        ],
+        ),
       ),
     );
   }
@@ -356,136 +380,17 @@ class _PointReviewTabState extends State<PointReviewTab> {
     };
   }
   Widget _buildSummaryHeader() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16.0),
+    return const Padding(
+      padding: EdgeInsets.symmetric(horizontal: 16.0),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          const Text(
+          Text(
             'XP Summary',
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.bold,
               color: Color(0xFF1E293B),
-            ),
-          ),
-          PopupMenuButton<String>(
-            initialValue: _selectedTimeFilter,
-            onSelected: (val) {
-              setState(() {
-                _selectedTimeFilter = val;
-              });
-            },
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(14),
-            ),
-            color: Colors.white,
-            elevation: 6,
-            itemBuilder: (context) => [
-              PopupMenuItem(
-                value: 'This Week',
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'This Week',
-                      style: TextStyle(
-                        fontWeight: _selectedTimeFilter == 'This Week'
-                            ? FontWeight.bold
-                            : FontWeight.w500,
-                        color: _selectedTimeFilter == 'This Week'
-                            ? const Color(0xFF4F46E5)
-                            : const Color(0xFF1E293B),
-                        fontSize: 13.5,
-                      ),
-                    ),
-                    if (_selectedTimeFilter == 'This Week')
-                      const Icon(
-                        Icons.check_rounded,
-                        color: Color(0xFF4F46E5),
-                        size: 18,
-                      ),
-                  ],
-                ),
-              ),
-              PopupMenuItem(
-                value: 'This Month',
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'This Month',
-                      style: TextStyle(
-                        fontWeight: _selectedTimeFilter == 'This Month'
-                            ? FontWeight.bold
-                            : FontWeight.w500,
-                        color: _selectedTimeFilter == 'This Month'
-                            ? const Color(0xFF4F46E5)
-                            : const Color(0xFF1E293B),
-                        fontSize: 13.5,
-                      ),
-                    ),
-                    if (_selectedTimeFilter == 'This Month')
-                      const Icon(
-                        Icons.check_rounded,
-                        color: Color(0xFF4F46E5),
-                        size: 18,
-                      ),
-                  ],
-                ),
-              ),
-              PopupMenuItem(
-                value: 'All Time',
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'All Time',
-                      style: TextStyle(
-                        fontWeight: _selectedTimeFilter == 'All Time'
-                            ? FontWeight.bold
-                            : FontWeight.w500,
-                        color: _selectedTimeFilter == 'All Time'
-                            ? const Color(0xFF4F46E5)
-                            : const Color(0xFF1E293B),
-                        fontSize: 13.5,
-                      ),
-                    ),
-                    if (_selectedTimeFilter == 'All Time')
-                      const Icon(
-                        Icons.check_rounded,
-                        color: Color(0xFF4F46E5),
-                        size: 18,
-                      ),
-                  ],
-                ),
-              ),
-            ],
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              decoration: BoxDecoration(
-                color: const Color(0xFFEEF2FF),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    _selectedTimeFilter,
-                    style: const TextStyle(
-                      color: Color(0xFF4F46E5),
-                      fontWeight: FontWeight.bold,
-                      fontSize: 13,
-                    ),
-                  ),
-                  const SizedBox(width: 4),
-                  const Icon(
-                    Icons.keyboard_arrow_down_rounded,
-                    color: Color(0xFF4F46E5),
-                    size: 18,
-                  ),
-                ],
-              ),
             ),
           ),
         ],
@@ -508,13 +413,12 @@ class _PointReviewTabState extends State<PointReviewTab> {
             child: _buildSummaryCard(
               title: 'Individual XP',
               value: individualXp,
-              icon: Icons.person_rounded,
               tag: 'HIGH',
-              cardBgColor: const Color(0xFFF5F3FF),
-              accentColor: const Color(0xFF7C3AED),
-              iconBgColor: const Color(0xFFEDE9FE),
-              tagBgColor: const Color(0xFFEDE9FE),
-              tagTextColor: const Color(0xFF7C3AED),
+              cardBgColor: const Color(0xFFF0F9FF),
+              accentColor: const Color(0xFF0284C7),
+              iconBgColor: const Color(0xFFE0F2FE),
+              tagBgColor: const Color(0xFFE0F2FE),
+              tagTextColor: const Color(0xFF0284C7),
             ),
           ),
           const SizedBox(width: 10),
@@ -524,7 +428,6 @@ class _PointReviewTabState extends State<PointReviewTab> {
             child: _buildSummaryCard(
               title: 'Group XP',
               value: groupXp,
-              icon: Icons.groups_rounded,
               tag: 'HIGH',
               cardBgColor: const Color(0xFFF0FDF4),
               accentColor: const Color(0xFF16A34A),
@@ -540,7 +443,6 @@ class _PointReviewTabState extends State<PointReviewTab> {
             child: _buildSummaryCard(
               title: 'Must XP',
               value: mustXp,
-              icon: Icons.stars_rounded,
               tag: 'MANDATORY',
               cardBgColor: const Color(0xFFFFF7ED),
               accentColor: const Color(0xFFEA580C),
@@ -557,7 +459,6 @@ class _PointReviewTabState extends State<PointReviewTab> {
   Widget _buildSummaryCard({
     required String title,
     required int value,
-    required IconData icon,
     required String tag,
     required Color cardBgColor,
     required Color accentColor,
@@ -576,21 +477,6 @@ class _PointReviewTabState extends State<PointReviewTab> {
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Top circular icon
-          Container(
-            width: 36,
-            height: 36,
-            decoration: BoxDecoration(
-              color: iconBgColor,
-              shape: BoxShape.circle,
-            ),
-            child: Icon(
-              icon,
-              color: accentColor,
-              size: 20,
-            ),
-          ),
-          const SizedBox(height: 12),
           // Category Label
           Text(
             title,
@@ -639,39 +525,17 @@ class _PointReviewTabState extends State<PointReviewTab> {
 
   // ── Section 3: XP Submission History Header ────────────────────────────────
   Widget _buildHistoryHeader(List<dynamic> history) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16.0),
+    return const Padding(
+      padding: EdgeInsets.symmetric(horizontal: 16.0),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          const Text(
+          Text(
             'XP Submission History',
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.bold,
               color: Color(0xFF1E293B),
-            ),
-          ),
-          TextButton(
-            onPressed: () {
-              setState(() {
-                _selectedTimeFilter = 'All Time';
-              });
-            },
-            style: TextButton.styleFrom(
-              padding: EdgeInsets.zero,
-              minimumSize: const Size(50, 30),
-              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-            ),
-            child: Text(
-              _selectedTimeFilter == 'All Time'
-                  ? 'All (${history.length})'
-                  : 'View All',
-              style: const TextStyle(
-                color: Color(0xFF6366F1),
-                fontWeight: FontWeight.bold,
-                fontSize: 13,
-              ),
             ),
           ),
         ],
@@ -682,9 +546,6 @@ class _PointReviewTabState extends State<PointReviewTab> {
   // ── Section 4: XP Submission History List ──────────────────────────────────
   Widget _buildHistoryList(List<dynamic> history) {
     if (history.isEmpty) {
-      final filterMsg = _selectedTimeFilter == 'All Time'
-          ? 'No XP logs found.\nSubmit your first activity claim!'
-          : 'No XP activities found for $_selectedTimeFilter.\nTap "View All" or choose another timeframe!';
       return Center(
         child: Padding(
           padding: const EdgeInsets.all(32.0),
@@ -694,7 +555,7 @@ class _PointReviewTabState extends State<PointReviewTab> {
               Icon(Icons.history_edu_rounded, size: 54, color: Colors.grey.shade400),
               const SizedBox(height: 12),
               Text(
-                filterMsg,
+                'No XP logs found.\nSubmit your first activity claim!',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   color: Colors.grey.shade600,
@@ -750,6 +611,12 @@ class _PointReviewTabState extends State<PointReviewTab> {
             : isRejected
                 ? const Color(0xFFDC2626)
                 : const Color(0xFFD97706);
+
+        final String? approvedBy = log['approvedBy'] ??
+            log['awardedBy'] ??
+            log['teacherName'] ??
+            log['reviewedBy'] ??
+            log['teacher'];
 
         return Container(
           margin: const EdgeInsets.only(bottom: 10),
@@ -841,6 +708,22 @@ class _PointReviewTabState extends State<PointReviewTab> {
                                   ),
                                 ),
                               ),
+                              if (approvedBy != null &&
+                                  approvedBy.toString().trim().isNotEmpty) ...[
+                                const SizedBox(width: 6),
+                                Expanded(
+                                  child: Text(
+                                    '• ${approvedBy.toString()}',
+                                    style: TextStyle(
+                                      color: Colors.grey.shade600,
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
                             ],
                           ),
                         ],
@@ -893,6 +776,11 @@ class _PointReviewTabState extends State<PointReviewTab> {
         log['description'] ??
         'No additional description provided.';
     final String remarks = log['remarks'] ?? log['reviewComment'] ?? '';
+    final String? approvedBy = log['approvedBy'] ??
+        log['awardedBy'] ??
+        log['teacherName'] ??
+        log['reviewedBy'] ??
+        log['teacher'];
 
     String dateStr = '';
     if (log['submittedAt'] != null) {
@@ -983,7 +871,46 @@ class _PointReviewTabState extends State<PointReviewTab> {
                   color: Color(0xFF4F46E5),
                 ),
               ),
-              const SizedBox(height: 8),
+              if (approvedBy != null &&
+                  approvedBy.toString().trim().isNotEmpty) ...[
+                const SizedBox(height: 10),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF1F5F9),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: const Color(0xFFE2E8F0)),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.person_outline_rounded,
+                          size: 18, color: Color(0xFF4F46E5)),
+                      const SizedBox(width: 8),
+                      Text(
+                        isApproved ? 'Awarded by: ' : 'Evaluated by: ',
+                        style: TextStyle(
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.grey.shade700,
+                        ),
+                      ),
+                      Expanded(
+                        child: Text(
+                          approvedBy.toString(),
+                          style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF1E293B),
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+              const SizedBox(height: 10),
               Text(
                 'Evidence / Notes:',
                 style: TextStyle(

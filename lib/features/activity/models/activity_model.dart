@@ -45,6 +45,65 @@ class ActivityModel {
   int get maximumAwards => cap;
   bool get repeatAllowed => awardFrequency.toLowerCase() != 'one time';
 
+  bool get isAssigned =>
+      assignmentSummary.isNotEmpty ||
+      assignmentMode == 'GLOBAL' ||
+      assignmentMode == 'CLASS_COORDINATOR';
+
+  bool get isUnassigned => !isAssigned;
+
+  bool hasAssignedClasses() {
+    return isAssigned;
+  }
+
+  bool hasUnassignedClasses([List<dynamic>? departments]) {
+    if (assignmentMode == 'GLOBAL' || assignmentMode == 'CLASS_COORDINATOR') {
+      return false;
+    }
+    if (departments == null || departments.isEmpty) {
+      return true;
+    }
+    for (final dept in departments) {
+      final deptId = dept['id']?.toString();
+      final rawSections = dept['sections'] as List<dynamic>? ?? [];
+      if (rawSections.isNotEmpty) {
+        for (final sec in rawSections) {
+          final secId = sec['id']?.toString();
+          final secName = sec['sectionName'] as String?;
+          if (_findAssignmentInSummary(deptId, secId, secName) == null) {
+            return true;
+          }
+        }
+      } else {
+        if (_findAssignmentInSummary(deptId, null, null) == null) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  Map<String, dynamic>? _findAssignmentInSummary(String? deptId, String? secId, String? secName) {
+    for (final a in assignmentSummary) {
+      final aDeptId = a['departmentId']?.toString();
+      final aSecId = a['sectionId']?.toString();
+      final aSecName = a['sectionName'] as String? ?? (a['section'] as String?);
+
+      if (deptId != null && aDeptId != null && aDeptId == deptId) {
+        if (secId != null && aSecId != null && aSecId == secId) {
+          return a;
+        }
+        if (secName != null && aSecName != null && aSecName.trim().toLowerCase() == secName.trim().toLowerCase()) {
+          return a;
+        }
+        if (secId == null && aSecId == null) {
+          return a;
+        }
+      }
+    }
+    return null;
+  }
+
   List<String> get displayEvidence {
     return evidence.map((e) {
       if (e == 'Manual' && manualEvidenceName != null && manualEvidenceName!.isNotEmpty) {

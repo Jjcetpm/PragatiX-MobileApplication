@@ -50,23 +50,38 @@ class _StudentTeamDetailsPageState extends State<StudentTeamDetailsPage> {
           });
         } else {
           setState(() {
-            _errorMessage = data['message'] ?? 'Failed to load team details';
+            _teamData = null;
+            _errorMessage = data['message'] ?? 'You are not assigned to any group yet.';
             _isLoading = false;
           });
         }
       } else {
         setState(() {
-          _errorMessage =
-              'Failed to load team details. Status: ${response.statusCode}';
+          _teamData = null;
+          _errorMessage = 'You are not assigned to any group yet.';
           _isLoading = false;
         });
       }
     } catch (e) {
-      setState(() {
-        _rawError = e;
-        _errorMessage = ErrorHandler.getErrorMessage(e);
-        _isLoading = false;
-      });
+      final errStr = e.toString().toLowerCase();
+      if (errStr.contains('404') ||
+          errStr.contains('not found') ||
+          errStr.contains('belong to any team') ||
+          errStr.contains('no team') ||
+          errStr.contains('not assigned')) {
+        setState(() {
+          _teamData = null;
+          _errorMessage = 'You are not assigned to any group yet.';
+          _rawError = null;
+          _isLoading = false;
+        });
+      } else {
+        setState(() {
+          _rawError = e;
+          _errorMessage = ErrorHandler.getErrorMessage(e);
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -418,6 +433,13 @@ class _StudentTeamDetailsPageState extends State<StudentTeamDetailsPage> {
         ),
         backgroundColor: const Color(0xFF1E293B),
         elevation: 0,
+        iconTheme: const IconThemeData(color: Colors.white),
+        leading: Navigator.canPop(context)
+            ? IconButton(
+                icon: const Icon(Icons.arrow_back_rounded, color: Colors.white),
+                onPressed: () => Navigator.pop(context),
+              )
+            : null,
       ),
       body: _isLoading
           ? const Center(child: PragatiXLoader())
@@ -427,62 +449,113 @@ class _StudentTeamDetailsPageState extends State<StudentTeamDetailsPage> {
                   onRetry: _fetchTeamDetails,
                 )
               : _teamData == null
-          ? Center(
-              child: Padding(
-                padding: const EdgeInsets.all(24.0),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(
-                      Icons.group_off_rounded,
-                      size: 72,
-                      color: Colors.grey,
-                    ),
-                    const SizedBox(height: 16),
-                    const Text(
-                      'No Team Assigned',
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      _errorMessage ?? 'You are not assigned to any group yet.',
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(color: Colors.grey),
-                    ),
-                    const SizedBox(height: 16),
-                    ElevatedButton.icon(
-                      onPressed: _fetchTeamDetails,
-                      icon: const Icon(Icons.refresh),
-                      label: const Text('Refresh'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF4F46E5),
-                        foregroundColor: Colors.white,
+                  ? _buildNoTeamWidget()
+                  : RefreshIndicator(
+                      onRefresh: _fetchTeamDetails,
+                      color: const Color(0xFF4F46E5),
+                      child: ListView(
+                        padding: const EdgeInsets.all(16),
+                        children: [
+                          _buildHeaderCard(),
+                          const SizedBox(height: 24),
+                          const Text(
+                            'Team Leaderboard',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF1E293B),
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          if (_teamData!['members'] != null)
+                            ...(_teamData!['members'] as List).map(
+                              (m) => _buildLeaderboardCard(m as Map<String, dynamic>),
+                            ),
+                        ],
                       ),
                     ),
-                  ],
+    );
+  }
+
+  Widget _buildNoTeamWidget() {
+    return Center(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 32.0),
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 36),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(color: const Color(0xFFF1F5F9), width: 1.2),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.03),
+                blurRadius: 16,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 80,
+                height: 80,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFEEF2FF),
+                  shape: BoxShape.circle,
+                  border: Border.all(color: const Color(0xFFC7D2FE), width: 1.5),
+                ),
+                child: const Icon(
+                  Icons.groups_3_outlined,
+                  size: 42,
+                  color: Color(0xFF4F46E5),
                 ),
               ),
-            )
-          : RefreshIndicator(
-              onRefresh: _fetchTeamDetails,
-              color: const Color(0xFF4F46E5),
-              child: ListView(
-                padding: const EdgeInsets.all(16),
-                children: [
-                  _buildHeaderCard(),
-                  const SizedBox(height: 24),
-                  const Text(
-                    'Team Leaderboard',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF1E293B)),
-                  ),
-                  const SizedBox(height: 12),
-                  if (_teamData!['members'] != null)
-                    ...(_teamData!['members'] as List).map(
-                      (m) => _buildLeaderboardCard(m as Map<String, dynamic>),
-                    ),
-                ],
+              const SizedBox(height: 20),
+              const Text(
+                'Not Assigned to Any Group',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                  color: Color(0xFF1E293B),
+                ),
               ),
-            ),
+              const SizedBox(height: 8),
+              Text(
+                _errorMessage ??
+                    'You have not been assigned to any group or team yet.\nOnce assigned by your faculty, your team details and member leaderboard will appear here.',
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 13,
+                  color: Color(0xFF64748B),
+                  height: 1.45,
+                ),
+              ),
+              const SizedBox(height: 24),
+              ElevatedButton.icon(
+                onPressed: _fetchTeamDetails,
+                icon: const Icon(Icons.refresh_rounded, size: 18),
+                label: const Text(
+                  'Check Again',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF4F46E5),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  elevation: 0,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

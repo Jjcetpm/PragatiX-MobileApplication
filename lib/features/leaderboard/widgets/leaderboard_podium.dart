@@ -27,38 +27,14 @@ class LeaderboardPodium extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Header Row
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text(
-                'Top Performers (Sorted by Total XP)',
-                style: TextStyle(
-                  fontSize: 14.5,
-                  fontWeight: FontWeight.w800,
-                  color: Color(0xFF0F172A),
-                  letterSpacing: -0.2,
-                ),
-              ),
-              InkWell(
-                onTap: onViewAll,
-                borderRadius: BorderRadius.circular(12),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFEDE9FE),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Text(
-                    'View All',
-                    style: TextStyle(
-                      fontSize: 11.5,
-                      fontWeight: FontWeight.w800,
-                      color: Color(0xFF6366F1),
-                    ),
-                  ),
-                ),
-              ),
-            ],
+          const Text(
+            'Top Performers (Sorted by Total XP)',
+            style: TextStyle(
+              fontSize: 14.5,
+              fontWeight: FontWeight.w800,
+              color: Color(0xFF0F172A),
+              letterSpacing: -0.2,
+            ),
           ),
           const SizedBox(height: 18),
 
@@ -125,9 +101,6 @@ class LeaderboardPodium extends StatelessWidget {
         : (int.tryParse(student['totalXp']?.toString() ?? '0') ?? 0);
     final String g = (student['gender'] ?? '').toString().trim().toLowerCase();
     final bool isFemale = g.startsWith('f') || g == 'female' || g == 'girl';
-    final String avatarAsset = isFemale
-        ? 'assets/images/avatar_female.png'
-        : 'assets/images/avatar_male.png';
 
     return Container(
       padding: const EdgeInsets.only(top: 8),
@@ -160,6 +133,7 @@ class LeaderboardPodium extends StatelessWidget {
                 height: 64,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
+                  color: isFemale ? const Color(0xFFFDF2F8) : const Color(0xFFEFF6FF),
                   border: Border.all(color: const Color(0xFFF59E0B), width: 2.5),
                   boxShadow: [
                     BoxShadow(
@@ -169,22 +143,13 @@ class LeaderboardPodium extends StatelessWidget {
                     ),
                   ],
                 ),
-                child: ClipOval(
-                  child: Image.asset(
-                    avatarAsset,
-                    width: 64,
-                    height: 64,
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => CircleAvatar(
-                      backgroundColor: const Color(0xFF4F46E5),
-                      child: Text(
-                        _getInitials(name),
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w900,
-                          fontSize: 19,
-                        ),
-                      ),
+                child: Center(
+                  child: Text(
+                    _getInitials(name),
+                    style: TextStyle(
+                      fontWeight: FontWeight.w900,
+                      fontSize: 20,
+                      color: isFemale ? const Color(0xFFDB2777) : const Color(0xFF2563EB),
                     ),
                   ),
                 ),
@@ -250,13 +215,13 @@ class LeaderboardPodium extends StatelessWidget {
           ),
           const SizedBox(height: 10),
 
-          // Tall Purple Gradient Pedestal Stand
+          // Tall Sky Blue Gradient Pedestal Stand
           Container(
             height: 90,
             width: double.infinity,
             decoration: BoxDecoration(
               gradient: const LinearGradient(
-                colors: [Color(0xFF818CF8), Color(0xFF6366F1)],
+                colors: [Color(0xFF38BDF8), Color(0xFF0284C7)],
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
               ),
@@ -268,18 +233,11 @@ class LeaderboardPodium extends StatelessWidget {
               ),
               boxShadow: [
                 BoxShadow(
-                  color: const Color(0xFF6366F1).withValues(alpha: 0.35),
+                  color: const Color(0xFF0284C7).withValues(alpha: 0.35),
                   blurRadius: 10,
                   offset: const Offset(0, 4),
                 ),
               ],
-            ),
-            child: Center(
-              child: Icon(
-                Icons.workspace_premium_rounded,
-                color: Colors.white.withValues(alpha: 0.3),
-                size: 40,
-              ),
             ),
           ),
         ],
@@ -306,9 +264,6 @@ class LeaderboardPodium extends StatelessWidget {
         : (int.tryParse(student['totalXp']?.toString() ?? '0') ?? 0);
     final String g = (student['gender'] ?? '').toString().trim().toLowerCase();
     final bool isFemale = g.startsWith('f') || g == 'female' || g == 'girl';
-    final String avatarAsset = isFemale
-        ? 'assets/images/avatar_female.png'
-        : 'assets/images/avatar_male.png';
 
     return Column(
       mainAxisAlignment: MainAxisAlignment.end,
@@ -334,25 +289,16 @@ class LeaderboardPodium extends StatelessWidget {
               height: avatarRadius * 2,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
+                color: isFemale ? const Color(0xFFFDF2F8) : const Color(0xFFEFF6FF),
                 border: Border.all(color: ribbonColor.withValues(alpha: 0.7), width: 2),
               ),
-              child: ClipOval(
-                child: Image.asset(
-                  avatarAsset,
-                  width: avatarRadius * 2,
-                  height: avatarRadius * 2,
-                  fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) => CircleAvatar(
-                    radius: avatarRadius,
-                    backgroundColor: avatarBg,
-                    child: Text(
-                      _getInitials(name),
-                      style: TextStyle(
-                        color: avatarTextColor,
-                        fontWeight: FontWeight.w800,
-                        fontSize: 14,
-                      ),
-                    ),
+              child: Center(
+                child: Text(
+                  _getInitials(name),
+                  style: TextStyle(
+                    fontWeight: FontWeight.w800,
+                    fontSize: 15,
+                    color: isFemale ? const Color(0xFFDB2777) : const Color(0xFF2563EB),
                   ),
                 ),
               ),

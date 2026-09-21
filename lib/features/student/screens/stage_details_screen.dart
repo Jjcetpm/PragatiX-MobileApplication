@@ -11,7 +11,6 @@ class StageDetailsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final String name = stage['name'] ?? 'Stage Details';
     final int expectedXp = (stage['expectedXp'] as num?)?.toInt() ?? 0;
     final int currentXp = ((stage['studentMustXp'] as num?)?.toInt() ?? 0) +
         ((stage['studentIndividualXp'] as num?)?.toInt() ?? 0) +
@@ -107,7 +106,7 @@ class StageDetailsScreen extends StatelessWidget {
                                   width: 4,
                                   height: 16,
                                   decoration: BoxDecoration(
-                                    color: const Color(0xFF4F46E5),
+                                    color: const Color(0xFF0284C7),
                                     borderRadius: BorderRadius.circular(2),
                                   ),
                                 ),
@@ -145,21 +144,13 @@ class StageDetailsScreen extends StatelessWidget {
                             borderRadius: BorderRadius.circular(14),
                             border: Border.all(color: const Color(0xFFF1F5F9)),
                           ),
-                          child: Row(
-                            children: const [
-                              Icon(Icons.auto_awesome, size: 18, color: Color(0xFF4F46E5)),
-                              SizedBox(width: 10),
-                              Expanded(
-                                child: Text(
-                                  'Activities in this category are automatically tracked via attendance.',
-                                  style: TextStyle(
-                                    fontSize: 12.5,
-                                    color: Color(0xFF64748B),
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                              ),
-                            ],
+                          child: const Text(
+                            'Activities in this category are automatically tracked via attendance.',
+                            style: TextStyle(
+                              fontSize: 12.5,
+                              color: Color(0xFF64748B),
+                              fontWeight: FontWeight.w500,
+                            ),
                           ),
                         )
                       else
@@ -179,10 +170,6 @@ class StageDetailsScreen extends StatelessWidget {
                 }),
 
               const SizedBox(height: 10),
-
-              // Bottom Motivation Card ("Complete all tasks")
-              _buildCompleteTasksCard(context, percentage.clamp(0.0, 1.0)),
-              const SizedBox(height: 16),
             ],
           ),
         ),
@@ -192,110 +179,89 @@ class StageDetailsScreen extends StatelessWidget {
 
   // ── 1. Top Header ──────────────────────────────────────────────────────────
   Widget _buildTopHeader(BuildContext context, int streakCount) {
-    return Stack(
-      clipBehavior: Clip.none,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Mountain with winding path graphic on top-right background
-        Positioned(
-          right: -10,
-          top: -10,
-          child: Opacity(
-            opacity: 0.95,
-            child: Image.asset(
-              'assets/images/stage_mountain_path.png',
-              height: 110,
-              fit: BoxFit.contain,
-              errorBuilder: (_, __, ___) => const SizedBox.shrink(),
-            ),
-          ),
-        ),
-
-        // Content Row
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        // Row with Back Button and Streak Badge
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            // Row with Back Button and Streak Badge
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                InkWell(
-                  onTap: () => Navigator.pop(context),
-                  borderRadius: BorderRadius.circular(20),
-                  child: Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      shape: BoxShape.circle,
-                      border: Border.all(color: const Color(0xFFF1F5F9)),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.03),
-                          blurRadius: 6,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
+            InkWell(
+              onTap: () => Navigator.pop(context),
+              borderRadius: BorderRadius.circular(20),
+              child: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: const Color(0xFFF1F5F9)),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.04),
+                      blurRadius: 6,
+                      offset: const Offset(0, 2),
                     ),
-                    child: const Icon(
-                      Icons.arrow_back_rounded,
-                      color: Color(0xFF1E293B),
-                      size: 20,
-                    ),
-                  ),
+                  ],
                 ),
-                // Streak badge
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: const Color(0xFFF1F5F9), width: 1.5),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.04),
-                        blurRadius: 6,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Text('🔥', style: TextStyle(fontSize: 14)),
-                      const SizedBox(width: 4),
-                      Text(
-                        '$streakCount',
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 13,
-                          color: Color(0xFF1E293B),
-                        ),
-                      ),
-                    ],
-                  ),
+                child: const Icon(
+                  Icons.arrow_back_ios_new_rounded,
+                  color: Color(0xFF1E293B),
+                  size: 20,
                 ),
-              ],
-            ),
-            const SizedBox(height: 14),
-            // Title & Subtitle
-            const Text(
-              'Stage Details',
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.w800,
-                color: Color(0xFF1E293B),
-                letterSpacing: -0.5,
               ),
             ),
-            const SizedBox(height: 5),
-            const Text(
-              'Complete tasks and earn XP\nto unlock the next stage.',
-              style: TextStyle(
-                fontSize: 13,
-                color: Color(0xFF64748B),
-                height: 1.35,
+            // Streak badge
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: const Color(0xFFF1F5F9), width: 1.5),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.04),
+                    blurRadius: 6,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text('🔥', style: TextStyle(fontSize: 14)),
+                  const SizedBox(width: 4),
+                  Text(
+                    '$streakCount',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13,
+                      color: Color(0xFF1E293B),
+                    ),
+                  ),
+                ],
               ),
             ),
           ],
+        ),
+        const SizedBox(height: 14),
+        // Title & Subtitle
+        const Text(
+          'Stage Details',
+          style: TextStyle(
+            fontSize: 24,
+            fontWeight: FontWeight.w800,
+            color: Color(0xFF1E293B),
+            letterSpacing: -0.5,
+          ),
+        ),
+        const SizedBox(height: 5),
+        const Text(
+          'Complete tasks and earn XP\nto unlock the next stage.',
+          style: TextStyle(
+            fontSize: 13,
+            color: Color(0xFF64748B),
+            height: 1.35,
+          ),
         ),
       ],
     );
@@ -316,14 +282,14 @@ class StageDetailsScreen extends StatelessWidget {
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
-          colors: [Color(0xFF4338CA), Color(0xFF6366F1)],
+          colors: [Color(0xFF0284C7), Color(0xFF38BDF8)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF4F46E5).withValues(alpha: 0.3),
+            color: const Color(0xFF0284C7).withValues(alpha: 0.35),
             blurRadius: 16,
             offset: const Offset(0, 6),
           ),
@@ -470,10 +436,10 @@ class StageDetailsScreen extends StatelessWidget {
       xpColor = const Color(0xFFEF4444);
     } else if (isBoth) {
       xpLabel = 'Reward: $rewardXp • Penalty: -$penaltyXp XP';
-      xpColor = const Color(0xFF6366F1);
+      xpColor = const Color(0xFF0284C7);
     } else {
       xpLabel = 'Reward: $rewardXp XP';
-      xpColor = const Color(0xFF6366F1);
+      xpColor = const Color(0xFF0284C7);
     }
 
     final String numStr = indexNumber.toString().padLeft(2, '0');
@@ -533,7 +499,7 @@ class StageDetailsScreen extends StatelessWidget {
                   decoration: BoxDecoration(
                     color: isActCompleted
                         ? const Color(0xFFDCFCE7)
-                        : (isPenalty ? const Color(0xFFFEE2E2) : const Color(0xFFEEF2FF)),
+                        : (isPenalty ? const Color(0xFFFEE2E2) : const Color(0xFFE0F2FE)),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Center(
@@ -542,7 +508,7 @@ class StageDetailsScreen extends StatelessWidget {
                       style: TextStyle(
                         color: isActCompleted
                             ? const Color(0xFF16A34A)
-                            : (isPenalty ? const Color(0xFFEF4444) : const Color(0xFF4F46E5)),
+                            : (isPenalty ? const Color(0xFFEF4444) : const Color(0xFF0284C7)),
                         fontWeight: FontWeight.w800,
                         fontSize: 14,
                       ),
@@ -609,108 +575,6 @@ class StageDetailsScreen extends StatelessWidget {
     );
   }
 
-  // ── 4. Bottom Complete Tasks Card ──────────────────────────────────────────
-  Widget _buildCompleteTasksCard(BuildContext context, double percentage) {
-    final int percentInt = (percentage * 100).toInt();
-
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF5F3FF),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFFEDE9FE), width: 1.2),
-      ),
-      child: Row(
-        children: [
-          // Circular progress gauge
-          Stack(
-            alignment: Alignment.center,
-            children: [
-              SizedBox(
-                width: 48,
-                height: 48,
-                child: CircularProgressIndicator(
-                  value: percentage > 0 ? percentage : 0.0,
-                  strokeWidth: 4.5,
-                  backgroundColor: const Color(0xFFEDE9FE),
-                  valueColor: const AlwaysStoppedAnimation(Color(0xFF6366F1)),
-                ),
-              ),
-              Text(
-                '$percentInt%',
-                style: const TextStyle(
-                  color: Color(0xFF4F46E5),
-                  fontWeight: FontWeight.w800,
-                  fontSize: 11.5,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(width: 12),
-
-          // Info Column
-          const Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Complete all tasks',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 13.5,
-                    color: Color(0xFF4F46E5),
-                  ),
-                ),
-                SizedBox(height: 2),
-                Text(
-                  'Finish all tasks to complete this stage\nand unlock exciting rewards!',
-                  style: TextStyle(
-                    color: Color(0xFF64748B),
-                    fontSize: 11,
-                    height: 1.3,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 8),
-
-          // View Rewards Button
-          ElevatedButton(
-            onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Complete all category XP requirements to claim your stage badge!'),
-                  backgroundColor: Color(0xFF4F46E5),
-                ),
-              );
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF4F46E5),
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-              ),
-              elevation: 0,
-            ),
-            child: const Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  'View Rewards',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11.5),
-                ),
-                SizedBox(width: 4),
-                Icon(Icons.arrow_forward_rounded, size: 14),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   // ── 5. Fallback Demo Activities when subgroups empty ───────────────────────
   Widget _buildFallbackEmptyOrSampleActivities(
     BuildContext context,
@@ -762,7 +626,7 @@ class StageDetailsScreen extends StatelessWidget {
                         width: 4,
                         height: 16,
                         decoration: BoxDecoration(
-                          color: const Color(0xFF4F46E5),
+                          color: const Color(0xFF0284C7),
                           borderRadius: BorderRadius.circular(2),
                         ),
                       ),

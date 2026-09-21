@@ -64,7 +64,7 @@ class ServerStatusService {
   /// - If the device has no internet -> activates NoInternetMode.
   /// - If device has internet, but backend connection fails -> activates MaintenanceMode.
   /// - If both succeed -> clears both offline modes.
-  Future<bool> checkServerHealth({Duration timeout = const Duration(seconds: 3)}) async {
+  Future<bool> checkServerHealth({Duration timeout = const Duration(seconds: 8)}) async {
     if (isChecking.value) return !isMaintenanceMode.value && !isNoInternetMode.value;
     isChecking.value = true;
 

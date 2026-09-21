@@ -3,8 +3,6 @@ import 'package:provider/provider.dart';
 import 'package:pragatix/core/widgets/pragatix_loader.dart';
 import 'package:pragatix/features/auth/providers/auth_provider.dart';
 import 'package:pragatix/features/xp/providers/xp_provider.dart';
-import 'package:pragatix/features/attendance/providers/attendance_provider.dart';
-import 'package:pragatix/features/attendance/widgets/fire_streak_icon.dart';
 
 class LevelProgressionPage extends StatefulWidget {
   const LevelProgressionPage({super.key});
@@ -111,8 +109,6 @@ class _LevelProgressionPageState extends State<LevelProgressionPage> {
         ? [...rawUnlocked, ...rawLocked]
         : fallbackLevels;
 
-    final int completedCount = allLevels.where((l) => (l['levelNumber'] as int? ?? 1) < currentLevelNum).length;
-
     return Scaffold(
       backgroundColor: bgColor,
       appBar: _buildAppBar(),
@@ -174,10 +170,6 @@ class _LevelProgressionPageState extends State<LevelProgressionPage> {
                 totalXp: totalXp,
                 levelProgress: levelProgress,
               ),
-              const SizedBox(height: 18),
-
-              // 5. Bottom Golden Trophy Motivation Banner
-              _buildTrophyMotivationBanner(),
               const SizedBox(height: 24),
             ],
           ),
@@ -213,18 +205,6 @@ class _LevelProgressionPageState extends State<LevelProgressionPage> {
           letterSpacing: -0.3,
         ),
       ),
-      actions: [
-        Consumer<AttendanceProvider>(
-          builder: (context, provider, child) {
-            return Center(
-              child: Padding(
-                padding: const EdgeInsets.only(right: 16.0),
-                child: FireStreakIcon(streakCount: provider.currentStreak),
-              ),
-            );
-          },
-        ),
-      ],
     );
   }
 
@@ -679,111 +659,6 @@ class _LevelProgressionPageState extends State<LevelProgressionPage> {
           fontSize: 10.5,
           fontWeight: FontWeight.w800,
         ),
-      ),
-    );
-  }
-
-  // ── 4. Golden Trophy Motivation Banner ─────────────────────────────────────
-  Widget _buildTrophyMotivationBanner() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFFFFFBEB), Color(0xFFFEF9C3)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFFFEF08A), width: 1.2),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFFCA8A04).withValues(alpha: 0.08),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          // 3D Trophy Art
-          Image.asset(
-            'assets/images/activities_trophy.png',
-            height: 60,
-            fit: BoxFit.contain,
-            errorBuilder: (_, __, ___) => const Icon(
-              Icons.emoji_events_rounded,
-              color: Color(0xFFF59E0B),
-              size: 48,
-            ),
-          ),
-          const SizedBox(width: 12),
-
-          // Message
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Keep Going!',
-                  style: TextStyle(
-                    fontSize: 14.5,
-                    fontWeight: FontWeight.w800,
-                    color: Color(0xFF1E293B),
-                  ),
-                ),
-                const SizedBox(height: 3),
-                Text(
-                  "You're on your way to becoming a Visionary. Complete more levels to unlock amazing rewards!",
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: subtitleColor,
-                    height: 1.3,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 8),
-
-          // View Rewards Button
-          InkWell(
-            onTap: () {
-              Navigator.pop(context); // Or navigate to Badges / Rewards
-            },
-            borderRadius: BorderRadius.circular(20),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              decoration: BoxDecoration(
-                color: primaryIndigo,
-                borderRadius: BorderRadius.circular(20),
-                boxShadow: [
-                  BoxShadow(
-                    color: primaryIndigo.withValues(alpha: 0.3),
-                    blurRadius: 8,
-                    offset: const Offset(0, 3),
-                  ),
-                ],
-              ),
-              child: const Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    'View Rewards',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 11.5,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  SizedBox(width: 3),
-                  Icon(Icons.chevron_right_rounded, color: Colors.white, size: 16),
-                ],
-              ),
-            ),
-          ),
-        ],
       ),
     );
   }

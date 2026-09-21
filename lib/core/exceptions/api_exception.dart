@@ -36,18 +36,23 @@ class ServerMaintenanceException implements Exception {
 
 /// Called whenever a 401 is received — clears session and redirects to login.
 void _handleSessionExpired() {
+  // Clear any server maintenance/no-internet overlay state
+  ServerStatusService.instance.setAllOnline();
+
   // Clear stored auth state
   final auth = getIt<AuthProvider>();
   auth.logout();
 
   // Navigate to login, removing all previous routes
-  final nav = NavigatorService.navigatorKey.currentState;
-  if (nav != null) {
-    nav.pushAndRemoveUntil(
-      MaterialPageRoute(builder: (_) => const LoginPage()),
-      (route) => false,
-    );
-  }
+  WidgetsBinding.instance.addPostFrameCallback((_) {
+    final nav = NavigatorService.navigatorKey.currentState;
+    if (nav != null) {
+      nav.pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const LoginPage()),
+        (route) => false,
+      );
+    }
+  });
 }
 
 Future<http.Response> processResponse(http.Response response) async {
@@ -92,9 +97,13 @@ Future<http.Response> processResponse(http.Response response) async {
     String message = 'An error occurred';
     try {
       if (effectiveResponse.body.trim().startsWith('<')) {
-        // Backend offline / gateway error returned HTML
-        ServerStatusService.instance.setMaintenanceMode(true);
-        throw ServerMaintenanceException('Please try again later.');
+        // Only 5xx or server gateway errors returning HTML indicate true maintenance
+        if (effectiveResponse.statusCode >= 500) {
+          ServerStatusService.instance.setMaintenanceMode(true);
+          throw ServerMaintenanceException('Please try again later.');
+        } else {
+          message = 'Resource not found or invalid request (${effectiveResponse.statusCode})';
+        }
       } else {
         final data = jsonDecode(effectiveResponse.body);
         message = data['message'] ?? data['error'] ?? message;
@@ -104,10 +113,11 @@ Future<http.Response> processResponse(http.Response response) async {
     } catch (_) {}
 
     final lowerMsg = message.toLowerCase();
-    if (lowerMsg.contains('server is currently under maintenance') ||
-        lowerMsg.contains('server maintenance') ||
-        lowerMsg.contains('service unavailable') ||
-        lowerMsg.contains('bad gateway')) {
+    if (effectiveResponse.statusCode >= 500 &&
+        (lowerMsg.contains('server is currently under maintenance') ||
+            lowerMsg.contains('server maintenance') ||
+            lowerMsg.contains('service unavailable') ||
+            lowerMsg.contains('bad gateway'))) {
       ServerStatusService.instance.setMaintenanceMode(true);
       throw ServerMaintenanceException('Please try again later.');
     }

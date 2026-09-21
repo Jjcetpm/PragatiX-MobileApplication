@@ -52,8 +52,34 @@ void main() async {
   );
 }
 
-class MyApp extends StatelessWidget {
+class MyApp extends StatefulWidget {
   const MyApp({super.key});
+
+  @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      // Auto re-check auth status when user re-opens/resumes the app
+      getIt<AuthProvider>().checkAuthStatus();
+      ServerStatusService.instance.checkServerHealth();
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -93,7 +119,7 @@ class MyApp extends StatelessWidget {
               return false;
             }
 
-            // Super Admin â€” checked BEFORE Admin to avoid downgrade
+            // Super Admin — checked BEFORE Admin to avoid downgrade
             if (hasRole('ROLE_SUPER_ADMIN') || hasRole('ROLE_SUPERADMIN')) {
               return const SuperAdminDashboard();
             }
@@ -122,7 +148,7 @@ class MyApp extends StatelessWidget {
               return const StudentDashboardPage();
             }
 
-            // Unknown/corrupted role â€” force re-login
+            // Unknown/corrupted role — force re-login
             return const LoginPage();
           }
           return const LoginPage();

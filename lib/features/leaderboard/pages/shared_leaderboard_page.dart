@@ -7,6 +7,7 @@ import 'package:pragatix/features/leaderboard/widgets/leaderboard_podium.dart';
 import 'package:pragatix/features/auth/providers/auth_provider.dart';
 import 'package:pragatix/features/xp/providers/xp_provider.dart';
 import 'package:pragatix/features/admin/repository/admin_repository.dart';
+import 'package:pragatix/core/widgets/pragatix_loader.dart';
 
 class SharedLeaderboardPage extends StatefulWidget {
   final String title;
@@ -85,29 +86,34 @@ class _SharedLeaderboardPageState extends State<SharedLeaderboardPage> {
     setState(() => isLoading = true);
 
     try {
-      if (widget.showCurrentUserRank && widget.fetchCurrentUser != null) {
-        final userProfile = await widget.fetchCurrentUser!();
-        if (userProfile != null) {
-          currentUserId = userProfile['id'];
-          currentUserName = userProfile['name'];
-        }
+      final authUser = context.read<AuthProvider>().currentUser;
+      if (authUser != null) {
+        currentUserName = authUser['fullName'] ?? authUser['name'];
+        currentUserId = authUser['regNo'] ?? authUser['username'] ?? authUser['id']?.toString();
       }
 
-      if (currentUserName == null || currentUserName!.isEmpty) {
-        final authUser = context.read<AuthProvider>().currentUser;
-        if (authUser != null) {
-          currentUserName = authUser['fullName'] ?? authUser['name'];
-          currentUserId ??= authUser['regNo'] ?? authUser['username'] ?? authUser['id']?.toString();
-        }
+      if ((currentUserName == null || currentUserName!.isEmpty) &&
+          widget.showCurrentUserRank &&
+          widget.fetchCurrentUser != null) {
+        try {
+          final userProfile = await widget.fetchCurrentUser!();
+          if (userProfile != null) {
+            currentUserId = userProfile['id'];
+            currentUserName = userProfile['name'];
+          }
+        } catch (_) {}
       }
 
       if (widget.showFilters) {
-        await _fetchFilters();
+        await _fetchFilters().catchError((e) {
+          debugPrint('Filter fetch warning: $e');
+        });
       }
-
-      await _fetchStudents();
+      await _fetchStudents(setLoading: false).catchError((e) {
+        debugPrint('Students fetch warning: $e');
+      });
     } catch (e) {
-      filteredList = [];
+      debugPrint('Error in _loadInitialData: $e');
     }
 
     if (mounted) {
@@ -125,7 +131,10 @@ class _SharedLeaderboardPageState extends State<SharedLeaderboardPage> {
       );
 
       List<Map<String, dynamic>> rawYears = List<Map<String, dynamic>>.from(filters['years'] ?? []);
-      if (getIt.isRegistered<AdminRepository>()) {
+      final role = context.read<AuthProvider>().role?.toUpperCase() ?? '';
+      final bool isAdminRole = role.contains('ADMIN') || role == 'SUPER_ADMIN' || role == 'HOD' || role == 'TEACHER';
+
+      if (isAdminRole && getIt.isRegistered<AdminRepository>()) {
         try {
           final yearAdmins = await getIt<AdminRepository>().getYearAdmins();
           final Set<String> assignedYearNames = {};
@@ -163,9 +172,11 @@ class _SharedLeaderboardPageState extends State<SharedLeaderboardPage> {
     }
   }
 
-  Future<void> _fetchStudents() async {
+  Future<void> _fetchStudents({bool setLoading = true}) async {
     if (!mounted) return;
-    setState(() => isLoading = true);
+    if (setLoading) {
+      setState(() => isLoading = true);
+    }
     try {
       final students = await _leaderboardService.getLeaderboard(
         yearId: selectedYear,
@@ -185,7 +196,7 @@ class _SharedLeaderboardPageState extends State<SharedLeaderboardPage> {
         });
       }
     } finally {
-      if (mounted) {
+      if (setLoading && mounted) {
         setState(() {
           isLoading = false;
         });
@@ -280,10 +291,15 @@ class _SharedLeaderboardPageState extends State<SharedLeaderboardPage> {
               // 2. Scrollable Body with Top 3 Podium and All Students List
               Expanded(
                 child: isLoading
-                    ? const Center(child: CircularProgressIndicator(color: Color(0xFF4F46E5)))
+                    ? const Center(
+                        child: PragatiXLoader(
+                          fullScreen: false,
+                          message: 'Loading Leaderboard...',
+                        ),
+                      )
                     : RefreshIndicator(
                         onRefresh: _fetchStudents,
-                        color: const Color(0xFF4F46E5),
+                        color: const Color(0xFF0284C7),
                         child: SingleChildScrollView(
                           physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
                           padding: const EdgeInsets.only(bottom: 110),
@@ -297,46 +313,15 @@ class _SharedLeaderboardPageState extends State<SharedLeaderboardPage> {
                               ),
 
                               // All Students Header
-                              Padding(
-                                padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
-                                child: Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    const Text(
-                                      'All Students',
-                                      style: TextStyle(
-                                        fontSize: 15,
-                                        fontWeight: FontWeight.w800,
-                                        color: Color(0xFF0F172A),
-                                      ),
-                                    ),
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                      decoration: BoxDecoration(
-                                        color: const Color(0xFFF3E8FF),
-                                        borderRadius: BorderRadius.circular(12),
-                                      ),
-                                      child: Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          Text(
-                                            'Sort by: $selectedSort',
-                                            style: const TextStyle(
-                                              fontSize: 11,
-                                              fontWeight: FontWeight.w700,
-                                              color: Color(0xFF7C3AED),
-                                            ),
-                                          ),
-                                          const SizedBox(width: 2),
-                                          const Icon(
-                                            Icons.keyboard_arrow_down_rounded,
-                                            size: 14,
-                                            color: Color(0xFF7C3AED),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ],
+                              const Padding(
+                                padding: EdgeInsets.fromLTRB(16, 12, 16, 12),
+                                child: Text(
+                                  'All Students',
+                                  style: TextStyle(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w800,
+                                    color: Color(0xFF0F172A),
+                                  ),
                                 ),
                               ),
 
@@ -455,7 +440,7 @@ class _SharedLeaderboardPageState extends State<SharedLeaderboardPage> {
       flexibleSpace: Container(
         decoration: const BoxDecoration(
           gradient: LinearGradient(
-            colors: [Color(0xFF312E81), Color(0xFF4338CA)],
+            colors: [Color(0xFF0284C7), Color(0xFF38BDF8)],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
@@ -608,36 +593,7 @@ class _SharedLeaderboardPageState extends State<SharedLeaderboardPage> {
       padding: const EdgeInsets.fromLTRB(16, 14, 16, 10),
       color: const Color(0xFFF8FAFC),
       child: Row(
-        children: [
-          ...filterPills,
-          const SizedBox(width: 8),
-
-          // Filter Slider Button
-          InkWell(
-            onTap: _showFilterModal,
-            borderRadius: BorderRadius.circular(14),
-            child: Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: const Color(0xFFF1F5F9), width: 1.5),
-                boxShadow: [
-                  BoxShadow(
-                    color: const Color(0xFF0F172A).withValues(alpha: 0.03),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: const Icon(
-                Icons.tune_rounded,
-                color: Color(0xFF334155),
-                size: 20,
-              ),
-            ),
-          ),
-        ],
+        children: filterPills,
       ),
     );
   }
@@ -1022,14 +978,14 @@ class _SharedLeaderboardPageState extends State<SharedLeaderboardPage> {
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
-          colors: [Color(0xFF3730A3), Color(0xFF4F46E5)],
+          colors: [Color(0xFF0284C7), Color(0xFF38BDF8)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(22),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF3730A3).withValues(alpha: 0.35),
+            color: const Color(0xFF0284C7).withValues(alpha: 0.35),
             blurRadius: 18,
             offset: const Offset(0, 6),
           ),
@@ -1037,7 +993,7 @@ class _SharedLeaderboardPageState extends State<SharedLeaderboardPage> {
       ),
       child: Row(
         children: [
-          // 3D Trophy inside Circular Badge
+          // Avatar Initial inside Circular Badge (Replaces Trophy Symbol)
           Container(
             width: 46,
             height: 46,
@@ -1046,14 +1002,12 @@ class _SharedLeaderboardPageState extends State<SharedLeaderboardPage> {
               color: Colors.white,
             ),
             child: Center(
-              child: Image.asset(
-                'assets/images/activities_trophy.png',
-                height: 34,
-                fit: BoxFit.contain,
-                errorBuilder: (_, __, ___) => const Icon(
-                  Icons.emoji_events_rounded,
-                  color: Color(0xFFF59E0B),
-                  size: 26,
+              child: Text(
+                displayName.isNotEmpty ? displayName[0].toUpperCase() : 'S',
+                style: const TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w900,
+                  color: Color(0xFF0284C7),
                 ),
               ),
             ),
@@ -1070,7 +1024,7 @@ class _SharedLeaderboardPageState extends State<SharedLeaderboardPage> {
                 style: TextStyle(
                   fontSize: 10.5,
                   fontWeight: FontWeight.w700,
-                  color: Color(0xFFFDE047),
+                  color: Colors.white,
                 ),
               ),
               const SizedBox(height: 1),
@@ -1079,7 +1033,7 @@ class _SharedLeaderboardPageState extends State<SharedLeaderboardPage> {
                 style: const TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.w900,
-                  color: Color(0xFFFBBF24),
+                  color: Colors.white,
                 ),
               ),
             ],
@@ -1116,15 +1070,13 @@ class _SharedLeaderboardPageState extends State<SharedLeaderboardPage> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
             decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.18),
+              color: Colors.white.withValues(alpha: 0.2),
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Colors.white.withValues(alpha: 0.25)),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.3)),
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Text('👑', style: TextStyle(fontSize: 12)),
-                const SizedBox(width: 4),
                 ConstrainedBox(
                   constraints: const BoxConstraints(maxWidth: 85),
                   child: Text(

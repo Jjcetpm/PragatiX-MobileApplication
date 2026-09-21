@@ -8,7 +8,9 @@ import 'package:pragatix/core/widgets/pragatix_loader.dart';
 import 'package:pragatix/core/utils/proof_viewer_utils.dart';
 
 class LevelsBadgesTab extends StatefulWidget {
-  const LevelsBadgesTab({super.key});
+  final VoidCallback? onBack;
+
+  const LevelsBadgesTab({super.key, this.onBack});
 
   @override
   State<LevelsBadgesTab> createState() => _LevelsBadgesTabState();
@@ -35,62 +37,38 @@ class _LevelsBadgesTabState extends State<LevelsBadgesTab> {
   }
 
   Future<void> _loadData() async {
-    setState(() => _isLoading = true);
+    if (mounted) setState(() => _isLoading = true);
 
-    if (mounted) {
-      final bp = Provider.of<BadgeProvider>(context, listen: false);
-      final xp = Provider.of<XpProvider>(context, listen: false);
-      final token = context.read<AuthProvider>().token ?? '';
-      if (token.isNotEmpty) {
-        await bp.fetchMyBadges(token);
-        if (!mounted) return;
-        await bp.fetchMyBadgeRequests(token);
-        if (!mounted) return;
-        await bp.fetchAllBadges(token);
-        if (!mounted) return;
-        await xp.fetchProgression(token);
+    try {
+      if (mounted) {
+        final bp = Provider.of<BadgeProvider>(context, listen: false);
+        final xp = Provider.of<XpProvider>(context, listen: false);
+        final token = context.read<AuthProvider>().token ?? '';
+        if (token.isNotEmpty && token != 'debug_token') {
+          await Future.wait([
+            bp.fetchMyBadges(token).catchError((_) {}),
+            bp.fetchMyBadgeRequests(token).catchError((_) {}),
+            bp.fetchAllBadges(token).catchError((_) {}),
+            xp.fetchProgression(token).catchError((_) {}),
+          ]).timeout(const Duration(seconds: 8), onTimeout: () => []);
+        }
+      }
+    } catch (e) {
+      debugPrint('Error in _loadData badges: $e');
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
       }
     }
-
-    if (mounted) {
-      setState(() => _isLoading = false);
-    }
   }
 
-  String _getBadgeProgressText(Map<String, dynamic> badge, bool isEarned) {
-    final desc = (badge['description'] ?? '').toString();
-    final name = (badge['name'] ?? '').toString().toLowerCase();
-
-    if (isEarned) {
-      if (desc.contains('7')) return '7 / 7 days';
-      if (desc.contains('10') && name.contains('attend')) return '10 / 10 days';
-      if (desc.contains('10') && (name.contains('participat') || desc.contains('activit'))) return '10 / 10 activities';
-      if (desc.contains('10') && desc.contains('session')) return '10 / 10 sessions';
-      return 'Completed';
-    }
-
-    // Parse target from description
-    if (desc.contains('7 consecutive days') || desc.contains('7 days')) return '0 / 7 days';
-    if (desc.contains('10 activities') || (name.contains('participat') && desc.contains('10'))) return '0 / 10 activities';
-    if (desc.contains('10 consecutive sessions') || desc.contains('10 sessions')) return '0 / 10 sessions';
-    if (desc.contains('100% attendance')) return '0 / 7 days';
-    if (desc.contains('5 activities')) return '0 / 5 activities';
-    if (desc.contains('30 days')) return '0 / 30 days';
-
-    return '0 / 10 progress';
-  }
-
-  double _getBadgeProgressValue(Map<String, dynamic> badge, bool isEarned) {
-    return isEarned ? 1.0 : 0.0;
-  }
 
   @override
   Widget build(BuildContext context) {
     final badgeProvider = Provider.of<BadgeProvider>(context);
-    final xpProvider = Provider.of<XpProvider>(context);
     final attendanceProvider = Provider.of<AttendanceProvider>(context);
 
-    if (_isLoading || badgeProvider.isLoading || xpProvider.isLoading) {
+    if (_isLoading) {
       return const Scaffold(
         backgroundColor: Color(0xFFF8FAFC),
         body: Center(
@@ -103,7 +81,7 @@ class _LevelsBadgesTabState extends State<LevelsBadgesTab> {
         .where((b) => (b['tier']?.toString().trim().toUpperCase()) == _selectedTier.trim().toUpperCase())
         .toList();
 
-    final int totalCount = tierBadges.length > 0 ? tierBadges.length : 5;
+    final int totalCount = tierBadges.isNotEmpty ? tierBadges.length : 5;
     final int unlockedCount = tierBadges.where((b) {
       final int badgeId = b['id'] ?? 0;
       return badgeProvider.earnedBadges.any(
@@ -116,7 +94,7 @@ class _LevelsBadgesTabState extends State<LevelsBadgesTab> {
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
       body: RefreshIndicator(
-        color: const Color(0xFF4F46E5),
+        color: const Color(0xFF0284C7),
         onRefresh: _loadData,
         child: SingleChildScrollView(
           physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
@@ -140,10 +118,6 @@ class _LevelsBadgesTabState extends State<LevelsBadgesTab> {
 
                       // 4. Badges 2-Column Grid
                       _buildBadgesGrid(tierBadges, badgeProvider),
-                      const SizedBox(height: 18),
-
-                      // 5. Motivation Banner
-                      _buildMotivationBanner(),
                       const SizedBox(height: 24),
                     ],
                   ),
@@ -162,7 +136,7 @@ class _LevelsBadgesTabState extends State<LevelsBadgesTab> {
       width: double.infinity,
       decoration: const BoxDecoration(
         gradient: LinearGradient(
-          colors: [Color(0xFF1E1B4B), Color(0xFF312E81)],
+          colors: [Color(0xFF0284C7), Color(0xFF38BDF8)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -176,15 +150,43 @@ class _LevelsBadgesTabState extends State<LevelsBadgesTab> {
             children: [
               // Title & Streak Pill Row
               Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text(
-                    'Badges',
-                    style: TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.w800,
-                      color: Colors.white,
-                      letterSpacing: -0.5,
+                  InkWell(
+                    onTap: () {
+                      if (widget.onBack != null) {
+                        widget.onBack!();
+                      } else if (Navigator.canPop(context)) {
+                        Navigator.pop(context);
+                      }
+                    },
+                    borderRadius: BorderRadius.circular(12),
+                    child: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.14),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: Colors.white.withValues(alpha: 0.25),
+                          width: 1.2,
+                        ),
+                      ),
+                      child: const Icon(
+                        Icons.arrow_back_rounded,
+                        size: 20,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  const Expanded(
+                    child: Text(
+                      'Badges',
+                      style: TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w800,
+                        color: Colors.white,
+                        letterSpacing: -0.5,
+                      ),
                     ),
                   ),
                   // Streak Pill Badge
@@ -246,10 +248,10 @@ class _LevelsBadgesTabState extends State<LevelsBadgesTab> {
                           duration: const Duration(milliseconds: 200),
                           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                           decoration: BoxDecoration(
-                            color: isSelected ? const Color(0xFF4F46E5) : Colors.white.withValues(alpha: 0.08),
+                            color: isSelected ? Colors.white : Colors.white.withValues(alpha: 0.18),
                             borderRadius: BorderRadius.circular(12),
                             border: Border.all(
-                              color: isSelected ? const Color(0xFF818CF8) : Colors.white.withValues(alpha: 0.15),
+                              color: isSelected ? Colors.white : Colors.white.withValues(alpha: 0.25),
                               width: 1.2,
                             ),
                           ),
@@ -259,7 +261,7 @@ class _LevelsBadgesTabState extends State<LevelsBadgesTab> {
                               Icon(
                                 tier['icon'] as IconData,
                                 size: 14,
-                                color: isSelected ? Colors.white : Colors.white70,
+                                color: isSelected ? const Color(0xFF0284C7) : Colors.white70,
                               ),
                               const SizedBox(width: 6),
                               Text(
@@ -267,7 +269,7 @@ class _LevelsBadgesTabState extends State<LevelsBadgesTab> {
                                 style: TextStyle(
                                   fontSize: 12.5,
                                   fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                                  color: isSelected ? Colors.white : Colors.white70,
+                                  color: isSelected ? const Color(0xFF0284C7) : Colors.white,
                                 ),
                               ),
                             ],
@@ -317,7 +319,7 @@ class _LevelsBadgesTabState extends State<LevelsBadgesTab> {
                   style: const TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.bold,
-                    color: Color(0xFF4F46E5),
+                    color: Color(0xFF0284C7),
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -362,8 +364,8 @@ class _LevelsBadgesTabState extends State<LevelsBadgesTab> {
                   child: LinearProgressIndicator(
                     value: progressPercent > 0 ? progressPercent : 0.001,
                     minHeight: 6,
-                    backgroundColor: const Color(0xFFEDE9FE),
-                    valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF6366F1)),
+                    backgroundColor: const Color(0xFFE0F2FE),
+                    valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF0284C7)),
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -372,7 +374,7 @@ class _LevelsBadgesTabState extends State<LevelsBadgesTab> {
                   style: const TextStyle(
                     fontSize: 11.5,
                     fontWeight: FontWeight.bold,
-                    color: Color(0xFF6366F1),
+                    color: Color(0xFF0284C7),
                   ),
                 ),
               ],
@@ -381,15 +383,22 @@ class _LevelsBadgesTabState extends State<LevelsBadgesTab> {
 
           const SizedBox(width: 12),
 
-          // Right: 3D Star Shield on Podium Illustration
-          Image.asset(
-            'assets/images/badge_shield_hero.png',
-            height: 115,
-            fit: BoxFit.contain,
-            errorBuilder: (_, __, ___) => const Icon(
+          // Right: Sleek Shield Badge Icon
+          Container(
+            width: 72,
+            height: 72,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: const Color(0xFFE0F2FE),
+              border: Border.all(
+                color: const Color(0xFFBAE6FD),
+                width: 2,
+              ),
+            ),
+            child: const Icon(
               Icons.shield_rounded,
-              size: 80,
-              color: Color(0xFF6366F1),
+              size: 40,
+              color: Color(0xFF0284C7),
             ),
           ),
         ],
@@ -410,11 +419,13 @@ class _LevelsBadgesTabState extends State<LevelsBadgesTab> {
         ),
         child: Column(
           children: [
-            Image.asset(
-              'assets/images/badge_locked_medal.png',
-              height: 70,
-              fit: BoxFit.contain,
-              errorBuilder: (_, __, ___) => const Icon(Icons.lock_outline, size: 48, color: Color(0xFF94A3B8)),
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: const BoxDecoration(
+                shape: BoxShape.circle,
+                color: Color(0xFFF1F5F9),
+              ),
+              child: const Icon(Icons.lock_outline_rounded, size: 36, color: Color(0xFF94A3B8)),
             ),
             const SizedBox(height: 12),
             Text(
@@ -434,7 +445,7 @@ class _LevelsBadgesTabState extends State<LevelsBadgesTab> {
         crossAxisCount: 2,
         crossAxisSpacing: 14,
         mainAxisSpacing: 14,
-        childAspectRatio: 0.68,
+        childAspectRatio: 0.78,
       ),
       itemBuilder: (context, index) {
         final badge = tierBadges[index];
@@ -471,9 +482,6 @@ class _LevelsBadgesTabState extends State<LevelsBadgesTab> {
           }
         }
 
-        final progressText = _getBadgeProgressText(badge, isEarned);
-        final progressVal = _getBadgeProgressValue(badge, isEarned);
-
         return InkWell(
           onTap: () => _showBadgeDetailModal(badge, isEarned, isPending, isRejected, proofLink),
           borderRadius: BorderRadius.circular(20),
@@ -496,47 +504,53 @@ class _LevelsBadgesTabState extends State<LevelsBadgesTab> {
             ),
             child: Stack(
               children: [
-                // Top-Right Status Badge Indicator
-                Positioned(
-                  top: 0,
-                  right: 0,
-                  child: Container(
-                    padding: const EdgeInsets.all(4),
-                    decoration: BoxDecoration(
-                      color: isEarned
-                          ? const Color(0xFFDCFCE7)
-                          : (isPending ? const Color(0xFFFEF3C7) : const Color(0xFFEEF2FF)),
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(
-                      isEarned
-                          ? Icons.check_circle_rounded
-                          : (isPending ? Icons.access_time_filled_rounded : Icons.lock_rounded),
-                      size: 14,
-                      color: isEarned
-                          ? const Color(0xFF16A34A)
-                          : (isPending ? const Color(0xFFD97706) : const Color(0xFF6366F1)),
+                // Top-Right Status Badge Indicator (Earned or Pending only)
+                if (isEarned || isPending)
+                  Positioned(
+                    top: 0,
+                    right: 0,
+                    child: Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: BoxDecoration(
+                        color: isEarned
+                            ? const Color(0xFFDCFCE7)
+                            : const Color(0xFFFEF3C7),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        isEarned
+                            ? Icons.check_circle_rounded
+                            : Icons.access_time_filled_rounded,
+                        size: 14,
+                        color: isEarned
+                            ? const Color(0xFF16A34A)
+                            : const Color(0xFFD97706),
+                      ),
                     ),
                   ),
-                ),
 
                 // Card Main Contents
                 Column(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    // Badge 3D Medal Artwork
+                    // Badge Icon
                     Padding(
                       padding: const EdgeInsets.only(top: 8.0),
-                      child: Image.asset(
-                        isEarned
-                            ? 'assets/images/badge_unlocked_medal.png'
-                            : 'assets/images/badge_locked_medal.png',
-                        height: 68,
-                        fit: BoxFit.contain,
-                        errorBuilder: (_, __, ___) => Icon(
-                          isEarned ? Icons.military_tech_rounded : Icons.lock_outline,
-                          size: 54,
-                          color: isEarned ? const Color(0xFFF59E0B) : const Color(0xFF94A3B8),
+                      child: Container(
+                        width: 56,
+                        height: 56,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: isEarned ? const Color(0xFFFEF3C7) : const Color(0xFFF1F5F9),
+                          border: Border.all(
+                            color: isEarned ? const Color(0xFFFDE68A) : const Color(0xFFE2E8F0),
+                            width: 1.5,
+                          ),
+                        ),
+                        child: Icon(
+                          isEarned ? Icons.workspace_premium_rounded : Icons.lock_outline_rounded,
+                          size: 30,
+                          color: isEarned ? const Color(0xFFD97706) : const Color(0xFF94A3B8),
                         ),
                       ),
                     ),
@@ -577,7 +591,7 @@ class _LevelsBadgesTabState extends State<LevelsBadgesTab> {
                       decoration: BoxDecoration(
                         color: isEarned
                             ? const Color(0xFFDCFCE7)
-                            : (isPending ? const Color(0xFFFEF3C7) : const Color(0xFFEEF2FF)),
+                            : (isPending ? const Color(0xFFFEF3C7) : const Color(0xFFE0F2FE)),
                         borderRadius: BorderRadius.circular(10),
                       ),
                       child: Text(
@@ -589,37 +603,10 @@ class _LevelsBadgesTabState extends State<LevelsBadgesTab> {
                           fontWeight: FontWeight.w800,
                           color: isEarned
                               ? const Color(0xFF16A34A)
-                              : (isPending ? const Color(0xFFD97706) : const Color(0xFF6366F1)),
+                              : (isPending ? const Color(0xFFD97706) : const Color(0xFF0284C7)),
                           letterSpacing: 0.4,
                         ),
                       ),
-                    ),
-
-                    // Bottom Progress Bar and Subtitle
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(4),
-                          child: LinearProgressIndicator(
-                            value: progressVal > 0 ? progressVal : 0.001,
-                            minHeight: 4,
-                            backgroundColor: const Color(0xFFF1F5F9),
-                            valueColor: AlwaysStoppedAnimation<Color>(
-                              isEarned ? const Color(0xFF16A34A) : const Color(0xFF6366F1),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          progressText,
-                          style: const TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w700,
-                            color: Color(0xFF64748B),
-                          ),
-                        ),
-                      ],
                     ),
                   ],
                 ),
@@ -630,94 +617,6 @@ class _LevelsBadgesTabState extends State<LevelsBadgesTab> {
       },
     );
   }
-
-  // ── 5. Motivation Banner ───────────────────────────────────────────────────
-  Widget _buildMotivationBanner() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFF4F46E5), Color(0xFF7C3AED)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFF6366F1).withValues(alpha: 0.3),
-            blurRadius: 16,
-            offset: const Offset(0, 6),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Image.asset(
-            'assets/images/activities_trophy.png',
-            height: 60,
-            fit: BoxFit.contain,
-            errorBuilder: (_, __, ___) => const Icon(
-              Icons.emoji_events_rounded,
-              color: Color(0xFFFBBF24),
-              size: 48,
-            ),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Collect all $_selectedTier badges',
-                  style: const TextStyle(
-                    fontSize: 14.5,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                const Text(
-                  'Complete stage activities to unlock higher tier medals!',
-                  style: TextStyle(
-                    fontSize: 11.5,
-                    color: Colors.white70,
-                  ),
-                ),
-                const SizedBox(height: 10),
-                InkWell(
-                  onTap: () {
-                    setState(() {
-                      _selectedTier = 'Foundation';
-                    });
-                  },
-                  borderRadius: BorderRadius.circular(8),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.2),
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: Colors.white.withValues(alpha: 0.3)),
-                    ),
-                    child: const Text(
-                      'View All Badges',
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-
 
   // ── Badge Detail & Claim Modal ─────────────────────────────────────────────
   void _showBadgeDetailModal(
@@ -764,12 +663,18 @@ class _LevelsBadgesTabState extends State<LevelsBadgesTab> {
                     // Header Card with Medal Image
                     Row(
                       children: [
-                        Image.asset(
-                          isEarned
-                              ? 'assets/images/badge_unlocked_medal.png'
-                              : 'assets/images/badge_locked_medal.png',
-                          height: 56,
-                          fit: BoxFit.contain,
+                        Container(
+                          width: 48,
+                          height: 48,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: isEarned ? const Color(0xFFFEF3C7) : const Color(0xFFF1F5F9),
+                          ),
+                          child: Icon(
+                            isEarned ? Icons.workspace_premium_rounded : Icons.lock_outline_rounded,
+                            size: 26,
+                            color: isEarned ? const Color(0xFFD97706) : const Color(0xFF94A3B8),
+                          ),
                         ),
                         const SizedBox(width: 14),
                         Expanded(
@@ -790,13 +695,13 @@ class _LevelsBadgesTabState extends State<LevelsBadgesTab> {
                                   Container(
                                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                                     decoration: BoxDecoration(
-                                      color: const Color(0xFF4F46E5).withValues(alpha: 0.1),
+                                      color: const Color(0xFF0284C7).withValues(alpha: 0.1),
                                       borderRadius: BorderRadius.circular(8),
                                     ),
                                     child: Text(
                                       rarity.toUpperCase(),
                                       style: const TextStyle(
-                                        color: Color(0xFF4F46E5),
+                                        color: Color(0xFF0284C7),
                                         fontSize: 9,
                                         fontWeight: FontWeight.bold,
                                       ),
@@ -874,9 +779,9 @@ class _LevelsBadgesTabState extends State<LevelsBadgesTab> {
                       const SizedBox(height: 20),
                     ],
 
-                    // Badge Approval Workflow (6 Steps)
+                    // Badge Approval Workflow (3 Steps: Claim Submitted, Evaluator Review, Badge Issued)
                     const Text(
-                      'Badge Approval Workflow (6 Steps)',
+                      'Badge Approval Workflow',
                       style: TextStyle(
                         color: Color(0xFF1E293B),
                         fontSize: 14,
@@ -886,10 +791,7 @@ class _LevelsBadgesTabState extends State<LevelsBadgesTab> {
                     const SizedBox(height: 12),
                     _buildApprovalStep(1, 'Claim Submitted', 'Student requests badge via portal', true),
                     _buildApprovalStep(2, 'Evaluator Review', 'Verifies eligibility (1-3 days)', isEarned || isPending),
-                    _buildApprovalStep(3, 'Faculty Check', 'Quality committee check (2-5 days)', isEarned),
-                    _buildApprovalStep(4, 'Maker-Checker Sign-off', 'Approval authority sign-off (1-2 days)', isEarned),
-                    _buildApprovalStep(5, 'Badge Issued', 'Awarded to student profile', isEarned),
-                    _buildApprovalStep(6, 'Audit Logging', 'Permanent record logged', isEarned),
+                    _buildApprovalStep(3, 'Badge Issued', 'Awarded to student profile', isEarned),
 
                     const SizedBox(height: 20),
 
@@ -963,7 +865,7 @@ class _LevelsBadgesTabState extends State<LevelsBadgesTab> {
                             width: double.infinity,
                             child: ElevatedButton(
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFF4F46E5),
+                                backgroundColor: const Color(0xFF0284C7),
                                 padding: const EdgeInsets.symmetric(vertical: 14),
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(12),

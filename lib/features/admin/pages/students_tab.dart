@@ -2,10 +2,7 @@ import 'package:flutter/material.dart';
 import 'dart:convert';
 import 'dart:io';
 import 'package:pragatix/core/utils/api_client.dart' as http;
-import 'package:path_provider/path_provider.dart';
-import 'package:permission_handler/permission_handler.dart';
 import 'package:file_picker/file_picker.dart';
-import 'package:open_filex/open_filex.dart';
 import 'package:pragatix/core/config/api_config.dart';
 
 import 'package:pragatix/core/widgets/pragatix_loader.dart';

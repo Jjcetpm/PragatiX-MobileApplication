@@ -10,7 +10,9 @@ import 'package:pragatix/features/student/screens/stage_details_screen.dart';
 import 'package:pragatix/core/widgets/pragatix_loader.dart';
 
 class ActivitiesTab extends StatefulWidget {
-  const ActivitiesTab({super.key});
+  final VoidCallback? onBack;
+
+  const ActivitiesTab({super.key, this.onBack});
 
   @override
   State<ActivitiesTab> createState() => _ActivitiesTabState();
@@ -29,14 +31,21 @@ class _ActivitiesTabState extends State<ActivitiesTab> {
   }
 
   Future<void> _initializeData() async {
-    setState(() => isLoading = true);
+    if (mounted) setState(() => isLoading = true);
     try {
+      final token = context.read<AuthProvider>().token ?? '';
+      if (token.isEmpty || token == 'debug_token') {
+        if (mounted) setState(() => isLoading = false);
+        return;
+      }
+
       final response = await getIt<StudentProxyService>().get(
         Uri.parse('${ApiConfig.baseUrl}/api/v1/students/stages'),
         headers: {
-          'Authorization': 'Bearer ${context.read<AuthProvider>().token!}',
+          'Authorization': 'Bearer $token',
         },
-      );
+      ).timeout(const Duration(seconds: 8));
+
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         if (data['success'] == true) {
@@ -54,15 +63,20 @@ class _ActivitiesTabState extends State<ActivitiesTab> {
             ),
           );
 
-          setState(() {
-            stages = mapped;
-          });
+          if (mounted) {
+            setState(() {
+              stages = mapped;
+            });
+          }
         }
       }
     } catch (e) {
       debugPrint('Error in _initializeData: $e');
+    } finally {
+      if (mounted) {
+        setState(() => isLoading = false);
+      }
     }
-    setState(() => isLoading = false);
   }
 
   @override
@@ -108,7 +122,7 @@ class _ActivitiesTabState extends State<ActivitiesTab> {
                 _buildTopHeader(attendanceProvider.currentStreak),
                 const SizedBox(height: 20),
 
-                // Hero Progress Card ("Your Progress") with Trophy
+                // Hero Progress Card ("Your Progress")
                 _buildHeroProgressCard(
                   completedSubgroups: completedSubgroups,
                   totalSubgroups: totalSubgroups,
@@ -164,10 +178,7 @@ class _ActivitiesTabState extends State<ActivitiesTab> {
                     },
                   ),
 
-                const SizedBox(height: 12),
-
-                // Motivation Banner ("Keep Going!") with Gift Box
-                _buildMotivationBanner(),
+                const SizedBox(height: 24),
               ],
             ),
           ),
@@ -178,86 +189,89 @@ class _ActivitiesTabState extends State<ActivitiesTab> {
 
   // ── 1. Top Header ──────────────────────────────────────────────────────────
   Widget _buildTopHeader(int streakCount) {
-    return Stack(
-      clipBehavior: Clip.none,
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Mountain flag graphic on top-right background
-        Positioned(
-          right: 35,
-          top: -10,
-          child: Opacity(
-            opacity: 0.95,
-            child: Image.asset(
-              'assets/images/activities_mountain_flag.png',
-              height: 95,
-              fit: BoxFit.contain,
-              errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+        InkWell(
+          onTap: () {
+            if (widget.onBack != null) {
+              widget.onBack!();
+            } else if (Navigator.canPop(context)) {
+              Navigator.pop(context);
+            }
+          },
+          borderRadius: BorderRadius.circular(12),
+          child: Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: const Color(0xFFE2E8F0)),
+            ),
+            child: const Icon(
+              Icons.arrow_back_rounded,
+              size: 20,
+              color: Color(0xFF1E293B),
             ),
           ),
         ),
-
-        // Text & Streak row
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            const Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Activities & Stages',
-                    style: TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.w800,
-                      color: Color(0xFF1E293B),
-                      letterSpacing: -0.5,
-                    ),
-                  ),
-                  SizedBox(height: 6),
-                  Text(
-                    'Complete subgroups to unlock\nthe next stages.',
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: Color(0xFF64748B),
-                      height: 1.35,
-                    ),
-                  ),
-                ],
+        const SizedBox(width: 12),
+        const Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Activities & Stages',
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w800,
+                  color: Color(0xFF1E293B),
+                  letterSpacing: -0.5,
+                ),
               ),
-            ),
-            // Streak pill badge
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: const Color(0xFFF1F5F9), width: 1.5),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.04),
-                    blurRadius: 6,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
+              SizedBox(height: 4),
+              Text(
+                'Complete subgroups to unlock\nthe next stages.',
+                style: TextStyle(
+                  fontSize: 13,
+                  color: Color(0xFF64748B),
+                  height: 1.35,
+                ),
               ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Text('🔥', style: TextStyle(fontSize: 14)),
-                  const SizedBox(width: 4),
-                  Text(
-                    '$streakCount',
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 13,
-                      color: Color(0xFF1E293B),
-                    ),
-                  ),
-                ],
+            ],
+          ),
+        ),
+        const SizedBox(width: 8),
+        // Streak pill badge
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: const Color(0xFFF1F5F9), width: 1.5),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.04),
+                blurRadius: 6,
+                offset: const Offset(0, 2),
               ),
-            ),
-          ],
+            ],
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text('🔥', style: TextStyle(fontSize: 14)),
+              const SizedBox(width: 4),
+              Text(
+                '$streakCount',
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 13,
+                  color: Color(0xFF1E293B),
+                ),
+              ),
+            ],
+          ),
         ),
       ],
     );
@@ -276,14 +290,14 @@ class _ActivitiesTabState extends State<ActivitiesTab> {
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
-          colors: [Color(0xFF4338CA), Color(0xFF6366F1)],
+          colors: [Color(0xFF0284C7), Color(0xFF38BDF8)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF4F46E5).withValues(alpha: 0.3),
+            color: const Color(0xFF0284C7).withValues(alpha: 0.35),
             blurRadius: 16,
             offset: const Offset(0, 6),
           ),
@@ -313,7 +327,7 @@ class _ActivitiesTabState extends State<ActivitiesTab> {
                     child: CircularProgressIndicator(
                       value: overallProgress > 0 ? overallProgress : 0.0,
                       strokeWidth: 5.5,
-                      backgroundColor: Colors.white.withValues(alpha: 0.2),
+                      backgroundColor: Colors.white.withValues(alpha: 0.25),
                       valueColor: const AlwaysStoppedAnimation(Colors.white),
                     ),
                   ),
@@ -345,31 +359,11 @@ class _ActivitiesTabState extends State<ActivitiesTab> {
                     Text(
                       'Keep going! Great things await you.',
                       style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.85),
+                        color: Colors.white.withValues(alpha: 0.9),
                         fontSize: 11.5,
                       ),
                     ),
                   ],
-                ),
-              ),
-              const SizedBox(width: 8),
-              // Trophy asset illustration
-              Image.asset(
-                'assets/images/activities_trophy.png',
-                height: 64,
-                fit: BoxFit.contain,
-                errorBuilder: (_, __, ___) => Container(
-                  width: 50,
-                  height: 50,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: Colors.white.withValues(alpha: 0.15),
-                  ),
-                  child: const Icon(
-                    Icons.emoji_events_rounded,
-                    color: Color(0xFFFFD700),
-                    size: 32,
-                  ),
                 ),
               ),
             ],
@@ -379,7 +373,7 @@ class _ActivitiesTabState extends State<ActivitiesTab> {
     );
   }
 
-  // ── 3. Timeline Stage Roadmap Item (Centered Alignment) ───────────────────
+  // ── 3. Stage Roadmap Item ──────────────────────────────────────────────────
   Widget _buildTimelineItem({
     required int index,
     required int totalItems,
@@ -405,319 +399,168 @@ class _ActivitiesTabState extends State<ActivitiesTab> {
             (totalCount > 0 ? (completedCount / totalCount * 100) : 0))
         .toInt();
 
-    final Color nodeColor = isCompleted
-        ? const Color(0xFF16A34A)
-        : (isActive ? const Color(0xFF4F46E5) : const Color(0xFFCBD5E1));
-
-    const Color lineColor = Color(0xFFE2E8F0);
-
-    return IntrinsicHeight(
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          // Left timeline column: Top Line, Centered Circle Node, Bottom Line
-          SizedBox(
-            width: 36,
-            child: Column(
-              children: [
-                // Top line (connects to previous stage above)
-                Expanded(
-                  child: index > 1
-                      ? Center(
-                          child: Container(
-                            width: 2,
-                            color: lineColor,
-                          ),
-                        )
-                      : const SizedBox.shrink(),
-                ),
-                // Centered Circle node
-                Container(
-                  width: 32,
-                  height: 32,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: nodeColor,
-                    boxShadow: isActive
-                        ? [
-                            BoxShadow(
-                              color: const Color(0xFF4F46E5)
-                                  .withValues(alpha: 0.35),
-                              blurRadius: 8,
-                              offset: const Offset(0, 3),
-                            ),
-                          ]
-                        : [],
-                  ),
-                  child: Center(
-                    child: isCompleted
-                        ? const Icon(Icons.check_rounded,
-                            color: Colors.white, size: 18)
-                        : Text(
-                            '$stageNumber',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 13.5,
-                            ),
-                          ),
-                  ),
-                ),
-                // Bottom line (connects to next stage below)
-                Expanded(
-                  child: index < totalItems
-                      ? Center(
-                          child: Container(
-                            width: 2,
-                            color: lineColor,
-                          ),
-                        )
-                      : const SizedBox.shrink(),
-                ),
-              ],
-            ),
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12.0),
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: isActive
+                ? const Color(0xFFBAE6FD)
+                : const Color(0xFFF1F5F9),
+            width: isActive ? 1.5 : 1.2,
           ),
-          const SizedBox(width: 12),
-
-          // Right Stage Card (vertically padded for clean card spacing)
-          Expanded(
+          boxShadow: [
+            BoxShadow(
+              color: isActive
+                  ? const Color(0xFF0284C7).withValues(alpha: 0.06)
+                  : Colors.black.withValues(alpha: 0.02),
+              blurRadius: 10,
+              offset: const Offset(0, 3),
+            ),
+          ],
+        ),
+        child: Material(
+          color: Colors.transparent,
+          borderRadius: BorderRadius.circular(20),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(20),
+            onTap: !isLocked ? onTap : null,
             child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 8.0),
-              child: Container(
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(
-                    color: isActive
-                        ? const Color(0xFFEDE9FE)
-                        : const Color(0xFFF1F5F9),
-                    width: isActive ? 1.5 : 1.2,
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: isActive
-                          ? const Color(0xFF4F46E5).withValues(alpha: 0.05)
-                          : Colors.black.withValues(alpha: 0.02),
-                      blurRadius: 10,
-                      offset: const Offset(0, 3),
+              padding: const EdgeInsets.all(16.0),
+              child: Row(
+                children: [
+                  // Circular leading icon with Stage Number (No lock symbol)
+                  Container(
+                    width: 48,
+                    height: 48,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: isCompleted
+                          ? const Color(0xFFDCFCE7)
+                          : (isActive
+                              ? const Color(0xFFE0F2FE)
+                              : const Color(0xFFF1F5F9)),
                     ),
-                  ],
-                ),
-                child: Material(
-                  color: Colors.transparent,
-                  borderRadius: BorderRadius.circular(20),
-                  child: InkWell(
-                    borderRadius: BorderRadius.circular(20),
-                    onTap: !isLocked ? onTap : null,
-                    child: Padding(
-                      padding: const EdgeInsets.all(16.0),
-                      child: Row(
-                        children: [
-                          // Circular leading icon
-                          Container(
-                            width: 48,
-                            height: 48,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: isCompleted
-                                  ? const Color(0xFFDCFCE7)
-                                  : (isActive
-                                      ? const Color(0xFFEDE9FE)
-                                      : const Color(0xFFF1F5F9)),
-                            ),
-                            child: Icon(
-                              isCompleted
-                                  ? Icons.check_circle_rounded
-                                  : (isActive
-                                      ? Icons.lock_open_rounded
-                                      : Icons.lock_rounded),
-                              color: isCompleted
-                                  ? const Color(0xFF16A34A)
-                                  : (isActive
-                                      ? const Color(0xFF6366F1)
-                                      : const Color(0xFF94A3B8)),
+                    child: Center(
+                      child: isCompleted
+                          ? const Icon(
+                              Icons.check_circle_rounded,
+                              color: Color(0xFF16A34A),
                               size: 24,
+                            )
+                          : Text(
+                              '$stageNumber',
+                              style: TextStyle(
+                                fontSize: 17,
+                                fontWeight: FontWeight.w800,
+                                color: isActive
+                                    ? const Color(0xFF0284C7)
+                                    : const Color(0xFF94A3B8),
+                              ),
                             ),
-                          ),
-                          const SizedBox(width: 14),
-
-                          // Middle text column
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Text(
-                                  name,
-                                  style: const TextStyle(
-                                    fontSize: 15.5,
-                                    fontWeight: FontWeight.bold,
-                                    color: Color(0xFF1E293B),
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  isCompleted
-                                      ? 'Stage Completed'
-                                      : (isActive
-                                          ? 'Complete $totalCount subgroups'
-                                          : 'Complete previous stage'),
-                                  style: TextStyle(
-                                    fontSize: 12.5,
-                                    color: isCompleted
-                                        ? const Color(0xFF16A34A)
-                                        : const Color(0xFF64748B),
-                                    fontWeight: isCompleted
-                                        ? FontWeight.w600
-                                        : FontWeight.normal,
-                                  ),
-                                ),
-                                const SizedBox(height: 6),
-                                if (isActive)
-                                  Text(
-                                    'Progress: $percentage% • $completedCount / $totalCount Subgroups',
-                                    style: const TextStyle(
-                                      fontSize: 11.5,
-                                      fontWeight: FontWeight.bold,
-                                      color: Color(0xFF4F46E5),
-                                    ),
-                                  )
-                                else if (isLocked)
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 8,
-                                      vertical: 3,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: const Color(0xFFF5F3FF),
-                                      borderRadius: BorderRadius.circular(6),
-                                    ),
-                                    child: const Text(
-                                      'Locked',
-                                      style: TextStyle(
-                                        color: Color(0xFF6366F1),
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                  )
-                                else if (isCompleted)
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 8,
-                                      vertical: 3,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: const Color(0xFFDCFCE7),
-                                      borderRadius: BorderRadius.circular(6),
-                                    ),
-                                    child: const Text(
-                                      'Completed',
-                                      style: TextStyle(
-                                        color: Color(0xFF16A34A),
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                  ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(width: 10),
-
-                          // Right Chevron
-                          Icon(
-                            Icons.chevron_right_rounded,
-                            color: isActive
-                                ? const Color(0xFF6366F1)
-                                : const Color(0xFFCBD5E1),
-                            size: 22,
-                          ),
-                        ],
-                      ),
                     ),
                   ),
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+                  const SizedBox(width: 14),
 
-  // ── 4. Bottom Motivation Banner ────────────────────────────────────────────
-  Widget _buildMotivationBanner() {
-    return Container(
-      margin: const EdgeInsets.only(top: 4, bottom: 24),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF5F3FF),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFFEDE9FE), width: 1.2),
-      ),
-      child: Row(
-        children: [
-          // Star Icon
-          Container(
-            width: 40,
-            height: 40,
-            decoration: const BoxDecoration(
-              shape: BoxShape.circle,
-              color: Color(0xFFEDE9FE),
-            ),
-            child: const Icon(
-              Icons.stars_rounded,
-              color: Color(0xFF7C3AED),
-              size: 22,
-            ),
-          ),
-          const SizedBox(width: 12),
-          // Info Column
-          const Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Keep Going!',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 14,
-                    color: Color(0xFF4F46E5),
+                  // Middle text column
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          name,
+                          style: const TextStyle(
+                            fontSize: 15.5,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF1E293B),
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          isCompleted
+                              ? 'Stage Completed'
+                              : (isActive
+                                  ? 'Complete $totalCount subgroups'
+                                  : 'Complete previous stage'),
+                          style: TextStyle(
+                            fontSize: 12.5,
+                            color: isCompleted
+                                ? const Color(0xFF16A34A)
+                                : const Color(0xFF64748B),
+                            fontWeight: isCompleted
+                                ? FontWeight.w600
+                                : FontWeight.normal,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        if (isActive)
+                          Text(
+                            'Progress: $percentage% • $completedCount / $totalCount Subgroups',
+                            style: const TextStyle(
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF0284C7),
+                            ),
+                          )
+                        else if (isLocked)
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 3,
+                            ),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFF1F5F9),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: const Text(
+                              'Upcoming',
+                              style: TextStyle(
+                                color: Color(0xFF64748B),
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          )
+                        else if (isCompleted)
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 3,
+                            ),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFDCFCE7),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: const Text(
+                              'Completed',
+                              style: TextStyle(
+                                color: Color(0xFF16A34A),
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
                   ),
-                ),
-                SizedBox(height: 3),
-                Text(
-                  'Complete subgroups, earn XP and\nunlock exciting rewards.',
-                  style: TextStyle(
-                    color: Color(0xFF64748B),
-                    fontSize: 11.5,
-                    height: 1.3,
+                  const SizedBox(width: 10),
+
+                  // Right Chevron
+                  Icon(
+                    Icons.chevron_right_rounded,
+                    color: isActive
+                        ? const Color(0xFF0284C7)
+                        : const Color(0xFFCBD5E1),
+                    size: 22,
                   ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 8),
-          // Gift Box asset illustration
-          Image.asset(
-            'assets/images/activities_gift_box.png',
-            height: 52,
-            fit: BoxFit.contain,
-            errorBuilder: (_, __, ___) => Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: const Color(0xFFEDE9FE),
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: const Icon(
-                Icons.card_giftcard_rounded,
-                color: Color(0xFF7C3AED),
-                size: 24,
+                ],
               ),
             ),
           ),
-        ],
+        ),
       ),
     );
   }

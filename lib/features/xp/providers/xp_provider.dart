@@ -259,6 +259,14 @@ class XpProvider extends ChangeNotifier {
               'startDateTime': st['startDateTime'],
               'isStageCompleted': allSubgroupsCompleted,
               'stageCompletedDate': stageCompletedDate,
+              'mustThreshold': st['mustThreshold'] ?? 0,
+              'individualThreshold': st['individualThreshold'] ?? 0,
+              'groupThreshold': st['groupThreshold'] ?? 0,
+              'studentMustXp': st['studentMustXp'] ?? 0,
+              'studentIndividualXp': st['studentIndividualXp'] ?? 0,
+              'studentGroupXp': st['studentGroupXp'] ?? 0,
+              'isCurrentStage': st['isCurrentStage'] ?? false,
+              'subgroups': fetchedSubgroups,
               'substages': substages,
             });
           }

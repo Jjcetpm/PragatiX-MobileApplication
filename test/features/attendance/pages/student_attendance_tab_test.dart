@@ -27,7 +27,7 @@ void main() {
   }
 
   group('StudentAttendanceTab Widget Tests', () {
-    testWidgets('Renders dark header, overall attendance card, dual metric cards, and weekly calendar strip', (tester) async {
+    testWidgets('Renders dark header, overall attendance card, month metric card, and monthly overview calendar', (tester) async {
       final summary = StudentAttendanceSummary(
         attendancePercentage: 75.0,
         monthlyAttendancePercentage: 75.0,
@@ -47,7 +47,6 @@ void main() {
       // Top Header
       expect(find.text('Attendance'), findsOneWidget);
       expect(find.text('Track your attendance & stay consistent.'), findsOneWidget);
-      expect(find.text('3'), findsAtLeastNWidgets(1));
 
       // Overall Attendance Card
       expect(find.text('Overall Attendance'), findsOneWidget);
@@ -55,24 +54,18 @@ void main() {
       expect(find.text('Keep it up!'), findsOneWidget);
       expect(find.text('Present Days'), findsOneWidget);
       expect(find.text('Absent Days'), findsOneWidget);
-      expect(find.text('1'), findsOneWidget);
       expect(find.text('Total Days'), findsOneWidget);
-      expect(find.text('4'), findsOneWidget);
 
-      // Dual Metrics Cards
-      expect(find.text('This Month'), findsAtLeastNWidgets(1));
-      expect(find.text('75.0%'), findsNWidgets(2));
-      expect(find.text('This Week'), findsAtLeastNWidgets(1));
+      // Month Metric Card
+      expect(find.text('This Month'), findsOneWidget);
 
-      // Weekly Overview Strip
-      expect(find.text('Weekly Overview'), findsOneWidget);
-      expect(find.text('Mon'), findsOneWidget);
-      expect(find.text('Tue'), findsOneWidget);
-      expect(find.text('Wed'), findsOneWidget);
-      expect(find.text('Thu'), findsOneWidget);
-      expect(find.text('Fri'), findsOneWidget);
-      expect(find.text('Sat'), findsOneWidget);
-      expect(find.text('Sun'), findsOneWidget);
+      // Monthly Overview Section
+      expect(find.text('Monthly Overview'), findsOneWidget);
+      expect(find.text('M'), findsOneWidget);
+      expect(find.text('T'), findsAtLeastNWidgets(1));
+      expect(find.text('W'), findsOneWidget);
+      expect(find.text('F'), findsOneWidget);
+      expect(find.text('S'), findsAtLeastNWidgets(1));
 
       // 4 Status Legends
       expect(find.text('Present (P)'), findsOneWidget);
@@ -103,36 +96,6 @@ void main() {
       fullAbsent.addRecord('ABSENT');
       fullAbsent.addRecord('ABSENT');
       expect(fullAbsent.overallStatus, 'A');
-    });
-
-    testWidgets('Switching to This Month displays Monthly Overview grid', (tester) async {
-      final summary = StudentAttendanceSummary(
-        attendancePercentage: 80.0,
-        monthlyAttendancePercentage: 80.0,
-        currentStreak: 2,
-        totalPresentDays: 4,
-        totalAbsentDays: 1,
-      );
-
-      when(() => mockAttendance.isLoading).thenReturn(false);
-      when(() => mockAttendance.error).thenReturn(null);
-      when(() => mockAttendance.summary).thenReturn(summary);
-      when(() => mockAttendance.currentStreak).thenReturn(2);
-
-      await tester.pumpWidget(createWidgetUnderTest());
-      await tester.pump();
-
-      // Tap the filter dropdown popup
-      await tester.tap(find.text('This Week').last);
-      await tester.pumpAndSettle();
-
-      // Tap 'This Month' from popup menu
-      await tester.tap(find.text('This Month').last);
-      await tester.pumpAndSettle();
-
-      // Verify Monthly Overview grid is rendered
-      expect(find.text('Monthly Overview'), findsOneWidget);
-      expect(find.textContaining('Days'), findsAtLeastNWidgets(1));
     });
   });
 }

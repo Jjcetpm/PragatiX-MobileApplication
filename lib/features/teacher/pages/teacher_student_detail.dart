@@ -216,9 +216,6 @@ class _TeacherStudentDetailState extends State<TeacherStudentDetail> {
     final bool hasGuardian = gName.isNotEmpty || gPhone.isNotEmpty || gEmail.isNotEmpty;
 
     final bool isFemale = gender.toLowerCase().startsWith('f') || gender.toLowerCase() == 'girl';
-    final String avatarAsset = isFemale
-        ? 'assets/images/avatar_female.png'
-        : 'assets/images/avatar_male.png';
 
     return Scaffold(
       appBar: AppBar(
@@ -260,16 +257,12 @@ class _TeacherStudentDetailState extends State<TeacherStudentDetail> {
                             ),
                           ],
                         ),
-                        child: ClipOval(
-                          child: Image.asset(
-                            avatarAsset,
-                            width: 92,
-                            height: 92,
-                            fit: BoxFit.cover,
-                            alignment: Alignment.topCenter,
-                            errorBuilder: (context, error, stackTrace) => Icon(
-                              isFemale ? Icons.female_rounded : Icons.male_rounded,
-                              size: 48,
+                        child: Center(
+                          child: Text(
+                            name.isNotEmpty ? name[0].toUpperCase() : 'S',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w900,
+                              fontSize: 34,
                               color: isFemale ? const Color(0xFFDB2777) : const Color(0xFF2563EB),
                             ),
                           ),

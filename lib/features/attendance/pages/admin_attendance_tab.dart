@@ -19,7 +19,13 @@ import 'package:pragatix/core/utils/error_handler.dart';
 import 'package:pragatix/features/admin/repository/admin_repository.dart';
 
 class AdminAttendanceTab extends StatefulWidget {
-  const AdminAttendanceTab({Key? key}) : super(key: key);
+  final bool hideHeader;
+  final List<String>? subRoles;
+  const AdminAttendanceTab({
+    Key? key,
+    this.hideHeader = false,
+    this.subRoles,
+  }) : super(key: key);
 
   @override
   State<AdminAttendanceTab> createState() => _AdminAttendanceTabState();
@@ -71,6 +77,36 @@ class _AdminAttendanceTabState extends State<AdminAttendanceTab> {
     return hasAdmin && !hasSuperAdmin;
   }
 
+  bool get isCC {
+    final List<dynamic> subs = widget.subRoles ?? [];
+    final user = getIt<AuthProvider>().currentUser;
+    final roles = (user?['roles'] as List<dynamic>?) ?? [];
+    final userSubs = (user?['subRoles'] as List<dynamic>?) ?? [];
+
+    final all = [...subs, ...roles, ...userSubs].map((r) {
+      if (r is String) return r.toUpperCase().trim();
+      if (r is Map) return (r['name'] ?? '').toString().toUpperCase().trim();
+      return r.toString().toUpperCase().trim();
+    }).toList();
+
+    final bool hasAdminOrHod = all.any((r) =>
+        r == 'ROLE_ADMIN' ||
+        r == 'ADMIN' ||
+        r == 'ROLE_SUPER_ADMIN' ||
+        r == 'ROLE_SUPERADMIN' ||
+        r == 'SUPER_ADMIN' ||
+        r == 'SUPERADMIN' ||
+        r == 'HOD' ||
+        r == 'ROLE_HOD');
+    if (hasAdminOrHod) return false;
+
+    return all.any((r) =>
+        r == 'CC' ||
+        r == 'CLASS_COORDINATOR' ||
+        r == 'ROLE_CLASS_COORDINATOR' ||
+        r == 'ROLE_CC');
+  }
+
   List<dynamic> _safeDecodeList(String body) {
     if (body.trim().startsWith('<')) {
       print('Warning: API returned HTML instead of JSON. Body: ${body.substring(0, body.length > 50 ? 50 : body.length)}');
@@ -105,23 +141,85 @@ class _AdminAttendanceTabState extends State<AdminAttendanceTab> {
         return true;
       }).toList();
 
-      setState(() {
-        _years = yearsList;
-        _departments = deptsList;
+      _years = yearsList;
+      _departments = deptsList;
 
-        if (_years.isNotEmpty && (_yearId == null || !_years.any((y) => y['id'] == _yearId))) {
-          _yearId = _years.first['id'];
+      final currentUser = getIt<AuthProvider>().currentUser;
+      int? matchedYearId;
+      int? matchedDeptId;
+      int? matchedSecId;
+
+      if (currentUser != null) {
+        final assignedYear = currentUser['year']?.toString();
+        final assignedDepartment = currentUser['department']?.toString();
+        final assignedSectionId = currentUser['sectionId'] as int?;
+
+        if (assignedYear != null && _years.isNotEmpty) {
+          final match = _years.firstWhere((y) {
+            final yName = y['yearName']?.toString();
+            final yNo = y['yearNo']?.toString();
+            return yName == assignedYear || yNo == assignedYear;
+          }, orElse: () => null);
+          if (match != null) matchedYearId = match['id'];
         }
-        
-        if (isYearAdmin) {
-          if (_departments.isNotEmpty && _departmentId == null) {
-            _departmentId = _departments.first['id'];
-            _loadSections(_departmentId!);
+
+        if (assignedDepartment != null && _departments.isNotEmpty) {
+          final match = _departments.firstWhere((d) {
+            final dName = d['name']?.toString();
+            final dDeptName = d['deptName']?.toString();
+            final dCode = d['code']?.toString();
+            return dName == assignedDepartment ||
+                dDeptName == assignedDepartment ||
+                dCode == assignedDepartment;
+          }, orElse: () => null);
+          if (match != null) {
+            matchedDeptId = match['id'];
           }
-        } else {
-          _departmentId = null;
         }
-      });
+
+        if (assignedSectionId != null) {
+          matchedSecId = assignedSectionId;
+        }
+      }
+
+      if (matchedYearId != null) {
+        _yearId = matchedYearId;
+      } else if (_years.isNotEmpty && (_yearId == null || !_years.any((y) => y['id'] == _yearId))) {
+        _yearId = _years.first['id'];
+      }
+
+      if (matchedDeptId != null) {
+        _departmentId = matchedDeptId;
+      }
+
+      if (_departmentId != null) {
+        final token = getIt<AuthProvider>().token ?? '';
+        final res = await http.get(
+          Uri.parse('${ApiConfig.baseUrl}/api/v1/admin/sections?departmentId=$_departmentId'),
+          headers: {'Authorization': 'Bearer $token'},
+        );
+        _sections = _safeDecodeList(res.body);
+
+        if (matchedSecId != null && _sections.any((s) => s['id'] == matchedSecId)) {
+          _sectionId = matchedSecId;
+        } else if (_sections.isNotEmpty && isCC) {
+          final secName = currentUser?['section']?.toString() ?? currentUser?['sectionName']?.toString();
+          if (secName != null) {
+            final matchSec = _sections.firstWhere((s) => (s['sectionName']?.toString() ?? s['name']?.toString()) == secName, orElse: () => null);
+            if (matchSec != null) _sectionId = matchSec['id'];
+          }
+          if (_sectionId == null && _sections.isNotEmpty) {
+            _sectionId = _sections.first['id'];
+          }
+        }
+      }
+
+      if (mounted) {
+        setState(() {});
+        if (_yearId != null || isYearAdmin) {
+          _fetchSummary();
+        }
+      }
     } catch (e) {
       if (!mounted) return;
       ErrorHandler.showSnackBar(context, e);
@@ -142,14 +240,18 @@ class _AdminAttendanceTabState extends State<AdminAttendanceTab> {
       if (mounted) {
         setState(() {
           _sections = _safeDecodeList(res.body);
-          _sectionId = null;
+          if (!isCC) {
+            _sectionId = null;
+          }
         });
       }
     } catch (e) {
       if (mounted) {
         setState(() {
           _sections = [];
-          _sectionId = null;
+          if (!isCC) {
+            _sectionId = null;
+          }
         });
       }
     }
@@ -161,9 +263,9 @@ class _AdminAttendanceTabState extends State<AdminAttendanceTab> {
   }
 
   Future<void> _fetchSummary() async {
-    if ((!isYearAdmin && _yearId == null) || (isYearAdmin && _departmentId == null)) {
+    if (!isYearAdmin && _yearId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select Year and Department')),
+        const SnackBar(content: Text('Please select an Academic Year')),
       );
       return;
     }
@@ -305,117 +407,176 @@ class _AdminAttendanceTabState extends State<AdminAttendanceTab> {
             child: Column(
               children: [
                 // Top Header
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(18, 10, 16, 12),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                if (widget.hideHeader)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        _buildHeaderActionButton(
+                          icon: Icons.history_rounded,
+                          tooltip: 'Attendance History',
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => AdminAttendanceHistorySheet(
+                                  initialYearId: isYearAdmin ? -1 : _yearId,
+                                  initialDepartmentId: _departmentId,
+                                  initialSectionId: _sectionId,
+                                  initialDate: _selectedDate,
+                                  initialPeriod: _period,
+                                  years: _years,
+                                  departments: _departments,
+                                  subRoles: widget.subRoles,
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                        const SizedBox(width: 6),
+                        _buildHeaderActionButton(
+                          icon: Icons.file_download_outlined,
+                          tooltip: 'Export to Excel',
+                          onPressed: () {
+                            if (!isYearAdmin && _yearId == null) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Please select Academic Year and Date to export.'),
+                                ),
+                              );
+                              return;
+                            }
+                            _exportData();
+                          },
+                        ),
+                        const SizedBox(width: 6),
+                        _buildHeaderActionButton(
+                          icon: Icons.refresh_rounded,
+                          tooltip: 'Refresh',
+                          onPressed: () {
+                            _loadLookups();
+                            if (_yearId != null || isYearAdmin) {
+                              _fetchSummary();
+                            }
+                          },
+                        ),
+                      ],
+                    ),
+                  )
+                else
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(18, 10, 16, 12),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: const [
+                              Text(
+                                'Attendance Dashboard',
+                                style: TextStyle(
+                                  fontSize: 19,
+                                  fontWeight: FontWeight.w800,
+                                  color: Color(0xFF0F172A),
+                                  letterSpacing: -0.4,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              SizedBox(height: 2),
+                              Text(
+                                'Daily & period-wise student attendance',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w500,
+                                  color: Color(0xFF64748B),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Row(
                           mainAxisSize: MainAxisSize.min,
-                          children: const [
-                            Text(
-                              'Attendance Dashboard',
-                              style: TextStyle(
-                                fontSize: 19,
-                                fontWeight: FontWeight.w800,
-                                color: Color(0xFF0F172A),
-                                letterSpacing: -0.4,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
+                          children: [
+                            _buildHeaderActionButton(
+                              icon: Icons.history_rounded,
+                              tooltip: 'Attendance History',
+                              onPressed: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => AdminAttendanceHistorySheet(
+                                      initialYearId: isYearAdmin ? -1 : _yearId,
+                                      initialDepartmentId: _departmentId,
+                                      initialSectionId: _sectionId,
+                                      initialDate: _selectedDate,
+                                      initialPeriod: _period,
+                                      years: _years,
+                                      departments: _departments,
+                                      subRoles: widget.subRoles,
+                                    ),
+                                  ),
+                                );
+                              },
                             ),
-                            SizedBox(height: 2),
-                            Text(
-                              'Daily & period-wise student attendance',
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w500,
-                                color: Color(0xFF64748B),
-                              ),
+                            const SizedBox(width: 6),
+                            _buildHeaderActionButton(
+                              icon: Icons.file_download_outlined,
+                              tooltip: 'Export to Excel',
+                              onPressed: () {
+                                if (!isYearAdmin && _yearId == null) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text('Please select Academic Year and Date to export.'),
+                                    ),
+                                  );
+                                  return;
+                                }
+                                _exportData();
+                              },
+                            ),
+                            const SizedBox(width: 6),
+                            _buildHeaderActionButton(
+                              icon: Icons.settings_outlined,
+                              tooltip: 'Settings',
+                              onPressed: () {
+                                final auth = Provider.of<AuthProvider>(context, listen: false);
+                                if (auth.isSuperAdmin) {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) => const AttendanceSettingsYearSelectionPage(),
+                                    ),
+                                  );
+                                } else {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) => const AttendanceSettingsPage(),
+                                    ),
+                                  );
+                                }
+                              },
+                            ),
+                            const SizedBox(width: 6),
+                            _buildHeaderActionButton(
+                              icon: Icons.refresh_rounded,
+                              tooltip: 'Refresh',
+                              onPressed: () {
+                                _loadLookups();
+                                if (_yearId != null || isYearAdmin) {
+                                  _fetchSummary();
+                                }
+                              },
                             ),
                           ],
                         ),
-                      ),
-                      const SizedBox(width: 8),
-                      Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          _buildHeaderActionButton(
-                            icon: Icons.history_rounded,
-                            tooltip: 'Attendance History',
-                            onPressed: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => AdminAttendanceHistorySheet(
-                                    initialYearId: isYearAdmin ? -1 : _yearId,
-                                    initialDepartmentId: _departmentId,
-                                    initialSectionId: _sectionId,
-                                    initialDate: _selectedDate,
-                                    initialPeriod: _period,
-                                    years: _years,
-                                    departments: _departments,
-                                  ),
-                                ),
-                              );
-                            },
-                          ),
-                          const SizedBox(width: 6),
-                          _buildHeaderActionButton(
-                            icon: Icons.file_download_outlined,
-                            tooltip: 'Export to Excel',
-                            onPressed: () {
-                              if (!isYearAdmin && _yearId == null) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text('Please select Academic Year and Date to export.'),
-                                  ),
-                                );
-                                return;
-                              }
-                              _exportData();
-                            },
-                          ),
-                          const SizedBox(width: 6),
-                          _buildHeaderActionButton(
-                            icon: Icons.settings_outlined,
-                            tooltip: 'Settings',
-                            onPressed: () {
-                              final auth = Provider.of<AuthProvider>(context, listen: false);
-                              if (auth.isSuperAdmin) {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) => const AttendanceSettingsYearSelectionPage(),
-                                  ),
-                                );
-                              } else {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) => const AttendanceSettingsPage(),
-                                  ),
-                                );
-                              }
-                            },
-                          ),
-                          const SizedBox(width: 6),
-                          _buildHeaderActionButton(
-                            icon: Icons.refresh_rounded,
-                            tooltip: 'Refresh',
-                            onPressed: () {
-                              _loadLookups();
-                              if (_yearId != null || isYearAdmin) {
-                                _fetchSummary();
-                              }
-                            },
-                          ),
-                        ],
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
 
                 // Body Content
                 Expanded(
@@ -520,14 +681,43 @@ class _AdminAttendanceTabState extends State<AdminAttendanceTab> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          if (isCC)
+            Container(
+              margin: const EdgeInsets.only(bottom: 14),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              decoration: BoxDecoration(
+                color: const Color(0xFFEFF6FF),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0xFFBFDBFE)),
+              ),
+              child: Row(
+                children: const [
+                  Icon(Icons.lock_rounded, size: 16, color: Color(0xFF2563EB)),
+                  SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Class filters are locked to your assigned class.',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF1D4ED8),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
           if (!isYearAdmin) ...[
             DropdownButtonFormField<int>(
               isExpanded: true,
               value: (_yearId != null && _years.any((y) => y['id'] == _yearId)) ? _yearId : null,
               decoration: InputDecoration(
-                labelText: 'Academic Year',
+                labelText: isCC ? 'Academic Year (Assigned)' : 'Academic Year',
                 contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                fillColor: isCC ? const Color(0xFFF8FAFC) : null,
+                filled: isCC,
+                suffixIcon: isCC ? const Icon(Icons.lock_rounded, size: 18, color: Color(0xFF94A3B8)) : null,
               ),
               items: _years.where((y) => y['id'] != null).map<DropdownMenuItem<int>>((y) {
                 return DropdownMenuItem<int>(
@@ -535,7 +725,7 @@ class _AdminAttendanceTabState extends State<AdminAttendanceTab> {
                   child: Text(y['yearName']?.toString() ?? y['yearNo']?.toString() ?? 'Unknown'),
                 );
               }).toList(),
-              onChanged: (v) => setState(() => _yearId = v),
+              onChanged: isCC ? null : (v) => setState(() => _yearId = v),
             ),
             const SizedBox(height: 12),
           ],
@@ -543,32 +733,44 @@ class _AdminAttendanceTabState extends State<AdminAttendanceTab> {
             isExpanded: true,
             value: (_departmentId != null && _departments.any((d) => d['id'] == _departmentId)) ? _departmentId : null,
             decoration: InputDecoration(
-              labelText: 'Department',
+              labelText: isCC ? 'Department (Assigned)' : 'Department',
               contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
               border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+              fillColor: isCC ? const Color(0xFFF8FAFC) : null,
+              filled: isCC,
+              suffixIcon: isCC ? const Icon(Icons.lock_rounded, size: 18, color: Color(0xFF94A3B8)) : null,
             ),
-            items: [
-              const DropdownMenuItem<int?>(
-                value: null,
-                child: Text('All Departments'),
-              ),
-              ..._departments.where((d) => d['id'] != null).map<DropdownMenuItem<int?>>((d) {
-                return DropdownMenuItem<int?>(
-                  value: d['id'] as int,
-                  child: Text(d['name']?.toString() ?? d['deptName']?.toString() ?? d['code']?.toString() ?? 'Unknown'),
-                );
-              }).toList(),
-            ],
-            onChanged: (v) {
-              setState(() {
-                _departmentId = v;
-                _sectionId = null;
-                _sections = [];
-                if (v != null) {
-                  _loadSections(v);
-                }
-              });
-            },
+            items: isCC
+                ? _departments.where((d) => d['id'] != null && d['id'] == _departmentId).map<DropdownMenuItem<int?>>((d) {
+                    return DropdownMenuItem<int?>(
+                      value: d['id'] as int,
+                      child: Text(d['name']?.toString() ?? d['deptName']?.toString() ?? d['code']?.toString() ?? 'Unknown'),
+                    );
+                  }).toList()
+                : [
+                    const DropdownMenuItem<int?>(
+                      value: null,
+                      child: Text('All Departments'),
+                    ),
+                    ..._departments.where((d) => d['id'] != null).map<DropdownMenuItem<int?>>((d) {
+                      return DropdownMenuItem<int?>(
+                        value: d['id'] as int,
+                        child: Text(d['name']?.toString() ?? d['deptName']?.toString() ?? d['code']?.toString() ?? 'Unknown'),
+                      );
+                    }).toList(),
+                  ],
+            onChanged: isCC
+                ? null
+                : (v) {
+                    setState(() {
+                      _departmentId = v;
+                      _sectionId = null;
+                      _sections = [];
+                      if (v != null) {
+                        _loadSections(v);
+                      }
+                    });
+                  },
           ),
           const SizedBox(height: 12),
           DropdownButtonFormField<int?>(
@@ -578,30 +780,40 @@ class _AdminAttendanceTabState extends State<AdminAttendanceTab> {
                 ? _sectionId
                 : null,
             decoration: InputDecoration(
-              labelText: 'Section',
+              labelText: isCC ? 'Section (Assigned)' : 'Section',
               contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
               border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+              fillColor: isCC ? const Color(0xFFF8FAFC) : null,
+              filled: isCC,
+              suffixIcon: isCC ? const Icon(Icons.lock_rounded, size: 18, color: Color(0xFF94A3B8)) : null,
               hintText: _departmentId == null
                   ? 'Select Department First'
                   : (filteredSections.isEmpty ? 'No Sections Available' : 'All Sections'),
             ),
-            items: _departmentId == null || filteredSections.isEmpty
-                ? null
-                : [
-                    const DropdownMenuItem<int?>(
-                      value: null,
-                      child: Text('All Sections'),
-                    ),
-                    ...filteredSections
-                        .where((s) => s['id'] != null)
-                        .map<DropdownMenuItem<int>>((s) {
-                      return DropdownMenuItem<int>(
-                        value: s['id'] as int,
-                        child: Text(s['sectionName']?.toString() ?? 'Unknown'),
-                      );
-                    }).toList(),
-                  ],
-            onChanged: _departmentId == null || filteredSections.isEmpty
+            items: isCC
+                ? filteredSections.where((s) => s['id'] != null && s['id'] == _sectionId).map<DropdownMenuItem<int?>>((s) {
+                    return DropdownMenuItem<int?>(
+                      value: s['id'] as int,
+                      child: Text(s['sectionName']?.toString() ?? 'Section'),
+                    );
+                  }).toList()
+                : (_departmentId == null || filteredSections.isEmpty
+                    ? null
+                    : [
+                        const DropdownMenuItem<int?>(
+                          value: null,
+                          child: Text('All Sections'),
+                        ),
+                        ...filteredSections
+                            .where((s) => s['id'] != null)
+                            .map<DropdownMenuItem<int>>((s) {
+                          return DropdownMenuItem<int>(
+                            value: s['id'] as int,
+                            child: Text(s['sectionName']?.toString() ?? 'Unknown'),
+                          );
+                        }).toList(),
+                      ]),
+            onChanged: isCC || _departmentId == null || filteredSections.isEmpty
                 ? null
                 : (v) => setState(() => _sectionId = v),
           ),

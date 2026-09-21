@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:pragatix/core/theme/app_colors.dart';
-import 'package:pragatix/features/auth/pages/login_page.dart';
 import 'package:pragatix/features/auth/providers/auth_provider.dart';
 
 class SharedLogoutButton extends StatelessWidget {

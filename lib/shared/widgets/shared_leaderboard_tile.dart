@@ -40,32 +40,25 @@ class SharedLeaderboardTile extends StatelessWidget {
   Widget _buildAvatar() {
     final String g = (gender ?? '').trim().toLowerCase();
     final bool isFemale = g.startsWith('f') || g == 'female' || g == 'girl';
-    final String avatarAsset = isFemale
-        ? 'assets/images/avatar_female.png'
-        : 'assets/images/avatar_male.png';
 
     return Container(
       width: 38,
       height: 38,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
+        color: isFemale ? const Color(0xFFFDF2F8) : const Color(0xFFEFF6FF),
         border: Border.all(
-          color: const Color(0xFFE2E8F0),
+          color: isFemale ? const Color(0xFFFBCFE8) : const Color(0xFFBFDBFE),
           width: 1.5,
         ),
       ),
-      child: ClipOval(
-        child: Image.asset(
-          avatarAsset,
-          width: 38,
-          height: 38,
-          fit: BoxFit.cover,
-          errorBuilder: (_, __, ___) => CircleAvatar(
-            backgroundColor: const Color(0xFFEDE9FE),
-            child: Text(
-              name.isNotEmpty ? name[0].toUpperCase() : 'S',
-              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-            ),
+      child: Center(
+        child: Text(
+          name.isNotEmpty ? name[0].toUpperCase() : 'S',
+          style: TextStyle(
+            fontWeight: FontWeight.w800,
+            fontSize: 14,
+            color: isFemale ? const Color(0xFFDB2777) : const Color(0xFF2563EB),
           ),
         ),
       ),

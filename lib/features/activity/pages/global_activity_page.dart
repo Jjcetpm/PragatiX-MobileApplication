@@ -23,6 +23,7 @@ class _GlobalActivityPageState extends State<GlobalActivityPage>
     with SingleTickerProviderStateMixin {
   late ActivityProvider _provider;
   late TabController _tabController;
+  String? _selectedYear;
 
   @override
   void initState() {
@@ -31,14 +32,14 @@ class _GlobalActivityPageState extends State<GlobalActivityPage>
     _provider = getIt<ActivityProvider>();
     _tabController = TabController(length: 2, vsync: this);
     _tabController.addListener(() {
-      setState(() {});
+      if (mounted) setState(() {});
     });
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _provider.loadActivities(academicYear: _selectedYear);
-      if (_provider.departments.isEmpty || _provider.allTeachers.isEmpty) {
-        _provider.loadDependencies();
-      }
-    });
+    _provider.loadActivities(academicYear: _selectedYear);
+    if (_provider.departments.isEmpty) {
+      _provider.loadDependencies().then((_) {
+        if (mounted) setState(() {});
+      });
+    }
   }
 
   @override
@@ -49,26 +50,20 @@ class _GlobalActivityPageState extends State<GlobalActivityPage>
 
   List<ActivityModel> get _filteredActivities {
     if (_provider.activities.isEmpty) return [];
-
-    // Tab 0: All
-    // Tab 1: Unassigned (mappedStages is empty)
-
     return _provider.activities.where((a) {
-      if (_tabController.index == 1) {
-        return a.mappedStages.isEmpty;
+      if (_tabController.index == 0) {
+        return a.hasAssignedClasses();
+      } else {
+        return a.hasUnassignedClasses(_provider.departments);
       }
-      return true;
     }).toList();
   }
 
-  Future<void> _handleDelete(
-    ActivityModel activity, {
-    bool force = false,
-  }) async {
+  Future<void> _handleDelete(ActivityModel activity, {bool force = false}) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text(force ? 'Force Delete Activity' : 'Delete Activity'),
+        title: Text(force ? 'Force Delete Activity?' : 'Delete Activity?'),
         content: Text(
           force
               ? 'Are you sure you want to FORCE delete this activity? This will permanently wipe all history and XP.'
@@ -134,8 +129,6 @@ class _GlobalActivityPageState extends State<GlobalActivityPage>
     );
   }
 
-  String? _selectedYear;
-
   bool get _isSuperAdmin {
     final roles = getIt<AuthProvider>().currentUser?['roles'] as List<dynamic>? ?? [];
     return roles.contains('ROLE_SUPER_ADMIN');
@@ -198,7 +191,7 @@ class _GlobalActivityPageState extends State<GlobalActivityPage>
           unselectedLabelColor: Colors.white70,
           indicatorColor: Colors.white,
           tabs: const [
-            Tab(text: 'All Active'),
+            Tab(text: 'Assigned'),
             Tab(text: 'Unassigned'),
           ],
         ),
@@ -233,7 +226,14 @@ class _GlobalActivityPageState extends State<GlobalActivityPage>
           final list = _filteredActivities;
 
           if (list.isEmpty) {
-            return const Center(child: Text('No activities found.'));
+            return Center(
+              child: Text(
+                _tabController.index == 0
+                    ? 'No assigned activities found.'
+                    : 'No unassigned activities found.',
+                style: const TextStyle(fontSize: 14, color: Colors.grey),
+              ),
+            );
           }
 
           return ListView.builder(
@@ -268,6 +268,7 @@ class _GlobalActivityPageState extends State<GlobalActivityPage>
                         activity: act,
                         provider: _provider,
                         academicYear: _selectedYear,
+                        initialAssignmentTab: _tabController.index,
                       ),
                     ),
                   ).then((_) {

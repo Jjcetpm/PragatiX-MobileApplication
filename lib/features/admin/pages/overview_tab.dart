@@ -85,11 +85,14 @@ class _OverviewTabState extends State<OverviewTab> {
   Widget build(BuildContext context) {
     final authProvider = context.watch<AuthProvider>();
     final currentUser = authProvider.currentUser ?? {};
-    final List<dynamic> roles = currentUser['roles'] ?? [];
-    final String? assignedYear = currentUser['academicYear'];
+    final dynamic rawRoles = currentUser['roles'];
+    final List<dynamic> roles = rawRoles is List ? rawRoles : [];
+    final dynamic rawYear = currentUser['academicYear'];
+    final String? assignedYear = rawYear?.toString();
 
     final bool isSuperAdmin = roles.any((r) {
-      final name = r is String ? r : (r as Map)['name']?.toString() ?? '';
+      if (r == null) return false;
+      final name = r is String ? r : (r is Map ? (r['name'] ?? r['authority'] ?? '').toString() : '');
       return name == 'ROLE_SUPER_ADMIN' || name == 'SUPER_ADMIN';
     });
 
@@ -98,11 +101,12 @@ class _OverviewTabState extends State<OverviewTab> {
     if (isSuperAdmin) {
       titlePrefix = 'Super Admin';
       welcomeText = 'Super Admin';
-    } else if (assignedYear != null) {
+    } else if (assignedYear != null && assignedYear.trim().isNotEmpty && assignedYear != 'null') {
       String cleanYear = assignedYear.replaceAll('_', ' ').toLowerCase();
       cleanYear = cleanYear
           .split(' ')
-          .map((s) => s[0].toUpperCase() + s.substring(1))
+          .where((s) => s.isNotEmpty)
+          .map((s) => s[0].toUpperCase() + (s.length > 1 ? s.substring(1) : ''))
           .join(' ');
       titlePrefix = '$cleanYear Admin';
       welcomeText = '$cleanYear Admin';
@@ -110,100 +114,94 @@ class _OverviewTabState extends State<OverviewTab> {
 
     return Scaffold(
       backgroundColor: const Color(0xFFF4F7FB),
-      body: Stack(
-        children: [
-          // Background mesh subtle gradient
-          Positioned(
-            top: 0,
-            left: 0,
-            right: 0,
-            height: 280,
-            child: Container(
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    Color(0xFFDCE8F6),
-                    Color(0xFFE8EFF9),
-                    Color(0xFFF4F7FB),
-                  ],
-                ),
-              ),
-            ),
+      body: Container(
+        width: double.infinity,
+        height: double.infinity,
+        decoration: const BoxDecoration(
+          color: Color(0xFFF4F7FB),
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            stops: [0.0, 0.28, 0.40, 1.0],
+            colors: [
+              Color(0xFFDCE8F6),
+              Color(0xFFE8EFF9),
+              Color(0xFFF4F7FB),
+              Color(0xFFF4F7FB),
+            ],
           ),
-          SafeArea(
-            child: Column(
-              children: [
-                // ── Top Header ───────────────────────────────────────────────
-                _buildHeader(titlePrefix),
+        ),
+        child: SafeArea(
+          child: Column(
+            children: [
+              // ── Top Header ───────────────────────────────────────────────
+              _buildHeader(titlePrefix),
 
-                // ── Body Content ─────────────────────────────────────────────
-                Expanded(
-                  child: isLoading
-                      ? const Center(child: PragatiXLoader())
-                      : hasError
-                          ? _buildErrorView()
-                          : RefreshIndicator(
-                              onRefresh: _fetchStats,
-                              color: const Color(0xFF2563EB),
-                              child: SingleChildScrollView(
-                                physics: const AlwaysScrollableScrollPhysics(),
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 20,
-                                  vertical: 10,
-                                ),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    // ── Welcome Hero Banner with College Image ──
-                                    _buildWelcomeBanner(welcomeText),
-                                    const SizedBox(height: 22),
+              // ── Body Content ─────────────────────────────────────────────
+              Expanded(
+                child: isLoading
+                    ? const Center(child: PragatiXLoader(fullScreen: false))
+                    : hasError
+                        ? _buildErrorView()
+                        : RefreshIndicator(
+                            onRefresh: _fetchStats,
+                            color: const Color(0xFF2563EB),
+                            child: SingleChildScrollView(
+                              physics: const AlwaysScrollableScrollPhysics(),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 20,
+                                vertical: 10,
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  // ── Welcome Hero Banner with College Image ──
+                                  _buildWelcomeBanner(welcomeText),
+                                  const SizedBox(height: 22),
 
-                                    // ── Metrics Section Header ───────────────
-                                    Row(
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.spaceBetween,
-                                      children: [
-                                        const Text(
-                                          'System Overview',
-                                          style: TextStyle(
-                                            fontSize: 17,
-                                            fontWeight: FontWeight.w700,
-                                            color: Color(0xFF0F172A),
-                                            letterSpacing: -0.3,
-                                          ),
+                                  // ── Metrics Section Header ───────────────
+                                  Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      const Text(
+                                        'System Overview',
+                                        style: TextStyle(
+                                          fontSize: 17,
+                                          fontWeight: FontWeight.w700,
+                                          color: Color(0xFF0F172A),
+                                          letterSpacing: -0.3,
                                         ),
-                                        Container(
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 10,
-                                            vertical: 4,
-                                          ),
+                                      ),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 10,
+                                          vertical: 4,
                                         ),
-                                      ],
-                                    ),
-                                    const SizedBox(height: 14),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 14),
 
-                                    // ── Stat Cards Grid (2x2) ────────────────
-                                    _buildStatsGrid(),
-                                    const SizedBox(height: 14),
+                                  // ── Stat Cards Grid (2x2) ────────────────
+                                  _buildStatsGrid(),
+                                  const SizedBox(height: 14),
 
-                                    // ── Wide Featured Leaderboard Card ───────
-                                    _buildLeaderboardCard(),
-                                    const SizedBox(height: 14),
+                                  // ── Wide Featured Leaderboard Card ───────
+                                  _buildLeaderboardCard(),
+                                  const SizedBox(height: 14),
 
-                                    // ── Wide Featured Level Progression Card ──
-                                    _buildLevelsCard(),
-                                    const SizedBox(height: 28),
-                                  ],
-                                ),
+                                  // ── Wide Featured Level Progression Card ──
+                                  _buildLevelsCard(),
+                                  const SizedBox(height: 28),
+                                ],
                               ),
                             ),
-                ),
-              ],
-            ),
+                          ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
@@ -256,6 +254,11 @@ class _OverviewTabState extends State<OverviewTab> {
                   width: 24,
                   height: 24,
                   fit: BoxFit.contain,
+                  errorBuilder: (context, error, stackTrace) => const Icon(
+                    Icons.delete_outline_rounded,
+                    size: 20,
+                    color: Color(0xFF1E293B),
+                  ),
                 ),
                 tooltip: recycleBinCount > 0
                     ? 'Recycle Bin ($recycleBinCount items)'
@@ -270,30 +273,9 @@ class _OverviewTabState extends State<OverviewTab> {
                   _fetchStats();
                 },
               ),
-              const SizedBox(width: 6),
+              const SizedBox(width: 8),
 
-              // Notification Indicator
-              Stack(
-                children: [
-                  if (pendingBadgeRequests > 0)
-                    Positioned(
-                      top: 6,
-                      right: 6,
-                      child: Container(
-                        width: 8,
-                        height: 8,
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFEF4444),
-                          shape: BoxShape.circle,
-                          border: Border.all(color: Colors.white, width: 1.5),
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-              const SizedBox(width: 6),
-
-              // Refresh
+              // Refresh Button
               _buildHeaderActionButton(
                 icon: Icons.refresh_rounded,
                 tooltip: 'Refresh',
@@ -320,7 +302,7 @@ class _OverviewTabState extends State<OverviewTab> {
       width: 38,
       height: 38,
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.90),
+        color: Colors.white.withOpacity(0.90),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
           color: const Color(0xFFE2E8F0),
@@ -328,7 +310,7 @@ class _OverviewTabState extends State<OverviewTab> {
         ),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF0F172A).withValues(alpha: 0.04),
+            color: const Color(0xFF0F172A).withOpacity(0.04),
             blurRadius: 6,
             offset: const Offset(0, 2),
           ),
@@ -352,7 +334,7 @@ class _OverviewTabState extends State<OverviewTab> {
         borderRadius: BorderRadius.circular(22),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF0F172A).withValues(alpha: 0.22),
+            color: const Color(0xFF0F172A).withOpacity(0.22),
             blurRadius: 20,
             offset: const Offset(0, 8),
             spreadRadius: -2,
@@ -365,7 +347,8 @@ class _OverviewTabState extends State<OverviewTab> {
           children: [
             // Dark base background
             Container(
-              height: 165,
+              width: double.infinity,
+              constraints: const BoxConstraints(minHeight: 165),
               color: const Color(0xFF0D1522),
             ),
 
@@ -384,6 +367,9 @@ class _OverviewTabState extends State<OverviewTab> {
                     'assets/images/college_campus.png',
                     fit: BoxFit.cover,
                     alignment: Alignment.center,
+                    errorBuilder: (context, error, stackTrace) => Container(
+                      color: const Color(0xFF1E293B),
+                    ),
                   );
                 },
               ),
@@ -400,8 +386,8 @@ class _OverviewTabState extends State<OverviewTab> {
                     colors: [
                       const Color(0xFF0D1522),
                       const Color(0xFF0D1522),
-                      const Color(0xFF0D1522).withValues(alpha: 0.60),
-                      const Color(0xFF0D1522).withValues(alpha: 0.18),
+                      const Color(0xFF0D1522).withOpacity(0.60),
+                      const Color(0xFF0D1522).withOpacity(0.18),
                     ],
                   ),
                 ),
@@ -416,9 +402,9 @@ class _OverviewTabState extends State<OverviewTab> {
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
                     colors: [
-                      const Color(0xFF0D1522).withValues(alpha: 0.25),
+                      const Color(0xFF0D1522).withOpacity(0.25),
                       Colors.transparent,
-                      const Color(0xFF0D1522).withValues(alpha: 0.50),
+                      const Color(0xFF0D1522).withOpacity(0.50),
                     ],
                   ),
                 ),
@@ -431,7 +417,7 @@ class _OverviewTabState extends State<OverviewTab> {
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(22),
                   border: Border.all(
-                    color: Colors.white.withValues(alpha: 0.14),
+                    color: Colors.white.withOpacity(0.14),
                     width: 1.2,
                   ),
                 ),
@@ -450,7 +436,7 @@ class _OverviewTabState extends State<OverviewTab> {
                     style: TextStyle(
                       fontSize: 13.5,
                       fontWeight: FontWeight.w500,
-                      color: Colors.white.withValues(alpha: 0.72),
+                      color: Colors.white.withOpacity(0.72),
                       letterSpacing: 0.2,
                     ),
                   ),
@@ -487,7 +473,7 @@ class _OverviewTabState extends State<OverviewTab> {
                       style: TextStyle(
                         fontSize: 12,
                         height: 1.35,
-                        color: Colors.white.withValues(alpha: 0.70),
+                        color: Colors.white.withOpacity(0.70),
                         fontWeight: FontWeight.w400,
                       ),
                     ),
@@ -500,10 +486,10 @@ class _OverviewTabState extends State<OverviewTab> {
                       vertical: 3,
                     ),
                     decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.12),
+                      color: Colors.white.withOpacity(0.12),
                       borderRadius: BorderRadius.circular(20),
                       border: Border.all(
-                        color: Colors.white.withValues(alpha: 0.18),
+                        color: Colors.white.withOpacity(0.18),
                         width: 0.8,
                       ),
                     ),
@@ -521,7 +507,7 @@ class _OverviewTabState extends State<OverviewTab> {
                           style: TextStyle(
                             fontSize: 10.5,
                             fontWeight: FontWeight.w600,
-                            color: Colors.white.withValues(alpha: 0.90),
+                            color: Colors.white.withOpacity(0.90),
                           ),
                         ),
                       ],
@@ -610,7 +596,7 @@ class _OverviewTabState extends State<OverviewTab> {
         ),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF0F172A).withValues(alpha: 0.04),
+            color: const Color(0xFF0F172A).withOpacity(0.04),
             blurRadius: 12,
             offset: const Offset(0, 4),
           ),
@@ -621,8 +607,8 @@ class _OverviewTabState extends State<OverviewTab> {
         child: InkWell(
           onTap: onTap,
           borderRadius: BorderRadius.circular(18),
-          splashColor: gradientColors[0].withValues(alpha: 0.08),
-          highlightColor: gradientColors[0].withValues(alpha: 0.04),
+          splashColor: gradientColors[0].withOpacity(0.08),
+          highlightColor: gradientColors[0].withOpacity(0.04),
           child: Padding(
             padding: const EdgeInsets.all(15.0),
             child: Column(
@@ -644,7 +630,7 @@ class _OverviewTabState extends State<OverviewTab> {
                         borderRadius: BorderRadius.circular(12),
                         boxShadow: [
                           BoxShadow(
-                            color: gradientColors[0].withValues(alpha: 0.30),
+                            color: gradientColors[0].withOpacity(0.30),
                             blurRadius: 8,
                             offset: const Offset(0, 3),
                           ),
@@ -703,7 +689,7 @@ class _OverviewTabState extends State<OverviewTab> {
         ),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF0F172A).withValues(alpha: 0.04),
+            color: const Color(0xFF0F172A).withOpacity(0.04),
             blurRadius: 12,
             offset: const Offset(0, 4),
           ),
@@ -723,8 +709,8 @@ class _OverviewTabState extends State<OverviewTab> {
             ),
           ),
           borderRadius: BorderRadius.circular(18),
-          splashColor: const Color(0xFFEC4899).withValues(alpha: 0.08),
-          highlightColor: const Color(0xFFEC4899).withValues(alpha: 0.04),
+          splashColor: const Color(0xFFEC4899).withOpacity(0.08),
+          highlightColor: const Color(0xFFEC4899).withOpacity(0.04),
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
             child: Row(
@@ -741,7 +727,7 @@ class _OverviewTabState extends State<OverviewTab> {
                     borderRadius: BorderRadius.circular(14),
                     boxShadow: [
                       BoxShadow(
-                        color: const Color(0xFFEC4899).withValues(alpha: 0.30),
+                        color: const Color(0xFFEC4899).withOpacity(0.30),
                         blurRadius: 8,
                         offset: const Offset(0, 3),
                       ),
@@ -812,7 +798,7 @@ class _OverviewTabState extends State<OverviewTab> {
         ),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF0F172A).withValues(alpha: 0.04),
+            color: const Color(0xFF0F172A).withOpacity(0.04),
             blurRadius: 12,
             offset: const Offset(0, 4),
           ),
@@ -828,8 +814,8 @@ class _OverviewTabState extends State<OverviewTab> {
             ),
           ),
           borderRadius: BorderRadius.circular(18),
-          splashColor: const Color(0xFF6366F1).withValues(alpha: 0.08),
-          highlightColor: const Color(0xFF6366F1).withValues(alpha: 0.04),
+          splashColor: const Color(0xFF6366F1).withOpacity(0.08),
+          highlightColor: const Color(0xFF6366F1).withOpacity(0.04),
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
             child: Row(
@@ -846,7 +832,7 @@ class _OverviewTabState extends State<OverviewTab> {
                     borderRadius: BorderRadius.circular(14),
                     boxShadow: [
                       BoxShadow(
-                        color: const Color(0xFF6366F1).withValues(alpha: 0.30),
+                        color: const Color(0xFF6366F1).withOpacity(0.30),
                         blurRadius: 8,
                         offset: const Offset(0, 3),
                       ),

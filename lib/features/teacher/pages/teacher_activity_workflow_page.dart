@@ -8,6 +8,7 @@ import 'package:pragatix/features/activity/models/activity_model.dart';
 import 'package:pragatix/features/auth/providers/auth_provider.dart';
 import 'package:pragatix/features/teacher/services/teacher_proxy_service.dart';
 import 'package:pragatix/core/utils/error_handler.dart';
+import 'activity_marking_history_sheet.dart';
 
 class TeacherActivityWorkflowPage extends StatefulWidget {
   final ActivityModel activity;
@@ -43,6 +44,7 @@ class _TeacherActivityWorkflowPageState
   // Selected state
   dynamic _selectedYear;
   dynamic _selectedDept;
+  dynamic _selectedSection;
   int? _assignmentId;
 
   List<dynamic> _availableYearsList = [];
@@ -407,16 +409,36 @@ class _TeacherActivityWorkflowPageState
     if (_hasSections) {
       setState(() => _currentFlowStep = 3);
     } else {
-      setState(() => _currentFlowStep = 4);
+      setState(() {
+        _selectedSection = null;
+        _currentFlowStep = 4;
+      });
       _fetchStudentsFinal(null);
     }
   }
 
   void _onSectionSelected(dynamic sec) {
     setState(() {
+      _selectedSection = sec;
       _currentFlowStep = 4;
     });
     _fetchStudentsFinal(sec);
+  }
+
+  void _openHistorySheet() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => ActivityMarkingHistorySheet(
+        activity: widget.activity,
+        selectedYear: _selectedYear,
+        selectedDept: _selectedDept,
+        selectedSection: _selectedSection,
+        stageId: widget.stageId,
+        academicYear: widget.academicYear,
+      ),
+    );
   }
 
   List<dynamic> get _filteredDepts {
@@ -523,6 +545,45 @@ class _TeacherActivityWorkflowPageState
             ),
             onPressed: _handleBackNavigation,
           ),
+          actions: [
+            if (_currentFlowStep == 4)
+              Center(
+                child: Padding(
+                  padding: const EdgeInsets.only(right: 14.0),
+                  child: InkWell(
+                    onTap: _openHistorySheet,
+                    borderRadius: BorderRadius.circular(20),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.18),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: Colors.white.withValues(alpha: 0.35),
+                          width: 1,
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: const [
+                          Icon(Icons.history_rounded, size: 15, color: Colors.white),
+                          SizedBox(width: 4),
+                          Text(
+                            'History',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 12,
+                              letterSpacing: 0.2,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+          ],
         ),
         body: _isLoading
             ? const Center(
@@ -888,9 +949,9 @@ class _TeacherActivityWorkflowPageState
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                           decoration: BoxDecoration(
-                            color: awardColor.withOpacity(0.1),
+                            color: awardColor.withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: awardColor.withOpacity(0.3)),
+                            border: Border.all(color: awardColor.withValues(alpha: 0.3)),
                           ),
                           child: Text('Award: $awardAmount', style: TextStyle(color: awardColor, fontSize: 12, fontWeight: FontWeight.bold)),
                         ),
@@ -898,9 +959,9 @@ class _TeacherActivityWorkflowPageState
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                           decoration: BoxDecoration(
-                            color: penaltyColor.withOpacity(0.1),
+                            color: penaltyColor.withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: penaltyColor.withOpacity(0.3)),
+                            border: Border.all(color: penaltyColor.withValues(alpha: 0.3)),
                           ),
                           child: Text('Penalty: -$penaltyAmount', style: TextStyle(color: penaltyColor, fontSize: 12, fontWeight: FontWeight.bold)),
                         ),
@@ -913,9 +974,9 @@ class _TeacherActivityWorkflowPageState
                         vertical: 6,
                       ),
                       decoration: BoxDecoration(
-                        color: (isOnlyPenalty ? penaltyColor : awardColor).withOpacity(0.1),
+                        color: (isOnlyPenalty ? penaltyColor : awardColor).withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: (isOnlyPenalty ? penaltyColor : awardColor).withOpacity(0.3)),
+                        border: Border.all(color: (isOnlyPenalty ? penaltyColor : awardColor).withValues(alpha: 0.3)),
                       ),
                       child: Text(
                         '${isOnlyPenalty ? 'Penalty' : 'Award'}: ${isOnlyPenalty ? "-$penaltyAmount" : awardAmount} XP',

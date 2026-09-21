@@ -11,6 +11,8 @@ import 'package:pragatix/shared/widgets/shared_profile_card.dart';
 import 'package:pragatix/features/auth/providers/auth_provider.dart';
 import 'package:pragatix/features/attendance/providers/attendance_provider.dart';
 import 'package:pragatix/core/utils/error_handler.dart';
+import 'package:pragatix/core/widgets/pragatix_loader.dart';
+import 'package:pragatix/shared/widgets/shared_logout_button.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -66,22 +68,46 @@ class _ProfilePageState extends State<ProfilePage> {
     }
   }
 
-  Future<void> _handleLogout() async {
-    final authProvider = context.read<AuthProvider>();
-    await authProvider.logout();
-    if (mounted) {
-      Navigator.pushNamedAndRemoveUntil(
-        context,
-        '/',
-        (route) => false,
-      );
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
-      return const Center(child: CircularProgressIndicator());
+      return Scaffold(
+        backgroundColor: const Color(0xFFF8FAFC),
+        appBar: AppBar(
+          backgroundColor: Colors.white,
+          elevation: 0,
+          centerTitle: true,
+          leading: Navigator.canPop(context)
+              ? IconButton(
+                  icon: const Icon(
+                    Icons.arrow_back_ios_new_rounded,
+                    color: Color(0xFF0F172A),
+                    size: 20,
+                  ),
+                  onPressed: () => Navigator.pop(context),
+                )
+              : null,
+          title: const Text(
+            'Profile',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w800,
+              color: Color(0xFF0F172A),
+              letterSpacing: -0.3,
+            ),
+          ),
+          bottom: PreferredSize(
+            preferredSize: const Size.fromHeight(1),
+            child: Container(
+              color: const Color(0xFFF1F5F9),
+              height: 1,
+            ),
+          ),
+        ),
+        body: const Center(
+          child: PragatiXLoader(fullScreen: false, message: 'Loading Profile...'),
+        ),
+      );
     }
 
     if (_error != null) {
@@ -120,14 +146,34 @@ class _ProfilePageState extends State<ProfilePage> {
     }
 
     if (_profile == null) {
-      return const Center(child: Text('Profile not found'));
+      return Scaffold(
+        backgroundColor: const Color(0xFFF8FAFC),
+        appBar: AppBar(
+          backgroundColor: Colors.white,
+          elevation: 0,
+          centerTitle: true,
+          leading: Navigator.canPop(context)
+              ? IconButton(
+                  icon: const Icon(
+                    Icons.arrow_back_ios_new_rounded,
+                    color: Color(0xFF0F172A),
+                    size: 20,
+                  ),
+                  onPressed: () => Navigator.pop(context),
+                )
+              : null,
+          title: const Text(
+            'Profile',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w800,
+              color: Color(0xFF0F172A),
+            ),
+          ),
+        ),
+        body: const Center(child: Text('Profile not found')),
+      );
     }
-
-    final String resolvedGender = _profile!.gender ?? _profile!.studentDetails?.gender ?? '';
-    final bool isFemale = resolvedGender.trim().toLowerCase().startsWith('f');
-    final String? avatarAsset = _profile!.studentDetails != null
-        ? (isFemale ? 'assets/images/avatar_female.png' : 'assets/images/avatar_male.png')
-        : null;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
@@ -174,8 +220,7 @@ class _ProfilePageState extends State<ProfilePage> {
               SharedProfileHeader(
                 title: _profile!.fullName,
                 subtitle: _profile!.role,
-                icon: Icons.person,
-                imageAsset: avatarAsset,
+                icon: Icons.person_outline_rounded,
                 isCaptain: _profile!.studentDetails?.isCaptain ?? false,
                 isViceCaptain: _profile!.studentDetails?.isViceCaptain ?? false,
               ),
@@ -209,6 +254,8 @@ class _ProfilePageState extends State<ProfilePage> {
 
               const SizedBox(height: 24),
               _buildQuickActions(),
+              const SizedBox(height: 16),
+              const SharedLogoutButton(),
             ],
           ),
         ),
@@ -461,42 +508,25 @@ class _ProfilePageState extends State<ProfilePage> {
   Widget _buildQuickActions() {
     final isSuperAdmin = _profile!.superAdminDetails != null;
 
+    if (!isSuperAdmin) {
+      return const SizedBox.shrink();
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        if (isSuperAdmin) ...[
-          ElevatedButton.icon(
-            onPressed: _refreshDbCache,
-            icon: const Icon(Icons.cached_rounded),
-            label: const Text('Refresh DB Cache'),
-            style: ElevatedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              backgroundColor: const Color(0xFF4F46E5),
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-              ),
-              elevation: 0,
-            ),
-          ),
-          const SizedBox(height: 12),
-        ],
         ElevatedButton.icon(
-          onPressed: _handleLogout,
-          icon: const Icon(Icons.logout_rounded, size: 20),
-          label: const Text(
-            'Logout',
-            style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
-          ),
+          onPressed: _refreshDbCache,
+          icon: const Icon(Icons.cached_rounded),
+          label: const Text('Refresh DB Cache'),
           style: ElevatedButton.styleFrom(
             padding: const EdgeInsets.symmetric(vertical: 16),
-            backgroundColor: const Color(0xFFEF4444),
+            backgroundColor: const Color(0xFF4F46E5),
             foregroundColor: Colors.white,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(16),
             ),
             elevation: 0,
-            shadowColor: Colors.transparent,
           ),
         ),
       ],

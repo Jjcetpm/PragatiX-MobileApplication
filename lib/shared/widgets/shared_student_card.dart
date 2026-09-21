@@ -25,7 +25,6 @@ class SharedStudentCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final String g = (gender ?? '').trim().toLowerCase();
     final bool isFemale = g.startsWith('f') || g == 'girl';
-    final String avatarAsset = isFemale ? 'assets/images/avatar_female.png' : 'assets/images/avatar_male.png';
 
     return Card(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -43,16 +42,13 @@ class SharedStudentCard extends StatelessWidget {
               width: 1.2,
             ),
           ),
-          child: ClipOval(
-            child: Image.asset(
-              avatarAsset,
-              width: 44,
-              height: 44,
-              fit: BoxFit.cover,
-              alignment: Alignment.topCenter,
-              errorBuilder: (context, error, stackTrace) => CircleAvatar(
-                backgroundColor: themeColor.withValues(alpha: 0.1),
-                child: Icon(Icons.person, color: themeColor),
+          child: Center(
+            child: Text(
+              name.isNotEmpty ? name[0].toUpperCase() : 'S',
+              style: TextStyle(
+                fontWeight: FontWeight.w800,
+                fontSize: 16,
+                color: isFemale ? const Color(0xFFDB2777) : const Color(0xFF2563EB),
               ),
             ),
           ),

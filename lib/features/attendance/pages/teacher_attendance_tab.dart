@@ -13,7 +13,8 @@ import 'package:pragatix/core/utils/error_handler.dart';
 import 'package:pragatix/features/admin/repository/admin_repository.dart';
 
 class TeacherAttendanceTab extends StatefulWidget {
-  const TeacherAttendanceTab({Key? key}) : super(key: key);
+  final bool hideAppBar;
+  const TeacherAttendanceTab({Key? key, this.hideAppBar = false}) : super(key: key);
 
   @override
   State<TeacherAttendanceTab> createState() => _TeacherAttendanceTabState();
@@ -450,15 +451,18 @@ class _TeacherAttendanceTabState extends State<TeacherAttendanceTab> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
-      appBar: AppBar(
-        title: const Text(
-          'Mark Attendance',
-          style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
-        ),
-        backgroundColor: const Color(0xFF1E293B),
-        elevation: 0,
-      ),
+      appBar: widget.hideAppBar
+          ? null
+          : AppBar(
+              title: const Text(
+                'Mark Attendance',
+                style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
+              ),
+              backgroundColor: const Color(0xFF1E293B),
+              elevation: 0,
+            ),
       body: Stack(
+        fit: StackFit.expand,
         children: [
           Column(
             children: [
@@ -478,7 +482,7 @@ class _TeacherAttendanceTabState extends State<TeacherAttendanceTab> {
             const Positioned.fill(
               child: PragatiXLoader(
                 message: 'Loading attendance...',
-                fullScreen: true,
+                fullScreen: false,
               ),
             ),
         ],

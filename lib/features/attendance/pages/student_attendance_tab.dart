@@ -37,7 +37,9 @@ class DayAttendanceSummary {
 }
 
 class StudentAttendanceTab extends StatefulWidget {
-  const StudentAttendanceTab({super.key});
+  final VoidCallback? onBack;
+
+  const StudentAttendanceTab({super.key, this.onBack});
 
   @override
   State<StudentAttendanceTab> createState() => _StudentAttendanceTabState();
@@ -48,7 +50,40 @@ class _StudentAttendanceTabState extends State<StudentAttendanceTab> {
   List<StudentAttendanceHistory>? _history;
   bool _isLoadingHistory = true;
   DateTime? _selectedDate;
-  String _calendarViewFilter = 'This Week';
+  DateTime _selectedMonth = DateTime(DateTime.now().year, DateTime.now().month, 1);
+
+  void _changeMonth(int offset) {
+    setState(() {
+      _selectedMonth = DateTime(_selectedMonth.year, _selectedMonth.month + offset, 1);
+    });
+  }
+
+  Future<void> _selectMonth(BuildContext context) async {
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: _selectedMonth,
+      firstDate: DateTime(2020),
+      lastDate: DateTime.now().add(const Duration(days: 365)),
+      initialDatePickerMode: DatePickerMode.year,
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: const ColorScheme.light(
+              primary: Color(0xFF4F46E5),
+              onPrimary: Colors.white,
+              onSurface: Color(0xFF1E293B),
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+    if (picked != null) {
+      setState(() {
+        _selectedMonth = DateTime(picked.year, picked.month, 1);
+      });
+    }
+  }
 
   @override
   void initState() {
@@ -172,7 +207,7 @@ class _StudentAttendanceTabState extends State<StudentAttendanceTab> {
           final dayMap = _buildDayAttendanceMap();
 
           return RefreshIndicator(
-            color: const Color(0xFF4F46E5),
+            color: const Color(0xFF0284C7),
             onRefresh: () async {
               await provider.fetchSummary();
               await _fetchHistory();
@@ -185,7 +220,7 @@ class _StudentAttendanceTabState extends State<StudentAttendanceTab> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // 1. Top Dark Indigo Header with Safe Area
-                  _buildDarkHeader(provider.currentStreak),
+                  _buildDarkHeader(),
 
                   // 2. Main Content Body with smooth overlap
                   Transform.translate(
@@ -196,14 +231,14 @@ class _StudentAttendanceTabState extends State<StudentAttendanceTab> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           // 2. Overall Attendance Hero Card
-                          _buildOverallAttendanceCard(summary),
+                          _buildOverallAttendanceCard(summary, dayMap),
                           const SizedBox(height: 16),
 
-                          // 3. Dual Metrics: This Month & This Week Cards
-                          _buildDualMetricCards(summary),
+                          // 3. This Month Card
+                          _buildMonthMetricCard(summary, dayMap),
                           const SizedBox(height: 16),
 
-                          // 4. Monthly / Weekly Overview Calendar Strip
+                          // 4. Monthly Overview Calendar Strip
                           _buildCalendarSection(dayMap),
                           const SizedBox(height: 20),
 
@@ -225,13 +260,13 @@ class _StudentAttendanceTabState extends State<StudentAttendanceTab> {
     );
   }
 
-  // ── 1. Top Dark Indigo Header ──────────────────────────────────────────────
-  Widget _buildDarkHeader(int streakCount) {
+  // ── 1. Top Sky Blue Header ────────────────────────────────────────────────
+  Widget _buildDarkHeader() {
     return Container(
       width: double.infinity,
       decoration: const BoxDecoration(
         gradient: LinearGradient(
-          colors: [Color(0xFF1E1B4B), Color(0xFF312E81)],
+          colors: [Color(0xFF0284C7), Color(0xFF38BDF8)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -240,49 +275,62 @@ class _StudentAttendanceTabState extends State<StudentAttendanceTab> {
         bottom: false,
         child: Padding(
           padding: const EdgeInsets.fromLTRB(20, 16, 20, 48),
-          child: Stack(
-            clipBehavior: Clip.none,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // 3D Calendar & Clock Illustration positioned on the right
-              Positioned(
-                right: 25,
-                top: -12,
-                child: Opacity(
-                  opacity: 0.95,
-                  child: Image.asset(
-                    'assets/images/attendance_calendar_clock.png',
-                    height: 85,
-                    fit: BoxFit.contain,
-                    errorBuilder: (_, __, ___) => const SizedBox.shrink(),
-                  ),
-                ),
-              ),
-
-              // Title & Subtitle + Streak Row
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              Row(
                 children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text(
-                        'Attendance',
-                        style: TextStyle(
-                          fontSize: 24,
-                          fontWeight: FontWeight.w800,
-                          color: Colors.white,
-                          letterSpacing: -0.5,
+                  InkWell(
+                    onTap: () {
+                      if (widget.onBack != null) {
+                        widget.onBack!();
+                      } else if (Navigator.canPop(context)) {
+                        Navigator.pop(context);
+                      }
+                    },
+                    borderRadius: BorderRadius.circular(12),
+                    child: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.18),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: Colors.white.withValues(alpha: 0.3),
+                          width: 1,
                         ),
                       ),
-                      // Streak Pill Badge
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                      child: const Icon(
+                        Icons.arrow_back_rounded,
+                        size: 20,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  const Expanded(
+                    child: Text(
+                      'Attendance',
+                      style: TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w800,
+                        color: Colors.white,
+                        letterSpacing: -0.5,
+                      ),
+                    ),
+                  ),
+                  Consumer<AttendanceProvider>(
+                    builder: (context, provider, child) {
+                      return Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 5,
+                        ),
                         decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.14),
-                          borderRadius: BorderRadius.circular(18),
+                          color: Colors.white.withValues(alpha: 0.2),
+                          borderRadius: BorderRadius.circular(16),
                           border: Border.all(
-                            color: Colors.white.withValues(alpha: 0.25),
-                            width: 1.2,
+                            color: Colors.white.withValues(alpha: 0.3),
+                            width: 1,
                           ),
                         ),
                         child: Row(
@@ -291,7 +339,7 @@ class _StudentAttendanceTabState extends State<StudentAttendanceTab> {
                             const Text('🔥', style: TextStyle(fontSize: 14)),
                             const SizedBox(width: 4),
                             Text(
-                              '$streakCount',
+                              '${provider.currentStreak}',
                               style: const TextStyle(
                                 fontWeight: FontWeight.bold,
                                 fontSize: 13,
@@ -300,19 +348,19 @@ class _StudentAttendanceTabState extends State<StudentAttendanceTab> {
                             ),
                           ],
                         ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    'Track your attendance & stay consistent.',
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: Colors.white.withValues(alpha: 0.8),
-                      height: 1.3,
-                    ),
+                      );
+                    },
                   ),
                 ],
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'Track your attendance & stay consistent.',
+                style: TextStyle(
+                  fontSize: 13,
+                  color: Colors.white.withValues(alpha: 0.9),
+                  height: 1.3,
+                ),
               ),
             ],
           ),
@@ -322,10 +370,33 @@ class _StudentAttendanceTabState extends State<StudentAttendanceTab> {
   }
 
   // ── 2. Overall Attendance Hero Card ────────────────────────────────────────
-  Widget _buildOverallAttendanceCard(StudentAttendanceSummary summary) {
-    final double percentDouble = (summary.attendancePercentage / 100.0).clamp(0.0, 1.0);
-    final int percentInt = summary.attendancePercentage.toInt();
-    final int totalDays = summary.totalPresentDays + summary.totalAbsentDays;
+  Widget _buildOverallAttendanceCard(
+    StudentAttendanceSummary summary,
+    Map<String, DayAttendanceSummary> dayMap,
+  ) {
+    // Calculate total days from actual day-wise records
+    int calcPresent = 0;
+    int calcAbsent = 0;
+    for (var day in dayMap.values) {
+      final st = day.overallStatus;
+      if (st == 'P' || st == 'PARTIAL') calcPresent++;
+      if (st == 'A') calcAbsent++;
+    }
+
+    // If dayMap has records, use actual calculated counts; otherwise fallback to summary
+    final int totalPresent = (calcPresent > 0 || calcAbsent > 0)
+        ? calcPresent
+        : summary.totalPresentDays;
+    final int totalAbsent = (calcPresent > 0 || calcAbsent > 0)
+        ? calcAbsent
+        : summary.totalAbsentDays;
+    final int totalDays = totalPresent + totalAbsent;
+
+    final double percentage = totalDays > 0
+        ? ((totalPresent / totalDays) * 100.0)
+        : (summary.attendancePercentage > 0 ? summary.attendancePercentage : 0.0);
+    final double percentDouble = (percentage / 100.0).clamp(0.0, 1.0);
+    final int percentInt = percentage.round();
 
     return Container(
       width: double.infinity,
@@ -371,8 +442,8 @@ class _StudentAttendanceTabState extends State<StudentAttendanceTab> {
                         child: CircularProgressIndicator(
                           value: percentDouble > 0 ? percentDouble : 0.001,
                           strokeWidth: 8,
-                          backgroundColor: const Color(0xFFEDE9FE),
-                          valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF6366F1)),
+                          backgroundColor: const Color(0xFFE0F2FE),
+                          valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF0284C7)),
                         ),
                       ),
                       Text(
@@ -389,13 +460,13 @@ class _StudentAttendanceTabState extends State<StudentAttendanceTab> {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFEEF2FF),
+                      color: const Color(0xFFE0F2FE),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: const Text(
                       'Keep it up!',
                       style: TextStyle(
-                        color: Color(0xFF6366F1),
+                        color: Color(0xFF0284C7),
                         fontWeight: FontWeight.bold,
                         fontSize: 11,
                       ),
@@ -410,16 +481,16 @@ class _StudentAttendanceTabState extends State<StudentAttendanceTab> {
                 child: Column(
                   children: [
                     _buildBreakdownRow(
-                      dotColor: const Color(0xFF6366F1),
+                      dotColor: const Color(0xFF0284C7),
                       label: 'Present Days',
-                      value: '${summary.totalPresentDays}',
+                      value: '$totalPresent',
                       valueColor: const Color(0xFF16A34A),
                     ),
                     const Divider(height: 20, color: Color(0xFFF1F5F9), thickness: 1),
                     _buildBreakdownRow(
                       dotColor: const Color(0xFFEF4444),
                       label: 'Absent Days',
-                      value: '${summary.totalAbsentDays}',
+                      value: '$totalAbsent',
                       valueColor: const Color(0xFFEF4444),
                     ),
                     const Divider(height: 20, color: Color(0xFFF1F5F9), thickness: 1),
@@ -482,150 +553,111 @@ class _StudentAttendanceTabState extends State<StudentAttendanceTab> {
     );
   }
 
-  // ── 3. Dual Metric Cards (This Month & This Week) ──────────────────────────
-  Widget _buildDualMetricCards(StudentAttendanceSummary summary) {
-    final int presentDays = summary.totalPresentDays;
-    final int totalDays = summary.totalPresentDays + summary.totalAbsentDays;
+  // ── 3. This Month Metric Card ──────────────────────────────────────────────
+  Widget _buildMonthMetricCard(
+    StudentAttendanceSummary summary,
+    Map<String, DayAttendanceSummary> dayMap,
+  ) {
+    final now = DateTime.now();
+    final bool isCurrentMonth =
+        _selectedMonth.year == now.year && _selectedMonth.month == now.month;
+    final String monthTitle =
+        isCurrentMonth ? 'This Month' : DateFormat('MMMM yyyy').format(_selectedMonth);
 
-    return Row(
-      children: [
-        // This Month Card
-        Expanded(
-          child: Container(
-            padding: const EdgeInsets.all(14),
+    // Calculate month stats from dayMap
+    int monthPresent = 0;
+    int monthAbsent = 0;
+    final daysInMonth = DateTime(_selectedMonth.year, _selectedMonth.month + 1, 0).day;
+
+    for (int d = 1; d <= daysInMonth; d++) {
+      final dt = DateTime(_selectedMonth.year, _selectedMonth.month, d);
+      final key = DateFormat('yyyy-MM-dd').format(dt);
+      if (dayMap.containsKey(key)) {
+        final st = dayMap[key]!.overallStatus;
+        if (st == 'P' || st == 'PARTIAL') monthPresent++;
+        if (st == 'A') monthAbsent++;
+      }
+    }
+
+    final int totalDays = monthPresent + monthAbsent;
+    final int presentDays = monthPresent;
+    final double percentage = totalDays > 0
+        ? (presentDays / totalDays * 100.0)
+        : (isCurrentMonth && summary.monthlyAttendancePercentage > 0
+            ? summary.monthlyAttendancePercentage
+            : 0.0);
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF0FDF4),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFFDCFCE7), width: 1.2),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF16A34A).withValues(alpha: 0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: const Color(0xFFF0FDF4),
-              borderRadius: BorderRadius.circular(18),
-              border: Border.all(color: const Color(0xFFDCFCE7), width: 1.2),
+              color: const Color(0xFFDCFCE7),
+              borderRadius: BorderRadius.circular(12),
             ),
-            child: Row(
+            child: const Icon(
+              Icons.calendar_month_rounded,
+              color: Color(0xFF16A34A),
+              size: 24,
+            ),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFDCFCE7),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Icon(
-                    Icons.calendar_month_rounded,
-                    color: Color(0xFF16A34A),
-                    size: 24,
+                Text(
+                  monthTitle,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF64748B),
                   ),
                 ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'This Month',
-                        style: TextStyle(
-                          fontSize: 11.5,
-                          fontWeight: FontWeight.w600,
-                          color: Color(0xFF64748B),
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        '${summary.monthlyAttendancePercentage.toStringAsFixed(1)}%',
-                        style: const TextStyle(
-                          fontSize: 17,
-                          fontWeight: FontWeight.w800,
-                          color: Color(0xFF16A34A),
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        '$presentDays Present of $totalDays Days',
-                        style: const TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w500,
-                          color: Color(0xFF64748B),
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
+                const SizedBox(height: 2),
+                Text(
+                  '$presentDays Present of $totalDays Days',
+                  style: const TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w500,
+                    color: Color(0xFF64748B),
                   ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ],
             ),
           ),
-        ),
-        const SizedBox(width: 12),
-
-        // This Week Card
-        Expanded(
-          child: Container(
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: const Color(0xFFF0F9FF),
-              borderRadius: BorderRadius.circular(18),
-              border: Border.all(color: const Color(0xFFE0F2FE), width: 1.2),
-            ),
-            child: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFE0F2FE),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Icon(
-                    Icons.date_range_rounded,
-                    color: Color(0xFF0284C7),
-                    size: 24,
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'This Week',
-                        style: TextStyle(
-                          fontSize: 11.5,
-                          fontWeight: FontWeight.w600,
-                          color: Color(0xFF64748B),
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        '${summary.attendancePercentage.toStringAsFixed(1)}%',
-                        style: const TextStyle(
-                          fontSize: 17,
-                          fontWeight: FontWeight.w800,
-                          color: Color(0xFF0284C7),
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        '$presentDays Present of $totalDays Days',
-                        style: const TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w500,
-                          color: Color(0xFF64748B),
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
-                  ),
-                ),
-              ],
+          Text(
+            '${percentage.toStringAsFixed(1)}%',
+            style: const TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.w800,
+              color: Color(0xFF16A34A),
             ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
-  // ── 4. Monthly / Weekly Overview Calendar Section ──────────────────────────
+  // ── 4. Monthly Overview Calendar Section ──────────────────────────────────
   Widget _buildCalendarSection(Map<String, DayAttendanceSummary> dayMap) {
-    final bool isMonthly = _calendarViewFilter == 'This Month';
-    final now = DateTime.now();
-
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(18),
@@ -644,22 +676,22 @@ class _StudentAttendanceTabState extends State<StudentAttendanceTab> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header row with Icon, Title, and Filter Dropdown
+          // Header row with Icon, Title, and Month Navigator Controls
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Row(
+              const Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(
+                  Icon(
                     Icons.calendar_month_rounded,
                     size: 18,
-                    color: Color(0xFF6366F1),
+                    color: Color(0xFF0284C7),
                   ),
-                  const SizedBox(width: 8),
+                  SizedBox(width: 8),
                   Text(
-                    isMonthly ? 'Monthly Overview' : 'Weekly Overview',
-                    style: const TextStyle(
+                    'Monthly Overview',
+                    style: TextStyle(
                       fontSize: 14.5,
                       fontWeight: FontWeight.bold,
                       color: Color(0xFF1E293B),
@@ -667,62 +699,76 @@ class _StudentAttendanceTabState extends State<StudentAttendanceTab> {
                   ),
                 ],
               ),
-              // Dropdown button
-              PopupMenuButton<String>(
-                initialValue: _calendarViewFilter,
-                onSelected: (val) {
-                  setState(() {
-                    _calendarViewFilter = val;
-                  });
-                },
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF8FAFC),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: const Color(0xFFE2E8F0)),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        _calendarViewFilter,
-                        style: const TextStyle(
-                          fontSize: 11.5,
-                          fontWeight: FontWeight.w700,
-                          color: Color(0xFF4F46E5),
+              // Month Switcher pill ( < Month Year > )
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF8FAFC),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    InkWell(
+                      onTap: () => _changeMonth(-1),
+                      borderRadius: BorderRadius.circular(8),
+                      child: const Padding(
+                        padding: EdgeInsets.all(4.0),
+                        child: Icon(
+                          Icons.chevron_left_rounded,
+                          size: 18,
+                          color: Color(0xFF0284C7),
                         ),
                       ),
-                      const SizedBox(width: 4),
-                      const Icon(
-                        Icons.keyboard_arrow_down_rounded,
-                        size: 16,
-                        color: Color(0xFF4F46E5),
+                    ),
+                    InkWell(
+                      onTap: () => _selectMonth(context),
+                      borderRadius: BorderRadius.circular(8),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              DateFormat('MMM yyyy').format(_selectedMonth),
+                              style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF0284C7),
+                              ),
+                            ),
+                            const SizedBox(width: 2),
+                            const Icon(
+                              Icons.keyboard_arrow_down_rounded,
+                              size: 14,
+                              color: Color(0xFF0284C7),
+                            ),
+                          ],
+                        ),
                       ),
-                    ],
-                  ),
+                    ),
+                    InkWell(
+                      onTap: () => _changeMonth(1),
+                      borderRadius: BorderRadius.circular(8),
+                      child: const Padding(
+                        padding: EdgeInsets.all(4.0),
+                        child: Icon(
+                          Icons.chevron_right_rounded,
+                          size: 18,
+                          color: Color(0xFF0284C7),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-                itemBuilder: (context) => [
-                  const PopupMenuItem(
-                    value: 'This Week',
-                    child: Text('This Week', style: TextStyle(fontSize: 13)),
-                  ),
-                  const PopupMenuItem(
-                    value: 'This Month',
-                    child: Text('This Month', style: TextStyle(fontSize: 13)),
-                  ),
-                ],
               ),
             ],
           ),
           const SizedBox(height: 18),
 
-          // Render Either Weekly Strip or Monthly Calendar Grid
-          if (!isMonthly)
-            _buildWeeklyStrip(dayMap, now)
-          else
-            _buildMonthlyGrid(dayMap, now),
+          // Render Monthly Calendar Grid
+          _buildMonthlyGrid(dayMap, _selectedMonth),
 
           const SizedBox(height: 18),
 
@@ -743,50 +789,10 @@ class _StudentAttendanceTabState extends State<StudentAttendanceTab> {
     );
   }
 
-  // ── Weekly Strip View ──────────────────────────────────────────────────────
-  Widget _buildWeeklyStrip(Map<String, DayAttendanceSummary> dayMap, DateTime now) {
-    final monday = now.subtract(Duration(days: now.weekday - 1));
-    final weekDays = List.generate(7, (i) => monday.add(Duration(days: i)));
-    final dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: List.generate(7, (index) {
-        final dt = weekDays[index];
-        final dayName = dayNames[index];
-        final status = _getStatusForDate(dt, dayMap);
-
-        return Column(
-          children: [
-            Text(
-              dayName,
-              style: const TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: Color(0xFF64748B),
-              ),
-            ),
-            const SizedBox(height: 2),
-            Text(
-              '${dt.day}',
-              style: const TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF1E293B),
-              ),
-            ),
-            const SizedBox(height: 6),
-            _buildStatusNode(status),
-          ],
-        );
-      }),
-    );
-  }
-
   // ── Monthly Grid View ──────────────────────────────────────────────────────
-  Widget _buildMonthlyGrid(Map<String, DayAttendanceSummary> dayMap, DateTime now) {
-    final daysInMonth = DateTime(now.year, now.month + 1, 0).day;
-    final firstDayWeekday = DateTime(now.year, now.month, 1).weekday; // 1 = Mon, 7 = Sun
+  Widget _buildMonthlyGrid(Map<String, DayAttendanceSummary> dayMap, DateTime displayMonth) {
+    final daysInMonth = DateTime(displayMonth.year, displayMonth.month + 1, 0).day;
+    final firstDayWeekday = DateTime(displayMonth.year, displayMonth.month, 1).weekday; // 1 = Mon, 7 = Sun
     final dayHeaders = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
 
     final totalCells = (firstDayWeekday - 1) + daysInMonth;
@@ -801,11 +807,11 @@ class _StudentAttendanceTabState extends State<StudentAttendanceTab> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                DateFormat('MMMM yyyy').format(now),
+                DateFormat('MMMM yyyy').format(displayMonth),
                 style: const TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.bold,
-                  color: Color(0xFF4F46E5),
+                  color: Color(0xFF0284C7),
                 ),
               ),
               Text(
@@ -855,7 +861,7 @@ class _StudentAttendanceTabState extends State<StudentAttendanceTab> {
                   return const SizedBox(width: 32, height: 32);
                 }
 
-                final cellDate = DateTime(now.year, now.month, dayNumber);
+                final cellDate = DateTime(displayMonth.year, displayMonth.month, dayNumber);
                 final status = _getStatusForDate(cellDate, dayMap);
 
                 return SizedBox(
@@ -1054,15 +1060,17 @@ class _StudentAttendanceTabState extends State<StudentAttendanceTab> {
         ),
         child: Column(
           children: [
-            // Clipboard with magnifying glass illustration
-            Image.asset(
-              'assets/images/attendance_clipboard_empty.png',
-              height: 100,
-              fit: BoxFit.contain,
-              errorBuilder: (_, __, ___) => const Icon(
+            // Empty icon
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: const BoxDecoration(
+                shape: BoxShape.circle,
+                color: Color(0xFFF1F5F9),
+              ),
+              child: const Icon(
                 Icons.assignment_outlined,
-                size: 56,
-                color: Color(0xFFCBD5E1),
+                size: 40,
+                color: Color(0xFF94A3B8),
               ),
             ),
             const SizedBox(height: 12),

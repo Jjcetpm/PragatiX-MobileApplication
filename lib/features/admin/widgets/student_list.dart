@@ -122,9 +122,6 @@ class StudentList extends StatelessWidget {
         }
 
         final bool isFemale = genderStr.startsWith('f') || genderStr == 'girl' || genderStr == 'woman';
-        final String avatarAsset = isFemale
-            ? 'assets/images/avatar_female.png'
-            : 'assets/images/avatar_male.png';
 
         return Container(
           margin: const EdgeInsets.only(bottom: 12),
@@ -192,18 +189,13 @@ class StudentList extends StatelessWidget {
                           ),
                         ],
                       ),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(12.8),
-                        child: Image.asset(
-                          avatarAsset,
-                          width: 48,
-                          height: 48,
-                          fit: BoxFit.cover,
-                          alignment: Alignment.topCenter,
-                          errorBuilder: (context, error, stackTrace) => Icon(
-                            isFemale ? Icons.female_rounded : Icons.male_rounded,
+                      child: Center(
+                        child: Text(
+                          name.isNotEmpty ? name[0].toUpperCase() : 'S',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w800,
+                            fontSize: 18,
                             color: isFemale ? const Color(0xFFDB2777) : const Color(0xFF2563EB),
-                            size: 24,
                           ),
                         ),
                       ),

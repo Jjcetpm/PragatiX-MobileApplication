@@ -17,6 +17,7 @@ class AdminAttendanceHistorySheet extends StatefulWidget {
   final int? initialPeriod;
   final List<dynamic> years;
   final List<dynamic> departments;
+  final List<String>? subRoles;
 
   const AdminAttendanceHistorySheet({
     super.key,
@@ -27,6 +28,7 @@ class AdminAttendanceHistorySheet extends StatefulWidget {
     this.initialPeriod,
     this.years = const [],
     this.departments = const [],
+    this.subRoles,
   });
 
   @override
@@ -70,6 +72,36 @@ class _AdminAttendanceHistorySheetState extends State<AdminAttendanceHistoryShee
     }
 
     return hasAdmin && !hasSuperAdmin;
+  }
+
+  bool get isCC {
+    final List<dynamic> subs = widget.subRoles ?? [];
+    final user = getIt<AuthProvider>().currentUser;
+    final roles = (user?['roles'] as List<dynamic>?) ?? [];
+    final userSubs = (user?['subRoles'] as List<dynamic>?) ?? [];
+
+    final all = [...subs, ...roles, ...userSubs].map((r) {
+      if (r is String) return r.toUpperCase().trim();
+      if (r is Map) return (r['name'] ?? '').toString().toUpperCase().trim();
+      return r.toString().toUpperCase().trim();
+    }).toList();
+
+    final bool hasAdminOrHod = all.any((r) =>
+        r == 'ROLE_ADMIN' ||
+        r == 'ADMIN' ||
+        r == 'ROLE_SUPER_ADMIN' ||
+        r == 'ROLE_SUPERADMIN' ||
+        r == 'SUPER_ADMIN' ||
+        r == 'SUPERADMIN' ||
+        r == 'HOD' ||
+        r == 'ROLE_HOD');
+    if (hasAdminOrHod) return false;
+
+    return all.any((r) =>
+        r == 'CC' ||
+        r == 'CLASS_COORDINATOR' ||
+        r == 'ROLE_CLASS_COORDINATOR' ||
+        r == 'ROLE_CC');
   }
 
   @override
@@ -353,32 +385,70 @@ class _AdminAttendanceHistorySheetState extends State<AdminAttendanceHistoryShee
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          if (isCC)
+            Container(
+              margin: const EdgeInsets.only(bottom: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: const Color(0xFFEFF6FF),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: const Color(0xFFBFDBFE)),
+              ),
+              child: Row(
+                children: const [
+                  Icon(Icons.lock_rounded, size: 16, color: Color(0xFF2563EB)),
+                  SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Class filters are locked to your assigned class.',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF1D4ED8),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
           // 1. Academic Year (Super Admin ONLY)
           if (!isYearAdmin) ...[
             DropdownButtonFormField<int?>(
               isExpanded: true,
               value: (_selectedYearId != null && _years.any((y) => y['id'] == _selectedYearId)) ? _selectedYearId : null,
               decoration: InputDecoration(
-                labelText: 'Academic Year',
+                labelText: isCC ? 'Academic Year (Assigned)' : 'Academic Year',
                 contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                fillColor: isCC ? const Color(0xFFF8FAFC) : null,
+                filled: isCC,
+                suffixIcon: isCC ? const Icon(Icons.lock_rounded, size: 18, color: Color(0xFF94A3B8)) : null,
               ),
-              items: [
-                const DropdownMenuItem<int?>(
-                  value: null,
-                  child: Text('All Academic Years'),
-                ),
-                ..._years.where((y) => y['id'] != null).map<DropdownMenuItem<int?>>((y) {
-                  return DropdownMenuItem<int?>(
-                    value: y['id'] as int,
-                    child: Text(y['yearName']?.toString() ?? y['yearNo']?.toString() ?? 'Unknown'),
-                  );
-                }).toList(),
-              ],
-              onChanged: (v) {
-                setState(() => _selectedYearId = v);
-                _fetchHistory();
-              },
+              items: isCC
+                  ? _years.where((y) => y['id'] != null && y['id'] == _selectedYearId).map<DropdownMenuItem<int?>>((y) {
+                      return DropdownMenuItem<int?>(
+                        value: y['id'] as int,
+                        child: Text(y['yearName']?.toString() ?? y['yearNo']?.toString() ?? 'Unknown'),
+                      );
+                    }).toList()
+                  : [
+                      const DropdownMenuItem<int?>(
+                        value: null,
+                        child: Text('All Academic Years'),
+                      ),
+                      ..._years.where((y) => y['id'] != null).map<DropdownMenuItem<int?>>((y) {
+                        return DropdownMenuItem<int?>(
+                          value: y['id'] as int,
+                          child: Text(y['yearName']?.toString() ?? y['yearNo']?.toString() ?? 'Unknown'),
+                        );
+                      }).toList(),
+                    ],
+              onChanged: isCC
+                  ? null
+                  : (v) {
+                      setState(() => _selectedYearId = v);
+                      _fetchHistory();
+                    },
             ),
             const SizedBox(height: 10),
           ],
@@ -388,33 +458,45 @@ class _AdminAttendanceHistorySheetState extends State<AdminAttendanceHistoryShee
             isExpanded: true,
             value: (_selectedDeptId != null && _departments.any((d) => d['id'] == _selectedDeptId)) ? _selectedDeptId : null,
             decoration: InputDecoration(
-              labelText: 'Department',
+              labelText: isCC ? 'Department (Assigned)' : 'Department',
               contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
               border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+              fillColor: isCC ? const Color(0xFFF8FAFC) : null,
+              filled: isCC,
+              suffixIcon: isCC ? const Icon(Icons.lock_rounded, size: 18, color: Color(0xFF94A3B8)) : null,
             ),
-            items: [
-              const DropdownMenuItem<int?>(
-                value: null,
-                child: Text('All Departments'),
-              ),
-              ..._departments.where((d) => d['id'] != null).map<DropdownMenuItem<int?>>((d) {
-                return DropdownMenuItem<int?>(
-                  value: d['id'] as int,
-                  child: Text(d['name']?.toString() ?? d['deptName']?.toString() ?? d['code']?.toString() ?? 'Unknown'),
-                );
-              }).toList(),
-            ],
-            onChanged: (v) {
-              setState(() {
-                _selectedDeptId = v;
-                _selectedSectionId = null;
-                _sections = [];
-                if (v != null) {
-                  _loadSections(v);
-                }
-              });
-              _fetchHistory();
-            },
+            items: isCC
+                ? _departments.where((d) => d['id'] != null && d['id'] == _selectedDeptId).map<DropdownMenuItem<int?>>((d) {
+                    return DropdownMenuItem<int?>(
+                      value: d['id'] as int,
+                      child: Text(d['name']?.toString() ?? d['deptName']?.toString() ?? d['code']?.toString() ?? 'Unknown'),
+                    );
+                  }).toList()
+                : [
+                    const DropdownMenuItem<int?>(
+                      value: null,
+                      child: Text('All Departments'),
+                    ),
+                    ..._departments.where((d) => d['id'] != null).map<DropdownMenuItem<int?>>((d) {
+                      return DropdownMenuItem<int?>(
+                        value: d['id'] as int,
+                        child: Text(d['name']?.toString() ?? d['deptName']?.toString() ?? d['code']?.toString() ?? 'Unknown'),
+                      );
+                    }).toList(),
+                  ],
+            onChanged: isCC
+                ? null
+                : (v) {
+                    setState(() {
+                      _selectedDeptId = v;
+                      _selectedSectionId = null;
+                      _sections = [];
+                      if (v != null) {
+                        _loadSections(v);
+                      }
+                    });
+                    _fetchHistory();
+                  },
           ),
           const SizedBox(height: 10),
 
@@ -425,30 +507,40 @@ class _AdminAttendanceHistorySheetState extends State<AdminAttendanceHistoryShee
                 ? _selectedSectionId
                 : null,
             decoration: InputDecoration(
-              labelText: 'Section',
+              labelText: isCC ? 'Section (Assigned)' : 'Section',
               contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
               border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+              fillColor: isCC ? const Color(0xFFF8FAFC) : null,
+              filled: isCC,
+              suffixIcon: isCC ? const Icon(Icons.lock_rounded, size: 18, color: Color(0xFF94A3B8)) : null,
               hintText: _selectedDeptId == null
                   ? 'Select Department First'
                   : (_isLoadingSections
                       ? 'Loading Sections...'
                       : (filteredSections.isEmpty ? 'No Sections Available' : 'All Sections')),
             ),
-            items: _selectedDeptId == null || filteredSections.isEmpty
-                ? null
-                : [
-                    const DropdownMenuItem<int?>(
-                      value: null,
-                      child: Text('All Sections'),
-                    ),
-                    ...filteredSections.where((s) => s['id'] != null).map<DropdownMenuItem<int?>>((s) {
-                      return DropdownMenuItem<int?>(
-                        value: s['id'] as int,
-                        child: Text(s['sectionName']?.toString() ?? 'Unknown'),
-                      );
-                    }).toList(),
-                  ],
-            onChanged: _selectedDeptId == null || filteredSections.isEmpty
+            items: isCC
+                ? filteredSections.where((s) => s['id'] != null && s['id'] == _selectedSectionId).map<DropdownMenuItem<int?>>((s) {
+                    return DropdownMenuItem<int?>(
+                      value: s['id'] as int,
+                      child: Text(s['sectionName']?.toString() ?? 'Section'),
+                    );
+                  }).toList()
+                : (_selectedDeptId == null || filteredSections.isEmpty
+                    ? null
+                    : [
+                        const DropdownMenuItem<int?>(
+                          value: null,
+                          child: Text('All Sections'),
+                        ),
+                        ...filteredSections.where((s) => s['id'] != null).map<DropdownMenuItem<int?>>((s) {
+                          return DropdownMenuItem<int?>(
+                            value: s['id'] as int,
+                            child: Text(s['sectionName']?.toString() ?? 'Unknown'),
+                          );
+                        }).toList(),
+                      ]),
+            onChanged: isCC || _selectedDeptId == null || filteredSections.isEmpty
                 ? null
                 : (v) {
                     setState(() => _selectedSectionId = v);

@@ -39,7 +39,15 @@ void setupTestGetIt({
   MockAdminRepository? adminRepo,
   MockActivityRepository? activityRepo,
   MockAuthRepository? authRepo,
+  AuthProvider? authProvider,
 }) {
+  if (getIt.isRegistered<AuthProvider>()) {
+    getIt.unregister<AuthProvider>();
+  }
+  if (authProvider != null) {
+    getIt.registerSingleton<AuthProvider>(authProvider);
+  }
+
   if (getIt.isRegistered<AdminRepository>()) {
     getIt.unregister<AdminRepository>();
   }

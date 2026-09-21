@@ -127,9 +127,5 @@ void main() {
     expect(find.text('Completed'), findsNWidgets(2));
     expect(find.text('Current Level'), findsOneWidget);
     expect(find.text('Locked'), findsNWidgets(2));
-
-    // Bottom Golden Trophy Motivation Banner
-    expect(find.text('Keep Going!'), findsOneWidget);
-    expect(find.text('View Rewards'), findsOneWidget);
   });
 }
