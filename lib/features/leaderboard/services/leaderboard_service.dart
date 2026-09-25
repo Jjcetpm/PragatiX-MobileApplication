@@ -29,25 +29,28 @@ class LeaderboardService {
     }
 
     final Map<String, Map<String, dynamic>> mergedMap = {};
+    final role = authProvider.role?.toUpperCase() ?? '';
+    final bool isStudent = role.contains('STUDENT');
 
-    // 1. Fetch from /api/v1/students?page=0&size=1000&sortBy=score to ensure ALL active students are loaded
-    try {
-      final Map<String, String> studentParams = {
-        'page': '0',
-        'size': '1000',
-        'sortBy': 'score',
-      };
-      if (departmentId != null && departmentId.isNotEmpty && departmentId != 'All') {
-        studentParams['departmentId'] = departmentId;
-      }
-      if (sectionId != null && sectionId.isNotEmpty && sectionId != 'All') {
-        studentParams['sectionId'] = sectionId;
-      }
-      final sUri = Uri.parse('${ApiConfig.baseUrl}/api/v1/students').replace(queryParameters: studentParams);
-      final sRes = await http.get(
-        sUri,
-        headers: {'Authorization': 'Bearer $token'},
-      );
+    // 1. Fetch from /api/v1/students (only for Staff/Admin roles who have permission to view all students)
+    if (!isStudent) {
+      try {
+        final Map<String, String> studentParams = {
+          'page': '0',
+          'size': '1000',
+          'sortBy': 'score',
+        };
+        if (departmentId != null && departmentId.isNotEmpty && departmentId != 'All') {
+          studentParams['departmentId'] = departmentId;
+        }
+        if (sectionId != null && sectionId.isNotEmpty && sectionId != 'All') {
+          studentParams['sectionId'] = sectionId;
+        }
+        final sUri = Uri.parse('${ApiConfig.baseUrl}/api/v1/students').replace(queryParameters: studentParams);
+        final sRes = await http.get(
+          sUri,
+          headers: {'Authorization': 'Bearer $token'},
+        );
       if (sRes.statusCode == 200) {
         final sData = jsonDecode(sRes.body);
         List<dynamic>? sList;

@@ -24,6 +24,8 @@ class _AdminBadgeRequestsPageState extends State<AdminBadgeRequestsPage>
   late TabController _tabController;
   String _selectedStatus = 'PENDING';
   String _badgeSearchQuery = '';
+  String _badgeStatusFilter = 'ALL';
+  String _badgeYearFilter = '';
 
   // Lookups & Filters
   List<dynamic> _departments = [];
@@ -237,11 +239,11 @@ class _AdminBadgeRequestsPageState extends State<AdminBadgeRequestsPage>
                   padding: const EdgeInsets.fromLTRB(18, 10, 16, 10),
                   child: Row(
                     children: [
-                      Expanded(
+                      const Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           mainAxisSize: MainAxisSize.min,
-                          children: const [
+                          children: [
                             Text(
                               'Badge Management & Requests',
                               style: TextStyle(
@@ -866,26 +868,44 @@ class _AdminBadgeRequestsPageState extends State<AdminBadgeRequestsPage>
     }
 
     final badges = badgeProvider.adminBadges.where((b) {
-      if (_badgeSearchQuery.isEmpty) return true;
-      final q = _badgeSearchQuery.toLowerCase();
-      return b.name.toLowerCase().contains(q) ||
-          b.tier.toLowerCase().contains(q) ||
-          b.description.toLowerCase().contains(q);
+      if (_badgeSearchQuery.isNotEmpty) {
+        final q = _badgeSearchQuery.toLowerCase();
+        final matchesQuery = b.name.toLowerCase().contains(q) ||
+            b.tier.toLowerCase().contains(q) ||
+            b.description.toLowerCase().contains(q) ||
+            (b.academicYear != null && b.academicYear!.toLowerCase().contains(q));
+        if (!matchesQuery) return false;
+      }
+
+      if (_badgeStatusFilter == 'ACTIVE' && !b.isActive) return false;
+      if (_badgeStatusFilter == 'INACTIVE' && b.isActive) return false;
+
+      if (_badgeYearFilter.isNotEmpty) {
+        if (_badgeYearFilter == 'ALL_YEARS') {
+          if (b.academicYear != null && b.academicYear!.trim().isNotEmpty) return false;
+        } else {
+          final normalizedBadgeYear = (b.academicYear ?? '').toUpperCase().replaceAll(' ', '_');
+          final normalizedFilter = _badgeYearFilter.toUpperCase().replaceAll(' ', '_');
+          if (normalizedBadgeYear != normalizedFilter) return false;
+        }
+      }
+
+      return true;
     }).toList();
 
     final headerWidget = Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        // Search Bar
+        // Search Bar & Refresh
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
           child: Row(
             children: [
               Expanded(
                 child: TextField(
                   style: const TextStyle(color: Color(0xFF0F172A)),
                   decoration: InputDecoration(
-                    hintText: 'Search badges by name, tier...',
+                    hintText: 'Search badges by name, tier, year...',
                     hintStyle: const TextStyle(color: Color(0xFF94A3B8), fontSize: 13.5),
                     prefixIcon: const Icon(Icons.search_rounded, color: Color(0xFF64748B)),
                     isDense: true,
@@ -923,23 +943,87 @@ class _AdminBadgeRequestsPageState extends State<AdminBadgeRequestsPage>
           ),
         ),
 
+        // Filter Row: Status Chips & Target Year Dropdown
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+          child: Column(
+            children: [
+              Row(
+                children: [
+                  // Status Filter Chips (All / Active / Inactive)
+                  Container(
+                    padding: const EdgeInsets.all(3),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: const Color(0xFFE2E8F0)),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        _buildStatusFilterChip('ALL', 'All'),
+                        _buildStatusFilterChip('ACTIVE', 'Active (ON)'),
+                        _buildStatusFilterChip('INACTIVE', 'Inactive (OFF)'),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  // Year Dropdown Filter
+                  Expanded(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: const Color(0xFFE2E8F0)),
+                      ),
+                      child: DropdownButtonHideUnderline(
+                        child: DropdownButton<String>(
+                          value: _badgeYearFilter,
+                          isExpanded: true,
+                          icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 18, color: Color(0xFF64748B)),
+                          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF1E293B)),
+                          items: const [
+                            DropdownMenuItem(value: '', child: Text('All Target Years')),
+                            DropdownMenuItem(value: 'ALL_YEARS', child: Text('All Years Only')),
+                            DropdownMenuItem(value: 'FIRST_YEAR', child: Text('1st Year Only')),
+                            DropdownMenuItem(value: 'SECOND_YEAR', child: Text('2nd Year Only')),
+                            DropdownMenuItem(value: 'THIRD_YEAR', child: Text('3rd Year Only')),
+                            DropdownMenuItem(value: 'FOURTH_YEAR', child: Text('4th Year Only')),
+                          ],
+                          onChanged: (val) {
+                            if (val != null) {
+                              setState(() => _badgeYearFilter = val);
+                            }
+                          },
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+
         // Badges Count Summary
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                'Total Badges: ${badgeProvider.adminBadges.length}',
-                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                'Showing ${badges.length} of ${badgeProvider.adminBadges.length} Badges',
+                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF475569)),
               ),
               OutlinedButton.icon(
                 onPressed: () => _navigateToCreateOrEdit(),
-                icon: const Icon(Icons.add, size: 16, color: Color(0xFFEA4335)),
-                label: const Text('+ Add New Badge', style: TextStyle(color: Color(0xFFEA4335), fontWeight: FontWeight.bold)),
+                icon: const Icon(Icons.add, size: 15, color: Color(0xFFEA4335)),
+                label: const Text('+ Add New Badge', style: TextStyle(color: Color(0xFFEA4335), fontWeight: FontWeight.bold, fontSize: 13)),
                 style: OutlinedButton.styleFrom(
                   side: const BorderSide(color: Color(0xFFEA4335)),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                 ),
               ),
             ],
@@ -963,6 +1047,7 @@ class _AdminBadgeRequestsPageState extends State<AdminBadgeRequestsPage>
             return headerWidget;
           }
           if (badges.isEmpty) {
+            final hasActiveFilters = _badgeStatusFilter != 'ALL' || _badgeYearFilter.isNotEmpty || _badgeSearchQuery.isNotEmpty;
             return Padding(
               padding: const EdgeInsets.only(top: 36.0, bottom: 36.0),
               child: Center(
@@ -972,12 +1057,32 @@ class _AdminBadgeRequestsPageState extends State<AdminBadgeRequestsPage>
                     Icon(Icons.workspace_premium_outlined, size: 64, color: Colors.grey.shade400),
                     const SizedBox(height: 12),
                     Text(
-                      _badgeSearchQuery.isEmpty
-                          ? 'No badges created yet.\nClick "+ Add New Badge" to create one.'
-                          : 'No badges matching "$_badgeSearchQuery"',
+                      hasActiveFilters
+                          ? 'No badges match the selected filters.'
+                          : 'No badges created yet.\nClick "+ Add New Badge" to create one.',
                       textAlign: TextAlign.center,
                       style: TextStyle(color: Colors.grey.shade600, fontSize: 15),
                     ),
+                    if (hasActiveFilters) ...[
+                      const SizedBox(height: 12),
+                      ElevatedButton.icon(
+                        onPressed: () {
+                          setState(() {
+                            _badgeStatusFilter = 'ALL';
+                            _badgeYearFilter = '';
+                            _badgeSearchQuery = '';
+                          });
+                        },
+                        icon: const Icon(Icons.filter_alt_off_rounded, size: 16),
+                        label: const Text('Reset Filters'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF2563EB),
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -987,6 +1092,49 @@ class _AdminBadgeRequestsPageState extends State<AdminBadgeRequestsPage>
         },
       ),
     );
+  }
+
+  Widget _buildStatusFilterChip(String value, String label) {
+    final isSelected = _badgeStatusFilter == value;
+    Color activeBg = const Color(0xFF2563EB);
+    if (value == 'ACTIVE') activeBg = const Color(0xFF16A34A);
+    if (value == 'INACTIVE') activeBg = const Color(0xFFD97706);
+
+    return InkWell(
+      onTap: () => setState(() => _badgeStatusFilter = value),
+      borderRadius: BorderRadius.circular(7),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+        decoration: BoxDecoration(
+          color: isSelected ? activeBg : Colors.transparent,
+          borderRadius: BorderRadius.circular(7),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 11.5,
+            fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+            color: isSelected ? Colors.white : const Color(0xFF64748B),
+          ),
+        ),
+      ),
+    );
+  }
+
+  String _formatAcademicYearLabel(String? year) {
+    if (year == null || year.isEmpty) return 'All Years';
+    switch (year.toUpperCase()) {
+      case 'FIRST_YEAR':
+        return '1st Year';
+      case 'SECOND_YEAR':
+        return '2nd Year';
+      case 'THIRD_YEAR':
+        return '3rd Year';
+      case 'FOURTH_YEAR':
+        return '4th Year';
+      default:
+        return year.replaceAll('_', ' ');
+    }
   }
 
   Widget _buildBadgeMasterCard(BadgeItem badge) {
@@ -1024,20 +1172,34 @@ class _AdminBadgeRequestsPageState extends State<AdminBadgeRequestsPage>
                 ),
                 const SizedBox(width: 14),
 
-                // Name & Tier / Rarity
+                // Name & Tier / Rarity / Year / Status
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        badge.name,
-                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 17),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Expanded(
+                            child: Text(
+                              badge.name,
+                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 17),
+                            ),
+                          ),
+                          _buildChip(
+                            badge.isActive ? 'ON' : 'OFF',
+                            badge.isActive ? Colors.green.shade50 : Colors.grey.shade100,
+                            badge.isActive ? Colors.green.shade800 : Colors.grey.shade700,
+                            icon: badge.isActive ? Icons.power_settings_new_rounded : Icons.power_off_rounded,
+                          ),
+                        ],
                       ),
                       const SizedBox(height: 6),
                       Wrap(
                         spacing: 6,
                         runSpacing: 4,
                         children: [
+                          _buildChip(_formatAcademicYearLabel(badge.academicYear), Colors.blue.shade50, Colors.blue.shade800, icon: Icons.school_outlined),
                           _buildChip(badge.tier, Colors.indigo.shade50, Colors.indigo.shade700),
                           _buildChip(badge.rarity, Colors.purple.shade50, Colors.purple.shade700),
                           // Proof Link Indicator Chip
@@ -1075,10 +1237,46 @@ class _AdminBadgeRequestsPageState extends State<AdminBadgeRequestsPage>
 
             const Divider(height: 20),
 
-            // Actions (Edit & Delete to Recycle Bin)
+            // Actions (Toggle, Edit & Delete to Recycle Bin)
             Row(
-              mainAxisAlignment: MainAxisAlignment.end,
               children: [
+                // Quick Toggle Status
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      badge.isActive ? 'Active' : 'Inactive',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: badge.isActive ? Colors.green.shade700 : Colors.grey.shade600,
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    Switch(
+                      value: badge.isActive,
+                      activeThumbColor: Colors.green,
+                      onChanged: (val) async {
+                        final token = context.read<AuthProvider>().token;
+                        if (token == null) return;
+                        final res = await context.read<BadgeProvider>().toggleBadgeStatus(
+                          token,
+                          badge.id,
+                          val,
+                        );
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(res['message'] ?? 'Badge status updated'),
+                              backgroundColor: res['success'] == true ? Colors.green : Colors.red,
+                            ),
+                          );
+                        }
+                      },
+                    ),
+                  ],
+                ),
+                const Spacer(),
                 OutlinedButton.icon(
                   onPressed: () => _navigateToCreateOrEdit(badge: badge),
                   icon: const Icon(Icons.edit_outlined, size: 16, color: Color(0xFF1E293B)),
