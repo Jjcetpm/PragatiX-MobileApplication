@@ -26,6 +26,14 @@
 		<string>$(FLUTTER_BUILD_NUMBER)</string>
 		<key>LSRequiresIPhoneOS</key>
 		<true/>
+		<key>ITSAppUsesNonExemptEncryption</key>
+		<false/>
+		<key>NSCameraUsageDescription</key>
+		<string>This app does not use the camera for its core features.</string>
+		<key>NSLocationWhenInUseUsageDescription</key>
+		<string>This app does not use your location for its core features.</string>
+		<key>NSPhotoLibraryUsageDescription</key>
+		<string>This app does not access your photo library for its core features.</string>
 		<key>UIApplicationSceneManifest</key>
 		<dict>
 			<key>UIApplicationSupportsMultipleScenes</key>
