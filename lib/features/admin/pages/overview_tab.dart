@@ -14,6 +14,7 @@ import '../../recycle_bin/screens/recycle_bin_screen.dart';
 import '../../recycle_bin/services/recycle_bin_service.dart';
 import 'package:pragatix/features/admin/pages/admin_levels_page.dart';
 import 'package:pragatix/core/utils/error_handler.dart';
+import 'package:pragatix/features/admin/pages/student_deletion_requests_page.dart';
 
 class OverviewTab extends StatefulWidget {
   const OverviewTab({super.key});
@@ -30,6 +31,7 @@ class _OverviewTabState extends State<OverviewTab> {
   int totalAlerts = 0;
   int pendingBadgeRequests = 0;
   int recycleBinCount = 0;
+  int pendingDeletionRequestsCount = 0;
   bool isLoading = true;
   bool hasError = false;
   dynamic errorObject;
@@ -57,6 +59,11 @@ class _OverviewTabState extends State<OverviewTab> {
         rCount = items.length;
       } catch (_) {}
 
+      int delReqCount = 0;
+      try {
+        delReqCount = await getIt<AdminRepository>().getPendingStudentDeletionRequestsCount();
+      } catch (_) {}
+
       if (!mounted) return;
       setState(() {
         totalStudents = stats['totalStudents'] ?? 0;
@@ -65,6 +72,7 @@ class _OverviewTabState extends State<OverviewTab> {
         totalAlerts = stats['totalAlerts'] ?? 0;
         pendingBadgeRequests = stats['pendingBadgeRequests'] ?? 0;
         recycleBinCount = rCount;
+        pendingDeletionRequestsCount = delReqCount;
         isLoading = false;
       });
     } catch (e, stackTrace) {
@@ -135,7 +143,7 @@ class _OverviewTabState extends State<OverviewTab> {
           child: Column(
             children: [
               // ── Top Header ───────────────────────────────────────────────
-              _buildHeader(titlePrefix),
+              _buildHeader(titlePrefix, isSuperAdmin: isSuperAdmin),
 
               // ── Body Content ─────────────────────────────────────────────
               Expanded(
@@ -193,6 +201,12 @@ class _OverviewTabState extends State<OverviewTab> {
 
                                   // ── Wide Featured Level Progression Card ──
                                   _buildLevelsCard(),
+
+                                  // ── Super Admin Student Deletion Requests Card ──
+                                  if (isSuperAdmin) ...[
+                                    const SizedBox(height: 14),
+                                    _buildStudentDeletionRequestsCard(),
+                                  ],
                                   const SizedBox(height: 28),
                                 ],
                               ),
@@ -208,7 +222,7 @@ class _OverviewTabState extends State<OverviewTab> {
 
   // ── Top Header ───────────────────────────────────────────────────────────────
 
-  Widget _buildHeader(String titlePrefix) {
+  Widget _buildHeader(String titlePrefix, {bool isSuperAdmin = false}) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(18, 10, 16, 6),
       child: Row(
@@ -245,6 +259,63 @@ class _OverviewTabState extends State<OverviewTab> {
           Row(
             mainAxisSize: MainAxisSize.min,
             children: [
+              // Student Deletion Approvals (Super Admin only)
+              if (isSuperAdmin) ...[
+                Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    _buildHeaderActionButton(
+                      icon: Icons.person_remove_rounded,
+                      tooltip: pendingDeletionRequestsCount > 0
+                          ? 'Deletion Requests ($pendingDeletionRequestsCount pending)'
+                          : 'Student Deletion Requests',
+                      iconColor: pendingDeletionRequestsCount > 0
+                          ? const Color(0xFFDC2626)
+                          : const Color(0xFF1E293B),
+                      onPressed: () async {
+                        await Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) =>
+                                const StudentDeletionRequestsPage(),
+                          ),
+                        );
+                        _fetchStats();
+                      },
+                    ),
+                    if (pendingDeletionRequestsCount > 0)
+                      Positioned(
+                        right: -3,
+                        top: -3,
+                        child: Container(
+                          padding: const EdgeInsets.all(4),
+                          decoration: const BoxDecoration(
+                            color: Color(0xFFDC2626),
+                            shape: BoxShape.circle,
+                          ),
+                          constraints: const BoxConstraints(
+                            minWidth: 16,
+                            minHeight: 16,
+                          ),
+                          child: Text(
+                            pendingDeletionRequestsCount > 9
+                                ? '9+'
+                                : '$pendingDeletionRequestsCount',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 9,
+                              fontWeight: FontWeight.w800,
+                              height: 1,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+                const SizedBox(width: 8),
+              ],
+
               // Recycle Bin (Dynamic 3D Empty vs Full)
               _buildHeaderActionButton(
                 customIcon: Image.asset(
@@ -861,6 +932,147 @@ class _OverviewTabState extends State<OverviewTab> {
                       SizedBox(height: 2),
                       Text(
                         'Manage year-wise levels, XP milestones & unlocks',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Color(0xFF64748B),
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF1F5F9),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(
+                    Icons.arrow_forward_ios_rounded,
+                    size: 13,
+                    color: Color(0xFF64748B),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ── Student Deletion Requests Card (Super Admin) ──────────────────────────
+
+  Widget _buildStudentDeletionRequestsCard() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: pendingDeletionRequestsCount > 0
+              ? const Color(0xFFFCA5A5)
+              : const Color(0xFFE2E8F0),
+          width: 1.2,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: (pendingDeletionRequestsCount > 0
+                    ? const Color(0xFFEF4444)
+                    : const Color(0xFF0F172A))
+                .withOpacity(0.05),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () async {
+            await Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => const StudentDeletionRequestsPage(),
+              ),
+            );
+            _fetchStats();
+          },
+          borderRadius: BorderRadius.circular(18),
+          splashColor: const Color(0xFFEF4444).withOpacity(0.08),
+          highlightColor: const Color(0xFFEF4444).withOpacity(0.04),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            child: Row(
+              children: [
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [Color(0xFFEF4444), Color(0xFFB91C1C)],
+                    ),
+                    borderRadius: BorderRadius.circular(14),
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFFEF4444).withOpacity(0.30),
+                        blurRadius: 8,
+                        offset: const Offset(0, 3),
+                      ),
+                    ],
+                  ),
+                  child: const Icon(
+                    Icons.person_remove_rounded,
+                    color: Colors.white,
+                    size: 22,
+                  ),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          const Text(
+                            'Deletion Requests',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w800,
+                              color: Color(0xFF0F172A),
+                              letterSpacing: -0.3,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          if (pendingDeletionRequestsCount > 0)
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFFEE2E2),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: const Color(0xFFFCA5A5),
+                                  width: 0.8,
+                                ),
+                              ),
+                              child: Text(
+                                '$pendingDeletionRequestsCount pending',
+                                style: const TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w700,
+                                  color: Color(0xFFB91C1C),
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                      const SizedBox(height: 2),
+                      const Text(
+                        'Review & authorize student profile deletions',
                         style: TextStyle(
                           fontSize: 12,
                           color: Color(0xFF64748B),
