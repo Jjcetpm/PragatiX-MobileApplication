@@ -41,7 +41,7 @@ class XpProvider extends ChangeNotifier {
         final data = jsonDecode(response.body);
         if (data['success'] == true && data['data'] != null) {
           final Map<String, dynamic> rawMap = data['data'];
-          _xpByCategory = rawMap.map((key, val) => MapEntry(key, val as int));
+          _xpByCategory = rawMap.map((key, val) => MapEntry(key, (val as num?)?.toInt() ?? 0));
         } else {
           _xpByCategory = {};
         }
