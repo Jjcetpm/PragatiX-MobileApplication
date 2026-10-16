@@ -451,23 +451,40 @@ class _StudentsTabState extends State<StudentsTab> {
     }
   }
 
-  Future<void> _deleteStudent(int id) async {
+  Future<void> _deleteStudent(int id, [String? reason]) async {
     try {
-      await getIt<AdminRepository>().deleteStudent(id);
+      final user = context.read<AuthProvider>().currentUser;
+      final roles = (user?['roles'] as List<dynamic>? ?? []).map((e) => e.toString()).toList();
+      final bool isSuperAdmin = roles.contains('ROLE_SUPER_ADMIN') || roles.contains('SUPER_ADMIN');
 
-      if (!mounted) return;
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Student deleted successfully'),
-          backgroundColor: Colors.green,
-        ),
-      );
+      if (isSuperAdmin) {
+        await getIt<AdminRepository>().deleteStudent(id);
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Student deleted successfully'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      } else {
+        await getIt<AdminRepository>().submitStudentDeletionRequest(
+          studentId: id,
+          reason: (reason != null && reason.trim().isNotEmpty)
+              ? reason.trim()
+              : 'Requested deletion from student directory',
+        );
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Deletion request submitted to Super Admin for approval.'),
+            backgroundColor: Color(0xFF16A34A),
+          ),
+        );
+      }
       setState(() => isLoading = true);
       _fetchStudents();
     } catch (e) {
       if (!mounted) return;
-
       ErrorHandler.showSnackBar(context, e);
     }
   }

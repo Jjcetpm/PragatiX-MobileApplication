@@ -85,7 +85,8 @@ class LeaderboardService {
           }
         }
       }
-    } catch (_) {}
+      } catch (_) {}
+    }
 
     // 2. Fetch from /api/v1/leaderboard and overlay
     try {

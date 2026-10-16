@@ -119,6 +119,7 @@ class TeacherDetails {
 }
 
 class StudentDetails {
+  final int? id;
   final String? registerNumber;
   final String? rollNumber;
   final String? academicYear;
@@ -140,7 +141,8 @@ class StudentDetails {
   final List<String> permissions;
 
   StudentDetails.fromJson(Map<String, dynamic> json)
-      : registerNumber = json['registerNumber'],
+      : id = json['id'],
+        registerNumber = json['registerNumber'],
         rollNumber = json['rollNumber'],
         academicYear = json['academicYear'],
         section = json['section'],
