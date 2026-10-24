@@ -16,6 +16,7 @@ import 'package:pragatix/features/teacher/pages/teacher_stage_details_page.dart'
 import 'package:pragatix/features/teacher/services/teacher_activity_service.dart';
 import 'package:pragatix/features/teacher/services/teacher_proxy_service.dart';
 import 'package:pragatix/features/admin/repository/admin_repository.dart';
+import 'package:pragatix/features/announcements/widgets/notification_bell_button.dart';
 
 class TeacherStageListPage extends StatefulWidget {
   final List<String> subRoles;
@@ -298,7 +299,11 @@ class _TeacherStageListPageState extends State<TeacherStageListPage> {
         ),
         elevation: 2,
         actions: [
-                    if (_isCc)
+          const NotificationBellButton(
+            iconColor: Colors.white,
+            isDark: true,
+          ),
+          if (_isCc)
             IconButton(
               icon: Badge(
                 isLabelVisible: _pendingBadgeRequests > 0,

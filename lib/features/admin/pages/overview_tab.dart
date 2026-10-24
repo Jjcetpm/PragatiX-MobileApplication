@@ -15,6 +15,7 @@ import '../../recycle_bin/services/recycle_bin_service.dart';
 import 'package:pragatix/features/admin/pages/admin_levels_page.dart';
 import 'package:pragatix/core/utils/error_handler.dart';
 import 'package:pragatix/features/admin/pages/student_deletion_requests_page.dart';
+import 'package:pragatix/features/announcements/widgets/notification_bell_button.dart';
 
 class OverviewTab extends StatefulWidget {
   const OverviewTab({super.key});
@@ -315,6 +316,32 @@ class _OverviewTabState extends State<OverviewTab> {
                 ),
                 const SizedBox(width: 8),
               ],
+
+              // Notifications Bell with dynamic unread count
+              Container(
+                width: 38,
+                height: 38,
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.90),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: const Color(0xFFE2E8F0),
+                    width: 1,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFF0F172A).withValues(alpha: 0.04),
+                      blurRadius: 6,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: const NotificationBellButton(
+                  iconSize: 20,
+                  iconColor: Color(0xFF1E293B),
+                ),
+              ),
+              const SizedBox(width: 8),
 
               // Recycle Bin (Dynamic 3D Empty vs Full)
               _buildHeaderActionButton(

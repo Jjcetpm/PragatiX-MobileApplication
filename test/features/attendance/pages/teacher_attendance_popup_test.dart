@@ -3,7 +3,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:network_image_mock/network_image_mock.dart';
 import 'package:pragatix/features/attendance/models/student_attendance_list_item.dart';
 import 'package:pragatix/features/attendance/pages/teacher_attendance_tab.dart';
-import '../../../helpers/mocks.dart';
 import '../../../helpers/test_wrapper.dart';
 
 void main() {

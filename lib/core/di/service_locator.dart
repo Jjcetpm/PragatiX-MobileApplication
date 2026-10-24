@@ -8,6 +8,7 @@ import 'package:pragatix/features/activity/providers/activity_provider.dart';
 import 'package:pragatix/features/activity/providers/activity_completion_provider.dart';
 import 'package:pragatix/features/analytics/providers/xp_analytics_provider.dart';
 import 'package:pragatix/features/penalty/providers/penalty_provider.dart';
+import 'package:pragatix/features/announcements/providers/notification_provider.dart';
 
 // Services
 import 'package:pragatix/features/activity/services/activity_proxy_service.dart';
@@ -54,6 +55,7 @@ void setupLocator() {
     () => ActivityCompletionProvider(getIt<ActivityCompletionService>()),
   );
   getIt.registerLazySingleton(() => XpAnalyticsProvider());
+  getIt.registerLazySingleton(() => NotificationProvider());
 
   // 2. Services
   getIt.registerLazySingleton(() => AuthService());

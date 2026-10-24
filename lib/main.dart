@@ -1,5 +1,8 @@
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:firebase_core/firebase_core.dart';
+
 import 'package:pragatix/core/theme/app_theme.dart';
 import 'package:pragatix/core/services/navigator_service.dart';
 import 'package:pragatix/features/xp/providers/xp_provider.dart';
@@ -18,15 +21,30 @@ import 'package:pragatix/features/attendance/providers/attendance_provider.dart'
 import 'package:pragatix/features/analytics/providers/xp_analytics_provider.dart';
 import 'package:pragatix/features/penalty/providers/penalty_provider.dart';
 import 'package:pragatix/features/admin/providers/department_provider.dart';
+import 'package:pragatix/features/announcements/providers/notification_provider.dart';
 import 'package:pragatix/core/widgets/security_gate.dart';
 import 'package:pragatix/core/widgets/server_maintenance_gate.dart';
 import 'package:pragatix/core/services/server_status_service.dart';
 
+import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:pragatix/core/services/fcm_notification_service.dart';
+import 'firebase_options.dart';
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Initialize Firebase before using Firebase services.
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
+
+  // Register background FCM message handler & initialize notification service
+  FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
+  await FcmNotificationService.instance.initialize();
+
   setupLocator();
 
-  // Check server health probe on startup
+  // Check server health probe on startup.
   ServerStatusService.instance.checkServerHealth();
 
   final authProvider = getIt<AuthProvider>();
@@ -46,6 +64,7 @@ void main() async {
         ),
         ChangeNotifierProvider(create: (_) => getIt<XpAnalyticsProvider>()),
         ChangeNotifierProvider(create: (_) => DepartmentProvider()),
+        ChangeNotifierProvider(create: (_) => getIt<NotificationProvider>()),
       ],
       child: const MyApp(),
     ),
@@ -75,7 +94,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
-      // Auto re-check auth status when user re-opens/resumes the app
+      // Auto re-check auth status when user re-opens/resumes the app.
       getIt<AuthProvider>().checkAuthStatus();
       ServerStatusService.instance.checkServerHealth();
     }
@@ -97,20 +116,20 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
         builder: (context, auth, _) {
           if (auth.isAuthenticated) {
             final userType = auth.currentUser?['userType'] ?? '';
+
             final isCaptain =
                 auth.currentUser?['teamRole'] == 'CAPTAIN' ||
-                auth.currentUser?['teamRole'] == 'VICE_CAPTAIN';
+                    auth.currentUser?['teamRole'] == 'VICE_CAPTAIN';
 
             // Extract roles list from the stored user JSON.
-            // This matches the routing logic in login_page.dart and correctly
-            // handles Admin/Super Admin whose userType may be null/empty.
             final dynamic rawRoles = auth.currentUser?['roles'];
             final List<dynamic> storedRoles =
-                rawRoles is List ? rawRoles : [];
+            rawRoles is List ? rawRoles : [];
 
             bool hasRole(String roleName) {
               for (var r in storedRoles) {
                 if (r is String && r == roleName) return true;
+
                 if (r is Map) {
                   final name = r['name'] ?? r['authority'] ?? '';
                   if (name == roleName) return true;
@@ -119,38 +138,40 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
               return false;
             }
 
-            // Super Admin — checked BEFORE Admin to avoid downgrade
-            if (hasRole('ROLE_SUPER_ADMIN') || hasRole('ROLE_SUPERADMIN')) {
+            // Super Admin — check before Admin.
+            if (hasRole('ROLE_SUPER_ADMIN') ||
+                hasRole('ROLE_SUPERADMIN')) {
               return const SuperAdminDashboard();
             }
 
-            // Admin
+            // Admin.
             if (hasRole('ROLE_ADMIN')) {
               return const AdminDashboard();
             }
 
-            // Teacher / CC / HOD / Discipline Committee
+            // Teacher / CC / HOD / Discipline Committee.
             if (userType == 'TEACHER' ||
                 hasRole('ROLE_TEACHER') ||
                 hasRole('ROLE_DISCIPLINE_COMMITTEE')) {
               return const TeacherDashboard();
             }
 
-            // Captain / Vice Captain (student leadership)
+            // Captain / Vice Captain.
             if (userType == 'CAPTAIN' || isCaptain) {
               return const CaptainDashboardPage();
             }
 
-            // Student
+            // Student.
             if (userType == 'STUDENT' ||
                 hasRole('ROLE_STUDENT') ||
                 auth.role == 'STUDENT') {
               return const StudentDashboardPage();
             }
 
-            // Unknown/corrupted role — force re-login
+            // Unknown role — show login.
             return const LoginPage();
           }
+
           return const LoginPage();
         },
       ),

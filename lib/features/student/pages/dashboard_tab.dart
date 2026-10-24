@@ -13,6 +13,7 @@ import 'package:pragatix/features/student/pages/level_progression_page.dart';
 import 'package:pragatix/core/di/service_locator.dart';
 import 'package:pragatix/features/team/services/team_proxy_service.dart';
 import 'package:pragatix/features/team/pages/student_team_details_page.dart';
+import 'package:pragatix/features/announcements/widgets/notification_bell_button.dart';
 
 
 class DashboardTab extends StatefulWidget {
@@ -476,7 +477,11 @@ class _DashboardTabState extends State<DashboardTab> {
                   );
                 },
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 8),
+
+              // Notification Bell Button with live unread badge
+              const NotificationBellButton(),
+              const SizedBox(width: 8),
 
               // Profile Avatar Button (Navigates to ProfilePage)
               InkWell(
