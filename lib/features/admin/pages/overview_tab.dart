@@ -16,6 +16,7 @@ import 'package:pragatix/features/admin/pages/admin_levels_page.dart';
 import 'package:pragatix/core/utils/error_handler.dart';
 import 'package:pragatix/features/admin/pages/student_deletion_requests_page.dart';
 import 'package:pragatix/features/announcements/widgets/notification_bell_button.dart';
+import 'package:pragatix/features/banking/pages/admin_banking_dashboard_page.dart';
 
 class OverviewTab extends StatefulWidget {
   const OverviewTab({super.key});
@@ -669,6 +670,16 @@ class _OverviewTabState extends State<OverviewTab> {
           onTap: () => Navigator.push(
             context,
             MaterialPageRoute(builder: (_) => const EnrollmentAdminPage()),
+          ),
+        ),
+        _buildStatCard(
+          title: 'Banking',
+          count: 'XP System',
+          icon: Icons.account_balance_wallet_rounded,
+          gradientColors: const [Color(0xFF0F766E), Color(0xFF115E59)],
+          onTap: () => Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const AdminBankingDashboardPage()),
           ),
         ),
       ],

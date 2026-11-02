@@ -25,6 +25,7 @@ import 'package:pragatix/features/announcements/providers/notification_provider.
 import 'package:pragatix/core/widgets/security_gate.dart';
 import 'package:pragatix/core/widgets/server_maintenance_gate.dart';
 import 'package:pragatix/core/services/server_status_service.dart';
+import 'package:pragatix/features/banking/providers/banking_provider.dart';
 
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:pragatix/core/services/fcm_notification_service.dart';
@@ -65,6 +66,7 @@ void main() async {
         ChangeNotifierProvider(create: (_) => getIt<XpAnalyticsProvider>()),
         ChangeNotifierProvider(create: (_) => DepartmentProvider()),
         ChangeNotifierProvider(create: (_) => getIt<NotificationProvider>()),
+        ChangeNotifierProvider(create: (_) => BankingProvider()),
       ],
       child: const MyApp(),
     ),

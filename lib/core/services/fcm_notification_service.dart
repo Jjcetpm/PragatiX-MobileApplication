@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
@@ -406,8 +407,9 @@ class FcmNotificationService {
         return;
       }
 
-      final deviceType =
-          Platform.isAndroid ? 'ANDROID' : (Platform.isIOS ? 'IOS' : 'OTHER');
+      final deviceType = kIsWeb
+          ? 'WEB'
+          : (Platform.isAndroid ? 'ANDROID' : (Platform.isIOS ? 'IOS' : 'OTHER'));
       final url = Uri.parse('${ApiConfig.baseUrl}/api/v1/devices/token');
 
       final response = await http.post(

@@ -29,7 +29,7 @@
 		<key>ITSAppUsesNonExemptEncryption</key>
 		<false/>
 		<key>NSCameraUsageDescription</key>
-		<string>This app does not use the camera for its core features.</string>
+		<string>Camera access is needed to scan student ID barcodes and QR codes for activity XP awards and penalties.</string>
 		<key>NSLocationWhenInUseUsageDescription</key>
 		<string>This app does not use your location for its core features.</string>
 		<key>NSPhotoLibraryUsageDescription</key>

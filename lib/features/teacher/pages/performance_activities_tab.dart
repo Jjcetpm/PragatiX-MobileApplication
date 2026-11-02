@@ -8,9 +8,6 @@ import 'package:pragatix/features/teacher/services/teacher_proxy_service.dart';
 import 'package:pragatix/features/teacher/pages/students_tab.dart';
 import 'package:pragatix/features/activity/pages/group_activity_year_page.dart';
 import 'package:pragatix/core/di/service_locator.dart';
-import 'package:pragatix/features/badge/pages/cc_badge_requests_page.dart';
-import 'package:pragatix/features/penalty/pages/penalty_requests_page.dart'
-    as spdms_penalty;
 import 'package:pragatix/features/penalty/providers/penalty_provider.dart';
 
 class PerformanceActivitiesTab extends StatefulWidget {
@@ -34,8 +31,6 @@ class _PerformanceActivitiesTabState extends State<PerformanceActivitiesTab> {
 
   String? _selectedCategory;
   List<dynamic> _myActivities = [];
-  int _pendingBadgeRequests = 0;
-  int _pendingPenaltyRequests = 0;
   bool _isLoadingActivities = false;
 
   dynamic _selectedEvent; // Activity representation
@@ -150,12 +145,7 @@ class _PerformanceActivitiesTabState extends State<PerformanceActivitiesTab> {
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         if (data['success'] == true && mounted) {
-          final pBadges = data['data']['pendingBadgeRequests'] ?? 0;
           final pPenalties = data['data']['pendingPenaltyRequests'] ?? 0;
-          setState(() {
-            _pendingBadgeRequests = pBadges;
-            _pendingPenaltyRequests = pPenalties;
-          });
           context.read<PenaltyProvider>().setPendingCount(pPenalties);
         }
       }
@@ -720,29 +710,7 @@ class _PerformanceActivitiesTabState extends State<PerformanceActivitiesTab> {
                 _currentFlowStep == 0)
               Row(
                 children: [
-                  IconButton(
-                    icon: Badge(
-                      isLabelVisible: _pendingBadgeRequests > 0,
-                      label: Text(
-                        _pendingBadgeRequests.toString(),
-                        style: const TextStyle(color: Colors.white),
-                      ),
-                      backgroundColor: Colors.red,
-                      child: const Icon(
-                        Icons.notifications,
-                        color: Colors.white,
-                      ),
-                    ),
-                    tooltip: 'Badge Requests',
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const CCBadgeRequestsPage(),
-                        ),
-                      ).then((_) => _fetchPendingBadges());
-                    },
-                  ),
+
                   IconButton(
                     icon: const Icon(
                       Icons.people_alt_rounded,
@@ -761,41 +729,7 @@ class _PerformanceActivitiesTabState extends State<PerformanceActivitiesTab> {
                   ),
                 ],
               ),
-            Consumer<PenaltyProvider>(
-              builder: (context, penaltyProvider, _) {
-                final count = penaltyProvider.pendingCount > 0
-                    ? penaltyProvider.pendingCount
-                    : _pendingPenaltyRequests;
-                return IconButton(
-                  icon: Badge(
-                    isLabelVisible: count > 0,
-                    label: Text(
-                      count.toString(),
-                      style: const TextStyle(color: Colors.white),
-                    ),
-                    backgroundColor: Colors.red,
-                    child: const Icon(Icons.gavel_rounded, color: Colors.white),
-                  ),
-                  tooltip: 'Penalty Requests',
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => spdms_penalty.PenaltyRequestsPage(
-                          isCC: widget.subRoles.any(
-                            (r) =>
-                                r.toUpperCase() == 'CC' ||
-                                r.toUpperCase() == 'CLASS_COORDINATOR' ||
-                                r.toUpperCase() == 'ROLE_CC',
-                          ),
-                        ),
-                      ),
-                    ).then((_) => _fetchPendingBadges());
-                  },
-                );
-              },
-            ),
-          ],
+            ],
         ),
         body: _buildAwardXpTabBody(),
       ),

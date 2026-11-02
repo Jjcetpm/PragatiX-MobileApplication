@@ -41,13 +41,12 @@ class DefaultFirebaseOptions {
   }
 
   static const FirebaseOptions web = FirebaseOptions(
-    apiKey: 'AIzaSyB7YZi0MO_Bq2QxYkwrAMMmnY2T-Xumm-4',
-    appId: '1:407763556608:web:4a710fd277d861b4b2fbe5',
-    messagingSenderId: '407763556608',
-    projectId: 'pragatix-897d1',
-    authDomain: 'pragatix-897d1.firebaseapp.com',
-    storageBucket: 'pragatix-897d1.firebasestorage.app',
-    measurementId: 'G-5GLFW9Y325',
+    apiKey: 'AIzaSyAAyg4lXQbY5L6diQOUgUORLGSOGzq9Rnk',
+    appId: '1:951982445231:web:pragatix-web',
+    messagingSenderId: '951982445231',
+    projectId: 'pragatix-86c54',
+    authDomain: 'pragatix-86c54.firebaseapp.com',
+    storageBucket: 'pragatix-86c54.firebasestorage.app',
   );
 
   static const FirebaseOptions android = FirebaseOptions(

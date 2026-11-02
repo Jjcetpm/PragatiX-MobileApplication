@@ -9,10 +9,6 @@ import 'package:pragatix/core/config/api_config.dart';
 import 'dart:convert';
 import 'package:pragatix/features/teacher/services/teacher_proxy_service.dart';
 import 'package:pragatix/core/di/service_locator.dart';
-import 'package:pragatix/features/badge/pages/cc_badge_requests_page.dart';
-import 'package:pragatix/features/teacher/pages/performance_activities_tab.dart';
-import 'package:pragatix/features/teacher/pages/students_tab.dart';
-import 'package:pragatix/features/attendance/pages/teacher_attendance_tab.dart';
 import 'package:pragatix/features/penalty/providers/penalty_provider.dart';
 import 'package:pragatix/core/utils/error_handler.dart';
 
@@ -229,16 +225,11 @@ class _CCOverviewTabState extends State<CCOverviewTab> {
                           onTap: () {},
                         ),
                         _buildStatCard(
-                          title: 'Badge Requests',
-                          count: pendingBadgeRequests.toString(),
-                          icon: Icons.badge_rounded,
+                          title: 'Leaderboard',
+                          count: 'Rankings',
+                          icon: Icons.leaderboard_rounded,
                           color: const Color(0xFF9C27B0),
-                          onTap: () => Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => const CCBadgeRequestsPage(),
-                            ),
-                          ).then((_) => _fetchStats()),
+                          onTap: () {},
                         ),
                       ],
                     ),

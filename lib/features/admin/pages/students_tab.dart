@@ -19,7 +19,6 @@ import '../dialogs/edit_student_dialog.dart';
 import '../widgets/student_filter_panel.dart';
 import '../widgets/student_list.dart';
 import '../widgets/student_fab.dart';
-import 'package:pragatix/features/badge/pages/admin_badge_requests_page.dart';
 import 'package:pragatix/features/teacher/pages/teacher_student_detail.dart';
 
 class StudentsTab extends StatefulWidget {
@@ -99,7 +98,6 @@ class _StudentsTabState extends State<StudentsTab> {
   List<dynamic> filterSections = [];
   List<dynamic> filterYears = [];
 
-  int _pendingBadgeRequests = 0;
 
   DateTime? selectedDob;
   int? selectedDeptId;
@@ -114,7 +112,6 @@ class _StudentsTabState extends State<StudentsTab> {
 
     _scrollController.addListener(_onScroll);
     _fetchStudents();
-    _fetchPendingBadges();
     _loadAllLookups();
   }
 
@@ -128,18 +125,7 @@ class _StudentsTabState extends State<StudentsTab> {
     }
   }
 
-  Future<void> _fetchPendingBadges() async {
-    try {
-      final stats = await getIt<AdminRepository>().getStats();
-      if (mounted) {
-        setState(() {
-          _pendingBadgeRequests = stats['pendingBadgeRequests'] ?? 0;
-        });
-      }
-    } catch (e) {
-      // Ignore
-    }
-  }
+
 
   @override
   void dispose() {
@@ -1213,34 +1199,13 @@ class _StudentsTabState extends State<StudentsTab> {
                             ),
                             const SizedBox(width: 6),
                           ],
-                          Badge(
-                            isLabelVisible: _pendingBadgeRequests > 0,
-                            label: Text(
-                              _pendingBadgeRequests.toString(),
-                              style: const TextStyle(color: Colors.white, fontSize: 10),
-                            ),
-                            backgroundColor: Colors.red,
-                            child: _buildHeaderActionButton(
-                              icon: Icons.notifications_rounded,
-                              tooltip: 'Badge Requests',
-                              onPressed: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) => const AdminBadgeRequestsPage(),
-                                  ),
-                                ).then((_) => _fetchPendingBadges());
-                              },
-                            ),
-                          ),
-                          const SizedBox(width: 6),
+
                           _buildHeaderActionButton(
                             icon: Icons.refresh_rounded,
                             tooltip: 'Refresh',
                             onPressed: () {
                               _fetchStudents(isRefresh: true);
-                              _fetchPendingBadges();
-                            },
+                                                      },
                           ),
                         ],
                       ),

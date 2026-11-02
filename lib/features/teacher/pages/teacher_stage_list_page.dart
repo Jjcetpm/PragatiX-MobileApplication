@@ -7,9 +7,6 @@ import 'package:pragatix/core/di/service_locator.dart';
 import 'package:pragatix/core/utils/error_handler.dart';
 import 'package:pragatix/features/activity/pages/cc_stage_list_page.dart';
 import 'package:pragatix/features/auth/providers/auth_provider.dart';
-import 'package:pragatix/features/badge/pages/cc_badge_requests_page.dart';
-import 'package:pragatix/features/penalty/pages/penalty_requests_page.dart'
-    as spdms_penalty;
 import 'package:pragatix/features/penalty/providers/penalty_provider.dart';
 import 'package:pragatix/features/teacher/pages/students_tab.dart';
 import 'package:pragatix/features/teacher/pages/teacher_stage_details_page.dart';
@@ -17,6 +14,7 @@ import 'package:pragatix/features/teacher/services/teacher_activity_service.dart
 import 'package:pragatix/features/teacher/services/teacher_proxy_service.dart';
 import 'package:pragatix/features/admin/repository/admin_repository.dart';
 import 'package:pragatix/features/announcements/widgets/notification_bell_button.dart';
+import 'package:pragatix/features/scanner/pages/student_id_scanner_page.dart';
 
 class TeacherStageListPage extends StatefulWidget {
   final List<String> subRoles;
@@ -46,8 +44,6 @@ class _TeacherStageListPageState extends State<TeacherStageListPage> {
   String _selectedAcademicYear = 'FIRST_YEAR';
   List<Map<String, dynamic>> _stages = [];
   bool _isLoading = true;
-  int _pendingBadgeRequests = 0;
-  int _pendingPenaltyRequests = 0;
 
   bool get _isHod => widget.subRoles.contains('HOD') || widget.subRoles.contains('ROLE_HOD');
 
@@ -211,12 +207,7 @@ class _TeacherStageListPageState extends State<TeacherStageListPage> {
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         if (data['success'] == true && mounted) {
-          final pBadges = data['data']['pendingBadgeRequests'] ?? 0;
           final pPenalties = data['data']['pendingPenaltyRequests'] ?? 0;
-          setState(() {
-            _pendingBadgeRequests = pBadges;
-            _pendingPenaltyRequests = pPenalties;
-          });
           context.read<PenaltyProvider>().setPendingCount(pPenalties);
         }
       }
@@ -303,30 +294,7 @@ class _TeacherStageListPageState extends State<TeacherStageListPage> {
             iconColor: Colors.white,
             isDark: true,
           ),
-          if (_isCc)
-            IconButton(
-              icon: Badge(
-                isLabelVisible: _pendingBadgeRequests > 0,
-                label: Text(
-                  _pendingBadgeRequests.toString(),
-                  style: const TextStyle(color: Colors.white),
-                ),
-                backgroundColor: Colors.red,
-                child: const Icon(
-                  Icons.notifications,
-                  color: Colors.white,
-                ),
-              ),
-              tooltip: 'Badge Requests',
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const CCBadgeRequestsPage(),
-                  ),
-                ).then((_) => _fetchPendingBadges());
-              },
-            ),
+
           if (_isCc || _isHod)
             IconButton(
               icon: const Icon(
@@ -344,35 +312,6 @@ class _TeacherStageListPageState extends State<TeacherStageListPage> {
                 );
               },
             ),
-          Consumer<PenaltyProvider>(
-            builder: (context, penaltyProvider, _) {
-              final count = penaltyProvider.pendingCount > 0
-                  ? penaltyProvider.pendingCount
-                  : _pendingPenaltyRequests;
-              return IconButton(
-                icon: Badge(
-                  isLabelVisible: count > 0,
-                  label: Text(
-                    count.toString(),
-                    style: const TextStyle(color: Colors.white),
-                  ),
-                  backgroundColor: Colors.red,
-                  child: const Icon(Icons.gavel_rounded, color: Colors.white),
-                ),
-                tooltip: 'Penalty Requests',
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => spdms_penalty.PenaltyRequestsPage(
-                        isCC: _isCc,
-                      ),
-                    ),
-                  ).then((_) => _fetchPendingBadges());
-                },
-              );
-            },
-          ),
           IconButton(
             icon: const Icon(Icons.refresh_rounded, color: Colors.white),
             tooltip: 'Refresh',
@@ -731,6 +670,20 @@ class _TeacherStageListPageState extends State<TeacherStageListPage> {
             ),
           ),
         ],
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        backgroundColor: _tealPrimary,
+        foregroundColor: Colors.white,
+        icon: const Icon(Icons.qr_code_scanner_rounded),
+        label: const Text('ID Scanner', style: TextStyle(fontWeight: FontWeight.bold)),
+        onPressed: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const StudentIdScannerPage(),
+            ),
+          );
+        },
       ),
     );
   }

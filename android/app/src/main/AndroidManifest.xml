@@ -4,6 +4,7 @@
     <uses-permission android:name="android.permission.INTERNET"/>
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+    <uses-permission android:name="android.permission.CAMERA"/>
 
     <!-- Remove broad storage and media permissions to comply with Google Play Policy -->
     <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" tools:node="remove" />
