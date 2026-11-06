@@ -70,61 +70,6 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
     }
   }
 
-  Future<void> _addMember(String regNo) async {
-    try {
-      final response = await getIt<ActivityProxyService>().post(
-        Uri.parse(
-          '${ApiConfig.baseUrl}/api/v1/teams/${_team.id}/add-member?regNo=$regNo',
-        ),
-        headers: {
-          'Authorization': 'Bearer ${context.read<AuthProvider>().token!}',
-        },
-      );
-      final data = jsonDecode(response.body);
-      if (response.statusCode == 200 && data['success'] == true) {
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Member added successfully!'),
-            backgroundColor: Colors.green,
-          ),
-        );
-        await _refreshTeam();
-      } else {
-        _showError(data['message'] ?? 'Failed to add member');
-      }
-    } catch (e) {
-      _showError('Error: $e');
-    }
-  }
-
-  Future<void> _removeMember(String regNo) async {
-    try {
-      final response = await getIt<ActivityProxyService>().post(
-        Uri.parse(
-          '${ApiConfig.baseUrl}/api/v1/teams/${_team.id}/remove-member?regNo=$regNo',
-        ),
-        headers: {
-          'Authorization': 'Bearer ${context.read<AuthProvider>().token!}',
-        },
-      );
-      final data = jsonDecode(response.body);
-      if (response.statusCode == 200 && data['success'] == true) {
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Member removed successfully!'),
-            backgroundColor: Colors.green,
-          ),
-        );
-        await _refreshTeam();
-      } else {
-        _showError(data['message'] ?? 'Failed to remove member');
-      }
-    } catch (e) {
-      _showError('Error: $e');
-    }
-  }
 
   Future<void> _awardXp(String remarks, bool isPenalty) async {
     final xp = isPenalty ? widget.activity.penaltyXp : widget.activity.awardXp;
@@ -169,38 +114,6 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
     }
   }
 
-  void _showAddMemberDialog() {
-    final ctrl = TextEditingController();
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Add Member'),
-        content: TextField(
-          controller: ctrl,
-          decoration: const InputDecoration(
-            labelText: 'Student ID (e.g. 24CS01)',
-            border: OutlineInputBorder(),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              final id = ctrl.text.trim();
-              if (id.isNotEmpty) {
-                Navigator.pop(ctx);
-                _addMember(id);
-              }
-            },
-            child: const Text('Add'),
-          ),
-        ],
-      ),
-    );
-  }
 
   void _showAwardXpDialog(bool isPenalty) {
     print('GROUP ${isPenalty ? "PENALTY" : "AWARD"} BUTTON CLICKED');
@@ -294,9 +207,9 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
                           (m) => TeamMemberCard(
                             member: m,
                             captainId: _team.captainId,
-                            canManage: true,
+                            canManage: false,
                             isCaptainRoleSection: true,
-                            onRemove: () {},
+                            onRemove: null,
                           ),
                         )
                   else
@@ -309,24 +222,13 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
                     ),
 
                   const SizedBox(height: 24),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        'Members (${members.length}/${_team.size})',
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 18,
-                          color: _dark,
-                        ),
-                      ),
-                      if (members.length < _team.size)
-                        TextButton.icon(
-                          onPressed: _showAddMemberDialog,
-                          icon: const Icon(Icons.person_add),
-                          label: const Text('Add Member'),
-                        ),
-                    ],
+                  Text(
+                    'Members (${members.length}/${_team.size})',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 18,
+                      color: _dark,
+                    ),
                   ),
                   const SizedBox(height: 8),
                   if (members
@@ -349,35 +251,9 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
                             member: m,
                             captainId: _team.captainId,
                             viceCaptainId: _team.viceCaptainId,
-                            canManage: true,
+                            canManage: false,
                             isCaptainRoleSection: false,
-                            onRemove: () {
-                              showDialog(
-                                context: context,
-                                builder: (ctx) => AlertDialog(
-                                  title: const Text('Remove Member'),
-                                  content: Text(
-                                    "Are you sure you want to remove ${m['fullName']} from the group?",
-                                  ),
-                                  actions: [
-                                    TextButton(
-                                      onPressed: () => Navigator.pop(ctx),
-                                      child: const Text('Cancel'),
-                                    ),
-                                    TextButton(
-                                      onPressed: () {
-                                        Navigator.pop(ctx);
-                                        _removeMember(m['regNo']);
-                                      },
-                                      child: const Text(
-                                        'Remove',
-                                        style: TextStyle(color: Colors.red),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              );
-                            },
+                            onRemove: null,
                           ),
                         ),
 

@@ -146,15 +146,15 @@ class _PointReviewTabState extends State<PointReviewTab> {
       );
     }
 
-    // Check if streak bonuses are active (e.g. coding streak > 7)
-    final codingStreak = xpProvider.streaks.firstWhere(
-      (s) => s['streakType'] == 'C_CODING',
+    // Check if streak bonuses are active (e.g. attendance streak >= 7)
+    final attendanceStreak = xpProvider.streaks.firstWhere(
+      (s) => s['streakType'] == 'ATTENDANCE',
       orElse: () => null,
     );
-    final hasCodingBonus =
-        codingStreak != null &&
-        (codingStreak['currentStreak'] ?? 0) >= 7 &&
-        !(codingStreak['isBroken'] ?? false);
+    final hasAttendanceBonus =
+        attendanceStreak != null &&
+        (attendanceStreak['currentStreak'] ?? 0) >= 7 &&
+        !(attendanceStreak['isBroken'] ?? false);
 
     final attendanceProvider = Provider.of<AttendanceProvider>(context);
 
@@ -168,7 +168,7 @@ class _PointReviewTabState extends State<PointReviewTab> {
           const SizedBox(height: 16),
 
           // Active Streak Bonuses Banner
-          if (hasCodingBonus)
+          if (hasAttendanceBonus)
             Container(
               width: double.infinity,
               margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
@@ -182,7 +182,7 @@ class _PointReviewTabState extends State<PointReviewTab> {
                   Text('🔥 ', style: TextStyle(fontSize: 16)),
                   Expanded(
                     child: Text(
-                      '7-Day Coding Streak Active — 2x XP all coding this week!',
+                      '7-Day Attendance Streak Active! Keep up the consistency!',
                       style: TextStyle(
                         color: Colors.white,
                         fontWeight: FontWeight.bold,

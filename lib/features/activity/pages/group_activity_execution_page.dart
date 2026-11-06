@@ -107,55 +107,6 @@ class _GroupActivityExecutionPageState
     }
   }
 
-  Future<void> _deleteTeam(Team team) async {
-    final bool confirm =
-        await showDialog(
-          context: context,
-          builder: (ctx) => AlertDialog(
-            title: const Text('Delete Group?'),
-            content: const Text(
-              'Are you sure you want to delete this group?\n\nThis action will permanently remove the group and its member mappings.',
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(ctx, false),
-                child: const Text('Cancel'),
-              ),
-              ElevatedButton(
-                onPressed: () => Navigator.pop(ctx, true),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.red,
-                  foregroundColor: Colors.white,
-                ),
-                child: const Text('Delete'),
-              ),
-            ],
-          ),
-        ) ??
-        false;
-
-    if (!confirm) return;
-
-    setState(() => _isLoadingGroups = true);
-    try {
-      await _groupService.deleteTeam(team.id);
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Group deleted successfully')),
-      );
-      _loadGroupsForScope();
-    } catch (e) {
-      setState(() => _isLoadingGroups = false);
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(e.toString().replaceAll('Exception: ', '')),
-          backgroundColor: Colors.red,
-          duration: const Duration(seconds: 4),
-        ),
-      );
-    }
-  }
 
   void _navigateToCreateGroup() async {
     if (_data == null) return;
@@ -442,14 +393,6 @@ class _GroupActivityExecutionPageState
                       fontSize: 16,
                       color: _dark,
                     ),
-                  ),
-                ),
-                if (team.canDelete)
-                  IconButton(
-                    icon: const Icon(Icons.delete_outline, color: Colors.red),
-                    tooltip: 'Delete Group',
-                    onPressed: () => _deleteTeam(team),
-                  ),
               ],
             ),
             const Divider(height: 24),
