@@ -8,7 +8,6 @@ import 'package:pragatix/shared/widgets/profile_header.dart';
 import 'package:pragatix/shared/widgets/shared_profile_card.dart';
 import 'package:pragatix/shared/widgets/shared_logout_button.dart';
 import 'package:pragatix/core/di/service_locator.dart';
-import 'package:provider/provider.dart';
 import 'package:pragatix/features/attendance/providers/attendance_provider.dart';
 import 'package:pragatix/features/attendance/widgets/fire_streak_icon.dart';
 import 'package:pragatix/core/widgets/pragatix_loader.dart';
@@ -37,6 +36,7 @@ class _ProfileTabState extends State<ProfileTab> {
   String teamName = 'No Team';
   int rank = 0;
   String currentLevel = '1';
+  String? bio;
 
   @override
   void initState() {
@@ -80,6 +80,7 @@ class _ProfileTabState extends State<ProfileTab> {
             if (teamName.isEmpty) teamName = 'No Team';
             rank = resData['rank'] ?? 0;
             currentLevel = resData['currentLevel']?.toString() ?? '1';
+            bio = resData['bio'] ?? resData['studentDetails']?['bio'] ?? 'Cybersecurity & Digital Forensics Enthusiast 🔓 | Blue Team | DFIR | Always Building & Learning 🚀';
             isLoading = false;
           });
           return;
@@ -142,6 +143,7 @@ class _ProfileTabState extends State<ProfileTab> {
                 radius: 54,
                 isCaptain: teamRole == 'CAPTAIN',
                 isViceCaptain: teamRole == 'VICE CAPTAIN',
+                bio: bio,
               ),
               const SizedBox(height: 24),
 

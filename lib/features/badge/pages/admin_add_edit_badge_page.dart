@@ -22,10 +22,19 @@ class _AdminAddEditBadgePageState extends State<AdminAddEditBadgePage> {
 
   final List<String> _tiers = ['FOUNDATION', 'ACHIEVEMENT', 'EXCELLENCE', 'ELITE', 'LEGACY'];
   final List<String> _rarities = ['COMMON', 'RARE', 'EPIC', 'LEGENDARY'];
+  final List<Map<String, String>> _yearOptions = [
+    {'value': '', 'label': 'All Years (General)'},
+    {'value': 'FIRST_YEAR', 'label': '1st Year'},
+    {'value': 'SECOND_YEAR', 'label': '2nd Year'},
+    {'value': 'THIRD_YEAR', 'label': '3rd Year'},
+    {'value': 'FOURTH_YEAR', 'label': '4th Year'},
+  ];
 
   late String _selectedTier;
   late String _selectedRarity;
+  late String _selectedAcademicYear;
   late bool _proofRequired;
+  late bool _isActive;
 
   bool _isSaving = false;
 
@@ -46,7 +55,9 @@ class _AdminAddEditBadgePageState extends State<AdminAddEditBadgePage> {
     final String rawRarity = (badge?.rarity ?? 'COMMON').trim().toUpperCase();
     _selectedRarity = _rarities.contains(rawRarity) ? rawRarity : _rarities.first;
 
+    _selectedAcademicYear = badge?.academicYear ?? '';
     _proofRequired = badge?.proofRequired ?? true;
+    _isActive = badge?.isActive ?? true;
   }
 
   @override
@@ -74,6 +85,8 @@ class _AdminAddEditBadgePageState extends State<AdminAddEditBadgePage> {
       'approvalAuthority': _authorityController.text.trim().isEmpty ? 'Admin' : _authorityController.text.trim(),
       'iconUrl': widget.badge?.iconUrl ?? '',
       'proofRequired': _proofRequired,
+      'isActive': _isActive,
+      'academicYear': _selectedAcademicYear.trim().isEmpty ? null : _selectedAcademicYear.trim(),
     };
 
     final badgeProvider = context.read<BadgeProvider>();
@@ -218,9 +231,41 @@ class _AdminAddEditBadgePageState extends State<AdminAddEditBadgePage> {
 
               // ── SECTION 2: CLASSIFICATION & APPROVAL ──────────────────────
               _buildSectionCard(
-                title: 'Badge Classification & Approval',
+                title: 'Badge Classification & Target Year',
                 icon: Icons.military_tech_outlined,
                 children: [
+                  // Year Selection
+                  DropdownButtonFormField<String>(
+                    initialValue: _selectedAcademicYear,
+                    decoration: InputDecoration(
+                      labelText: 'Target Academic Year',
+                      hintText: 'Select eligible year (or All Years)',
+                      prefixIcon: const Icon(Icons.school_outlined, color: Color(0xFF1E293B)),
+                      filled: true,
+                      fillColor: Colors.grey.shade50,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: Colors.grey.shade300),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: Colors.grey.shade300),
+                      ),
+                    ),
+                    items: _yearOptions
+                        .map((y) => DropdownMenuItem(
+                              value: y['value'],
+                              child: Text(
+                                y['label']!,
+                                style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                              ),
+                            ))
+                        .toList(),
+                    onChanged: (val) {
+                      if (val != null) setState(() => _selectedAcademicYear = val);
+                    },
+                  ),
+                  const SizedBox(height: 16),
                   Row(
                     children: [
                       Expanded(
@@ -305,7 +350,12 @@ class _AdminAddEditBadgePageState extends State<AdminAddEditBadgePage> {
 
               const SizedBox(height: 16),
 
-              // ── SECTION 3: PROOF REQUIREMENT TOGGLE ────────────────────────
+              // ── SECTION 3: BADGE ACTIVE STATUS (ON / OFF) ─────────────────
+              _buildActiveStatusToggleCard(),
+
+              const SizedBox(height: 16),
+
+              // ── SECTION 4: PROOF REQUIREMENT TOGGLE ────────────────────────
               _buildProofToggleCard(),
 
               const SizedBox(height: 24),
@@ -323,6 +373,7 @@ class _AdminAddEditBadgePageState extends State<AdminAddEditBadgePage> {
   Widget _buildLivePreviewCard() {
     final previewName = _nameController.text.trim().isEmpty ? 'Badge Name Preview' : _nameController.text.trim();
     final previewDesc = _descriptionController.text.trim().isEmpty ? 'Badge description will appear here...' : _descriptionController.text.trim();
+    final yearOption = _yearOptions.firstWhere((y) => y['value'] == _selectedAcademicYear, orElse: () => {'label': 'All Years'});
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -342,12 +393,23 @@ class _AdminAddEditBadgePageState extends State<AdminAddEditBadgePage> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Icon(Icons.preview_outlined, size: 16, color: Colors.grey),
-              const SizedBox(width: 6),
-              Text(
-                'LIVE PREVIEW',
-                style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey.shade600, letterSpacing: 0.8),
+              Row(
+                children: [
+                  const Icon(Icons.preview_outlined, size: 16, color: Colors.grey),
+                  const SizedBox(width: 6),
+                  Text(
+                    'LIVE PREVIEW',
+                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey.shade600, letterSpacing: 0.8),
+                  ),
+                ],
+              ),
+              _buildBadgeChip(
+                _isActive ? 'ACTIVE (ON)' : 'INACTIVE (OFF)',
+                _isActive ? Colors.green.shade50 : Colors.grey.shade100,
+                _isActive ? Colors.green.shade800 : Colors.grey.shade700,
+                icon: _isActive ? Icons.power_settings_new_rounded : Icons.power_off_rounded,
               ),
             ],
           ),
@@ -379,6 +441,7 @@ class _AdminAddEditBadgePageState extends State<AdminAddEditBadgePage> {
                       spacing: 6,
                       runSpacing: 4,
                       children: [
+                        _buildBadgeChip(yearOption['label']!, Colors.blue.shade50, Colors.blue.shade800, icon: Icons.calendar_today_outlined),
                         _buildBadgeChip(_selectedTier, Colors.indigo.shade50, Colors.indigo.shade700),
                         _buildBadgeChip(_selectedRarity, Colors.purple.shade50, Colors.purple.shade700),
                         _proofRequired
@@ -395,6 +458,74 @@ class _AdminAddEditBadgePageState extends State<AdminAddEditBadgePage> {
           Text(
             previewDesc,
             style: TextStyle(color: Colors.grey.shade700, fontSize: 13),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildActiveStatusToggleCard() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: _isActive ? Colors.green.shade50.withValues(alpha: 0.6) : Colors.grey.shade50,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: _isActive ? Colors.green.shade300 : Colors.grey.shade300,
+          width: 1.5,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                _isActive ? Icons.toggle_on_rounded : Icons.toggle_off_rounded,
+                color: _isActive ? Colors.green.shade700 : Colors.grey.shade700,
+                size: 28,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Badge Status (ON / OFF)',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 15,
+                        color: _isActive ? Colors.green.shade900 : Colors.grey.shade900,
+                      ),
+                    ),
+                    Text(
+                      _isActive ? 'ON: Active & Claimable by students' : 'OFF: Inactive & Hidden from students',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: _isActive ? Colors.green.shade800 : Colors.grey.shade600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Switch(
+                value: _isActive,
+                activeThumbColor: Colors.green,
+                onChanged: (val) {
+                  setState(() => _isActive = val);
+                },
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Text(
+            _isActive
+                ? 'Students meeting the year eligibility criteria can view and request to claim this badge.'
+                : 'This badge will be temporarily disabled and cannot be claimed by any student until switched ON.',
+            style: TextStyle(
+              fontSize: 12,
+              color: _isActive ? Colors.green.shade800 : Colors.grey.shade700,
+            ),
           ),
         ],
       ),

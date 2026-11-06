@@ -1,17 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:pragatix/features/admin/pages/overview_tab.dart';
-import 'package:pragatix/features/admin/pages/activity_tab.dart';
 import 'package:pragatix/features/activity/pages/year_selection_page.dart';
 import 'package:pragatix/features/profile/pages/profile_page.dart';
 import 'package:pragatix/features/team/pages/team_group_management_tab.dart';
 import 'package:pragatix/features/attendance/pages/admin_attendance_tab.dart';
-import 'package:pragatix/features/badge/pages/admin_badge_requests_page.dart';
 import 'package:pragatix/features/admin/pages/super_admin_management_tab.dart';
-import 'package:pragatix/features/analytics/pages/analytics_tab.dart';
 import 'package:provider/provider.dart';
 import 'package:pragatix/features/auth/providers/auth_provider.dart';
-
-
+import 'package:pragatix/features/banking/pages/admin_banking_dashboard_page.dart';
+import 'package:pragatix/features/badge/pages/admin_badge_requests_page.dart';
 import 'package:pragatix/features/badge/providers/badge_provider.dart';
 
 class SuperAdminDashboard extends StatefulWidget {
@@ -35,6 +32,7 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard> {
       const TeamGroupManagementTab(),
       const AdminBadgeRequestsPage(),
       const SuperAdminManagementTab(),
+      const AdminBankingDashboardPage(),
       const ProfilePage(),
     ];
 
@@ -90,11 +88,15 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard> {
                 child: const Icon(Icons.workspace_premium),
               ),
             ),
-            label: 'Requests',
+            label: 'Badge Request',
           ),
           const BottomNavigationBarItem(
             icon: Icon(Icons.manage_accounts_rounded),
             label: 'Admins',
+          ),
+          const BottomNavigationBarItem(
+            icon: Icon(Icons.account_balance_rounded),
+            label: 'Banking',
           ),
           const BottomNavigationBarItem(
             icon: Icon(Icons.admin_panel_settings_rounded),

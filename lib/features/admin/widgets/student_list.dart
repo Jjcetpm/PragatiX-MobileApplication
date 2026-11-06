@@ -5,7 +5,7 @@ class StudentList extends StatelessWidget {
   final List<dynamic> studentsList;
   final String searchQuery;
   final void Function(Map<String, dynamic>) onEdit;
-  final void Function(int) onDelete;
+  final void Function(int, [String?]) onDelete;
   final void Function(Map<String, dynamic>)? onTap;
   final ScrollController? scrollController;
   final bool isLoadingMore;
@@ -245,6 +245,7 @@ class StudentList extends StatelessWidget {
                             context: context,
                             builder: (context) => DeleteStudentDialog(
                               studentName: name,
+                              onConfirmWithReason: (reason) => onDelete(s['id'], reason),
                               onConfirmDelete: () => onDelete(s['id']),
                             ),
                           );

@@ -65,15 +65,27 @@ class ActivityRepository {
     return _service.fetchDepartments();
   }
 
+  Future<List<dynamic>> getAllDepartments() async {
+    return _service.fetchAllDepartments();
+  }
+
   Future<List<dynamic>> getTeachers() async {
     final users = await _service.fetchUsers();
     return users.where((u) {
-      final roles = u['roles'] as List<dynamic>? ?? [];
-      return roles.any((r) {
-        if (r is String) return r == 'ROLE_TEACHER';
-        if (r is Map) return r['name'] == 'ROLE_TEACHER';
-        return false;
-      });
+      final roles = (u['roles'] as List<dynamic>? ?? [])
+          .map((r) => (r is Map ? r['name'] : r).toString().toUpperCase().trim())
+          .toList();
+      final subRoles = (u['subRoles'] as List<dynamic>? ?? [])
+          .map((s) => (s is Map ? s['name'] : s).toString().toUpperCase().trim())
+          .toList();
+      final hasTeacherRole = roles.any((r) =>
+          r.contains('TEACHER') || r.contains('HOD') || r.contains('TRANSPORT'));
+      final hasSubRole = subRoles.any((sr) =>
+          sr.contains('HOD') || sr.contains('CC') || sr.contains('COORDINATOR'));
+      final hasTeachingClasses = u['teachingClasses'] != null &&
+          u['teachingClasses'].toString().trim().isNotEmpty;
+      final isStudent = roles.any((r) => r.contains('STUDENT'));
+      return (hasTeacherRole || hasSubRole || hasTeachingClasses) && !isStudent;
     }).toList();
   }
 
@@ -200,6 +212,11 @@ class ActivityRepository {
     bool globalEnabled, [
     List<Map<String, dynamic>>? assignments,
     int? stageId,
+    String? roleAssignment,
+    int? teacherDeptId,
+    bool? hodEnabled,
+    bool? attendanceEngineEnabled,
+    String? attendanceRule,
   ]) async {
     await _service.assignActivity(
       activityId,
@@ -207,6 +224,11 @@ class ActivityRepository {
       globalEnabled,
       assignments,
       stageId,
+      roleAssignment,
+      teacherDeptId,
+      hodEnabled,
+      attendanceEngineEnabled,
+      attendanceRule,
     );
   }
 }

@@ -248,6 +248,18 @@ class BadgeProvider extends ChangeNotifier {
     return response;
   }
 
+  Future<Map<String, dynamic>> toggleBadgeStatus(
+    String token,
+    int id,
+    bool active,
+  ) async {
+    final response = await _repository.toggleBadgeStatus(token, id, active);
+    if (response['success'] == true) {
+      await fetchAdminBadges(token);
+    }
+    return response;
+  }
+
   Future<Map<String, dynamic>> deleteBadge(String token, int id) async {
     _isBadgeActionLoading = true;
     notifyListeners();

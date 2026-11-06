@@ -422,6 +422,36 @@ class BadgeRepository {
     }
   }
 
+  Future<Map<String, dynamic>> toggleBadgeStatus(
+    String token,
+    int id,
+    bool active,
+  ) async {
+    try {
+      final response = await http.patch(
+        Uri.parse('${ApiConfig.baseUrl}/api/admin/badges/$id/toggle-status?active=$active'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+      );
+      final resData = jsonDecode(response.body);
+      if (response.statusCode == 200 && resData['success'] == true) {
+        return {
+          'success': true,
+          'message': resData['message'] ?? 'Badge status updated successfully',
+          'data': resData['data'],
+        };
+      }
+      return {
+        'success': false,
+        'message': resData['message'] ?? 'Failed to update badge status',
+      };
+    } catch (e) {
+      return {'success': false, 'message': 'Connection error: $e'};
+    }
+  }
+
   Future<Map<String, dynamic>> deleteBadge(String token, int id) async {
     try {
       final response = await http.delete(

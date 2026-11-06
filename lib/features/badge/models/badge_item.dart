@@ -8,6 +8,8 @@ class BadgeItem {
   final String approvalAuthority;
   final String rarity;
   final bool proofRequired;
+  final bool isActive;
+  final String? academicYear;
 
   BadgeItem({
     required this.id,
@@ -19,6 +21,8 @@ class BadgeItem {
     required this.approvalAuthority,
     required this.rarity,
     required this.proofRequired,
+    this.isActive = true,
+    this.academicYear,
   });
 
   factory BadgeItem.fromJson(Map<String, dynamic> json) {
@@ -38,6 +42,16 @@ class BadgeItem {
           : (json['proofRequired'] != null &&
               (json['proofRequired'].toString().toLowerCase() == 'true' ||
                json['proofRequired'].toString() == '1')),
+      isActive: json['isActive'] is bool
+          ? json['isActive']
+          : (json['isActive'] != null
+              ? (json['isActive'].toString().toLowerCase() == 'true' || json['isActive'].toString() == '1')
+              : (json['active'] is bool
+                  ? json['active']
+                  : (json['active'] != null
+                      ? (json['active'].toString().toLowerCase() == 'true' || json['active'].toString() == '1')
+                      : true))),
+      academicYear: json['academicYear']?.toString(),
     );
   }
 
@@ -52,6 +66,8 @@ class BadgeItem {
       'approvalAuthority': approvalAuthority,
       'rarity': rarity,
       'proofRequired': proofRequired,
+      'isActive': isActive,
+      'academicYear': academicYear,
     };
   }
 }

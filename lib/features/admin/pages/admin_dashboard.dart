@@ -4,12 +4,9 @@ import 'package:pragatix/features/admin/pages/activity_tab.dart';
 import 'package:pragatix/features/profile/pages/profile_page.dart';
 import 'package:pragatix/features/team/pages/team_group_management_tab.dart';
 import 'package:pragatix/features/attendance/pages/admin_attendance_tab.dart';
-import 'package:pragatix/features/badge/pages/admin_badge_requests_page.dart';
-import 'package:pragatix/features/analytics/pages/analytics_tab.dart';
 import 'package:provider/provider.dart';
 import 'package:pragatix/features/auth/providers/auth_provider.dart';
-
-
+import 'package:pragatix/features/badge/pages/admin_badge_requests_page.dart';
 import 'package:pragatix/features/badge/providers/badge_provider.dart';
 
 class AdminDashboard extends StatefulWidget {
@@ -87,7 +84,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                 child: const Icon(Icons.workspace_premium),
               ),
             ),
-            label: 'Requests',
+            label: 'Badge Request',
           ),
           const BottomNavigationBarItem(
             icon: Icon(Icons.admin_panel_settings_rounded),

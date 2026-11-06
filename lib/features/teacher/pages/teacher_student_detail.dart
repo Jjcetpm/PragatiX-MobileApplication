@@ -7,6 +7,10 @@ import 'package:flutter/material.dart';
 import 'package:pragatix/features/teacher/services/teacher_proxy_service.dart';
 import 'package:pragatix/core/di/service_locator.dart';
 import 'package:pragatix/core/utils/string_utils.dart';
+import 'package:pragatix/features/admin/repository/admin_repository.dart';
+import 'package:pragatix/features/student/models/student_deletion_request.dart';
+import 'package:pragatix/features/student/widgets/delete_student_confirmation_dialog.dart';
+import 'package:pragatix/features/student/widgets/student_deletion_status_banner.dart';
 
 class TeacherStudentDetail extends StatefulWidget {
   final Map<String, dynamic> student;
@@ -24,6 +28,7 @@ class _TeacherStudentDetailState extends State<TeacherStudentDetail> {
   List<dynamic> historyLogs = [];
   bool isLoadingHistory = true;
   bool isCurrentlyCaptain = false;
+  StudentDeletionRequest? _deletionRequest;
 
   @override
   void initState() {
@@ -40,8 +45,9 @@ class _TeacherStudentDetailState extends State<TeacherStudentDetail> {
   }
 
   Future<void> _fetchFullStudentDetails() async {
-    final id = _studentData['id'];
-    if (id == null) return;
+    final rawId = _studentData['id'] ?? widget.student['id'];
+    final id = rawId is int ? rawId : int.tryParse(rawId?.toString() ?? '0');
+    if (id == null || id <= 0) return;
     try {
       final response = await getIt<TeacherProxyService>().get(
         Uri.parse('${ApiConfig.baseUrl}/api/v1/students/$id'),
@@ -67,6 +73,54 @@ class _TeacherStudentDetailState extends State<TeacherStudentDetail> {
         }
       }
     } catch (_) {}
+
+    // Fetch Deletion Request status
+    try {
+      final req = await getIt<AdminRepository>().getStudentDeletionRequest(id);
+      if (mounted) {
+        setState(() => _deletionRequest = req);
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _openDeleteDialog() async {
+    final rawId = _studentData['id'] ?? widget.student['id'];
+    final int id = rawId is int ? rawId : int.tryParse(rawId?.toString() ?? '0') ?? 0;
+    if (id <= 0) return;
+
+    final String name = _studentData['fullName'] ?? _studentData['name'] ?? 'Unknown';
+    final String regNo = _studentData['regNo'] ?? _studentData['studentId'] ?? '-';
+    final String dept = _studentData['departmentName'] ?? _studentData['department'] ?? 'N/A';
+    final String rawSec = (_studentData['section'] ?? _studentData['sectionName'] ?? '-').toString().trim();
+
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => DeleteStudentConfirmationDialog(
+        studentId: id,
+        studentName: name,
+        studentRegNo: regNo,
+        departmentName: dept,
+        sectionName: rawSec,
+        onConfirm: (reason) async {
+          await getIt<AdminRepository>().submitStudentDeletionRequest(
+            studentId: id,
+            reason: reason,
+          );
+        },
+      ),
+    );
+
+    if (result == true) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Deletion request submitted to Super Admin for approval.'),
+            backgroundColor: Color(0xFF16A34A),
+          ),
+        );
+        _fetchFullStudentDetails();
+      }
+    }
   }
 
   Future<void> _fetchStreaks() async {
@@ -217,17 +271,43 @@ class _TeacherStudentDetailState extends State<TeacherStudentDetail> {
 
     final bool isFemale = gender.toLowerCase().startsWith('f') || gender.toLowerCase() == 'girl';
 
+    final user = context.watch<AuthProvider>().currentUser;
+    final roles = (user?['roles'] as List<dynamic>? ?? []).map((e) => e.toString()).toList();
+    final bool isSuperAdmin = roles.contains('ROLE_SUPER_ADMIN') || roles.contains('SUPER_ADMIN');
+    final bool isDeletionPending = _deletionRequest?.isPending == true;
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Student Details', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
         backgroundColor: const Color(0xFF1E293B),
         elevation: 0,
+        actions: [
+          IconButton(
+            icon: Icon(
+              Icons.delete_outline_rounded,
+              color: isDeletionPending ? Colors.amber : const Color(0xFFFCA5A5),
+            ),
+            tooltip: isDeletionPending
+                ? 'Deletion Request Pending'
+                : 'Delete Student',
+            onPressed: isDeletionPending ? null : _openDeleteDialog,
+          ),
+        ],
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Deletion Request Status Banner
+            if (_deletionRequest != null)
+              StudentDeletionStatusBanner(
+                request: _deletionRequest!,
+                isSuperAdmin: isSuperAdmin,
+                onRefresh: _fetchFullStudentDetails,
+                onReRequest: _openDeleteDialog,
+              ),
+
             // Student Main Profile Card
             Center(
               child: Card(
@@ -708,6 +788,82 @@ class _TeacherStudentDetailState extends State<TeacherStudentDetail> {
                       );
                     },
                   ),
+            const SizedBox(height: 24),
+            // Student Profile Actions Card
+            Card(
+              elevation: 2,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+                side: BorderSide(
+                  color: isDeletionPending ? const Color(0xFFFDE68A) : const Color(0xFFFCA5A5).withValues(alpha: 0.6),
+                ),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(20.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.warning_amber_rounded,
+                          color: isDeletionPending ? const Color(0xFFD97706) : const Color(0xFFDC2626),
+                          size: 24,
+                        ),
+                        const SizedBox(width: 10),
+                        const Text(
+                          'Student Profile Actions',
+                          style: TextStyle(
+                            fontSize: 17,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF1E293B),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      isDeletionPending
+                          ? 'A deletion request for this student is currently pending Super Admin approval. The profile remains active until reviewed.'
+                          : 'Need to delete this student profile? Submit a deletion request with reason. The profile will only be deleted once approved by the Super Admin.',
+                      style: const TextStyle(fontSize: 13, color: Color(0xFF64748B), height: 1.4),
+                    ),
+                    const SizedBox(height: 16),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        onPressed: isDeletionPending ? null : _openDeleteDialog,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFFDC2626),
+                          foregroundColor: Colors.white,
+                          disabledBackgroundColor: const Color(0xFFCBD5E1),
+                          disabledForegroundColor: const Color(0xFF64748B),
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          elevation: 0,
+                        ),
+                        icon: Icon(
+                          isDeletionPending ? Icons.hourglass_top_rounded : Icons.delete_forever_rounded,
+                          size: 18,
+                        ),
+                        label: Text(
+                          isDeletionPending
+                              ? 'Deletion Pending Super Admin Approval'
+                              : 'Delete Student Profile',
+                          style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 32),
           ],
         ),
       ),

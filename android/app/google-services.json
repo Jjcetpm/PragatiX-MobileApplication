@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "951982445231",
+    "project_id": "pragatix-86c54",
+    "storage_bucket": "pragatix-86c54.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:951982445231:android:e7e5ab17d8c53ffb813a5a",
+        "android_client_info": {
+          "package_name": "jjcet.PragatiX"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAAyg4lXQbY5L6diQOUgUORLGSOGzq9Rnk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:951982445231:android:e7e5ab17d8c53ffb813a5a",
+        "android_client_info": {
+          "package_name": "jjcet.Pragatix"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAAyg4lXQbY5L6diQOUgUORLGSOGzq9Rnk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

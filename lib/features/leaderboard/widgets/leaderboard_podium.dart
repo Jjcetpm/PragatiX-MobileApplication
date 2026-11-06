@@ -143,15 +143,34 @@ class LeaderboardPodium extends StatelessWidget {
                     ),
                   ],
                 ),
-                child: Center(
-                  child: Text(
-                    _getInitials(name),
-                    style: TextStyle(
-                      fontWeight: FontWeight.w900,
-                      fontSize: 20,
-                      color: isFemale ? const Color(0xFFDB2777) : const Color(0xFF2563EB),
-                    ),
-                  ),
+                child: ClipOval(
+                  child: (student['profileImageUrl'] != null && student['profileImageUrl'].toString().isNotEmpty)
+                      ? Image.network(
+                          student['profileImageUrl'].toString(),
+                          width: 64,
+                          height: 64,
+                          fit: BoxFit.cover,
+                          errorBuilder: (ctx, err, st) => Center(
+                            child: Text(
+                              _getInitials(name),
+                              style: TextStyle(
+                                fontWeight: FontWeight.w900,
+                                fontSize: 20,
+                                color: isFemale ? const Color(0xFFDB2777) : const Color(0xFF2563EB),
+                              ),
+                            ),
+                          ),
+                        )
+                      : Center(
+                          child: Text(
+                            _getInitials(name),
+                            style: TextStyle(
+                              fontWeight: FontWeight.w900,
+                              fontSize: 20,
+                              color: isFemale ? const Color(0xFFDB2777) : const Color(0xFF2563EB),
+                            ),
+                          ),
+                        ),
                 ),
               ),
               Positioned(
@@ -292,15 +311,34 @@ class LeaderboardPodium extends StatelessWidget {
                 color: isFemale ? const Color(0xFFFDF2F8) : const Color(0xFFEFF6FF),
                 border: Border.all(color: ribbonColor.withValues(alpha: 0.7), width: 2),
               ),
-              child: Center(
-                child: Text(
-                  _getInitials(name),
-                  style: TextStyle(
-                    fontWeight: FontWeight.w800,
-                    fontSize: 15,
-                    color: isFemale ? const Color(0xFFDB2777) : const Color(0xFF2563EB),
-                  ),
-                ),
+              child: ClipOval(
+                child: (student['profileImageUrl'] != null && student['profileImageUrl'].toString().isNotEmpty)
+                    ? Image.network(
+                        student['profileImageUrl'].toString(),
+                        width: avatarRadius * 2,
+                        height: avatarRadius * 2,
+                        fit: BoxFit.cover,
+                        errorBuilder: (ctx, err, st) => Center(
+                          child: Text(
+                            _getInitials(name),
+                            style: TextStyle(
+                              fontWeight: FontWeight.w800,
+                              fontSize: 15,
+                              color: isFemale ? const Color(0xFFDB2777) : const Color(0xFF2563EB),
+                            ),
+                          ),
+                        ),
+                      )
+                    : Center(
+                        child: Text(
+                          _getInitials(name),
+                          style: TextStyle(
+                            fontWeight: FontWeight.w800,
+                            fontSize: 15,
+                            color: isFemale ? const Color(0xFFDB2777) : const Color(0xFF2563EB),
+                          ),
+                        ),
+                      ),
               ),
             ),
             Positioned(

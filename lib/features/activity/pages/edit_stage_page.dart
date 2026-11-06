@@ -26,6 +26,7 @@ class _EditStagePageState extends State<EditStagePage> {
   late final TextEditingController _grpThresholdCtrl;
   String? _selectedAcademicYear;
   bool _isSaving = false;
+  bool _useSubgroupThresholds = true;
 
   static const Color _primary = Color(0xFF2563EB);
   static const Color _dark = Color(0xFF1E293B);
@@ -57,6 +58,7 @@ class _EditStagePageState extends State<EditStagePage> {
       text: (widget.stage['groupThreshold'] ?? 0).toString(),
     );
     _selectedAcademicYear = widget.stage['academicYear'] as String?;
+    _useSubgroupThresholds = widget.stage['useSubgroupThresholds'] != false;
   }
 
   @override
@@ -107,6 +109,7 @@ class _EditStagePageState extends State<EditStagePage> {
           'individualThreshold':
               int.tryParse(_indThresholdCtrl.text.trim()) ?? 0,
           'groupThreshold': int.tryParse(_grpThresholdCtrl.text.trim()) ?? 0,
+          'useSubgroupThresholds': _useSubgroupThresholds,
           if (isSuperAdmin) 'academicYear': _selectedAcademicYear,
         }),
       );
@@ -334,58 +337,91 @@ class _EditStagePageState extends State<EditStagePage> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text(
-                            'Subgroup Thresholds',
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                              color: _dark,
-                            ),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Expanded(
+                                child: Text(
+                                  'Use Subgroup Thresholds',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                    color: _dark,
+                                  ),
+                                ),
+                              ),
+                              Switch(
+                                value: _useSubgroupThresholds,
+                                activeColor: _primary,
+                                onChanged: (val) {
+                                  setState(() => _useSubgroupThresholds = val);
+                                },
+                              ),
+                            ],
                           ),
-                          const SizedBox(height: 8),
                           Text(
-                            'Students must complete all required subgroup thresholds before promoting to the next stage.',
+                            'When enabled, progression depends on subgroup threshold requirements. When disabled, progression depends only on the stage-level threshold.',
                             style: TextStyle(
                               fontSize: 12,
                               color: Colors.grey.shade600,
                             ),
                           ),
-                          const SizedBox(height: 16),
-                          TextFormField(
-                            controller: _mustThresholdCtrl,
-                            keyboardType: TextInputType.number,
-                            decoration: InputDecoration(
-                              labelText: 'Must Threshold',
-                              hintText: 'e.g. 50',
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
+                          if (_useSubgroupThresholds) ...[
+                            const SizedBox(height: 16),
+                            TextFormField(
+                              controller: _mustThresholdCtrl,
+                              keyboardType: TextInputType.number,
+                              decoration: InputDecoration(
+                                labelText: 'Must Threshold',
+                                hintText: 'e.g. 50',
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
                               ),
                             ),
-                          ),
-                          const SizedBox(height: 12),
-                          TextFormField(
-                            controller: _indThresholdCtrl,
-                            keyboardType: TextInputType.number,
-                            decoration: InputDecoration(
-                              labelText: 'Individual Threshold',
-                              hintText: 'e.g. 100',
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
+                            const SizedBox(height: 12),
+                            TextFormField(
+                              controller: _indThresholdCtrl,
+                              keyboardType: TextInputType.number,
+                              decoration: InputDecoration(
+                                labelText: 'Individual Threshold',
+                                hintText: 'e.g. 100',
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
                               ),
                             ),
-                          ),
-                          const SizedBox(height: 12),
-                          TextFormField(
-                            controller: _grpThresholdCtrl,
-                            keyboardType: TextInputType.number,
-                            decoration: InputDecoration(
-                              labelText: 'Group Threshold',
-                              hintText: 'e.g. 150',
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
+                            const SizedBox(height: 12),
+                            TextFormField(
+                              controller: _grpThresholdCtrl,
+                              keyboardType: TextInputType.number,
+                              decoration: InputDecoration(
+                                labelText: 'Group Threshold',
+                                hintText: 'e.g. 150',
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
                               ),
                             ),
-                          ),
+                          ] else ...[
+                            const SizedBox(height: 12),
+                            Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: Colors.grey.shade50,
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(color: Colors.grey.shade200),
+                              ),
+                              child: Text(
+                                'Subgroup thresholds disabled. Students will advance based on Stage Expected XP Cap alone.',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey.shade700,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ),
+                          ],
                         ],
                       ),
                     ),

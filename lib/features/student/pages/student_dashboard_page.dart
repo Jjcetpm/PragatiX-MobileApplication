@@ -6,6 +6,7 @@ import 'package:pragatix/features/student/pages/levels_badges_tab.dart';
 import 'package:provider/provider.dart';
 import 'package:pragatix/features/attendance/providers/attendance_provider.dart';
 import 'package:pragatix/features/attendance/pages/student_attendance_tab.dart';
+import 'package:pragatix/features/banking/pages/student_my_bank_page.dart';
 
 class StudentDashboardPage extends StatefulWidget {
   const StudentDashboardPage({super.key});
@@ -45,6 +46,7 @@ class _StudentDashboardPageState extends State<StudentDashboardPage> {
       PointReviewTab(onBack: _goToHome),
       StudentAttendanceTab(onBack: _goToHome),
       LevelsBadgesTab(onBack: _goToHome),
+      StudentMyBankPage(onBack: _goToHome),
     ];
 
     return Scaffold(
@@ -81,9 +83,8 @@ class _StudentDashboardPageState extends State<StudentDashboardPage> {
         child: SafeArea(
           top: false,
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 4),
             child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
                 _buildNavItem(
                   index: 0,
@@ -125,6 +126,14 @@ class _StudentDashboardPageState extends State<StudentDashboardPage> {
                   activeColor: activeColor,
                   inactiveColor: inactiveColor,
                 ),
+                _buildNavItem(
+                  index: 5,
+                  label: 'Bank',
+                  activeIcon: Icons.account_balance_rounded,
+                  inactiveIcon: Icons.account_balance_outlined,
+                  activeColor: const Color(0xFF0F766E),
+                  inactiveColor: inactiveColor,
+                ),
               ],
             ),
           ),
@@ -143,39 +152,49 @@ class _StudentDashboardPageState extends State<StudentDashboardPage> {
   }) {
     final bool isSelected = _currentIndex == index;
 
-    return InkWell(
-      onTap: () => setState(() => _currentIndex = index),
-      borderRadius: BorderRadius.circular(16),
-      splashColor: activeColor.withValues(alpha: 0.1),
-      highlightColor: Colors.transparent,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // Pill container for active tab
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-              decoration: BoxDecoration(
-                color: isSelected ? const Color(0xFFE0F2FE) : Colors.transparent,
-                borderRadius: BorderRadius.circular(16),
+    return Expanded(
+      child: InkWell(
+        onTap: () => setState(() => _currentIndex = index),
+        borderRadius: BorderRadius.circular(12),
+        splashColor: activeColor.withValues(alpha: 0.1),
+        highlightColor: Colors.transparent,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 3),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              // Pill container for active tab
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+                decoration: BoxDecoration(
+                  color: isSelected ? activeColor.withValues(alpha: 0.12) : Colors.transparent,
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Icon(
+                  isSelected ? activeIcon : inactiveIcon,
+                  size: 21,
+                  color: isSelected ? activeColor : inactiveColor,
+                ),
               ),
-              child: Icon(
-                isSelected ? activeIcon : inactiveIcon,
-                size: 22,
-                color: isSelected ? activeColor : inactiveColor,
+              const SizedBox(height: 2),
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 2),
+                  child: Text(
+                    label,
+                    maxLines: 1,
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: isSelected ? FontWeight.w800 : FontWeight.w500,
+                      color: isSelected ? activeColor : inactiveColor,
+                    ),
+                  ),
+                ),
               ),
-            ),
-            const SizedBox(height: 3),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 11.5,
-                fontWeight: isSelected ? FontWeight.w800 : FontWeight.w500,
-                color: isSelected ? activeColor : inactiveColor,
-              ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

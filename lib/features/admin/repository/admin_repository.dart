@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:pragatix/features/admin/services/admin_service.dart';
 import 'package:pragatix/core/exceptions/api_exception.dart';
+import 'package:pragatix/features/student/models/student_deletion_request.dart';
 
 class AdminRepository {
   final AdminService _adminService;
@@ -658,6 +659,116 @@ class AdminRepository {
   Future<void> deleteLevel(int id) async {
     final response = await _adminService.delete('/api/admin/levels/$id');
     _handleResponse(response);
+  }
+
+  // ── STUDENT DELETION REQUESTS & APPROVAL WORKFLOW ─────────────────────────
+
+  Future<StudentDeletionRequest> submitStudentDeletionRequest({
+    required int studentId,
+    required String reason,
+  }) async {
+    final response = await _adminService.post(
+      '/api/v1/student-deletion-requests',
+      {
+        'studentId': studentId,
+        'reason': reason,
+      },
+    );
+    final data = _handleResponse(response);
+    final item = data['data'] ?? {};
+    return StudentDeletionRequest.fromJson(item is Map<String, dynamic> ? item : Map<String, dynamic>.from(item));
+  }
+
+  Future<StudentDeletionRequest?> getStudentDeletionRequest(int studentId) async {
+    try {
+      final response = await _adminService.get('/api/v1/student-deletion-requests/student/$studentId');
+      final data = _handleResponse(response);
+      final item = data['data'];
+      if (item != null && item is Map) {
+        return StudentDeletionRequest.fromJson(Map<String, dynamic>.from(item));
+      }
+      return null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<StudentDeletionRequest?> getMyStudentDeletionRequest() async {
+    try {
+      final response = await _adminService.get('/api/v1/student-deletion-requests/my-request');
+      final data = _handleResponse(response);
+      final item = data['data'];
+      if (item != null && item is Map) {
+        return StudentDeletionRequest.fromJson(Map<String, dynamic>.from(item));
+      }
+      return null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<List<StudentDeletionRequest>> getStudentDeletionRequests({
+    String? status,
+    String? search,
+    int page = 0,
+    int size = 50,
+  }) async {
+    String endpoint = '/api/v1/student-deletion-requests?page=$page&size=$size';
+    if (status != null && status.isNotEmpty && status.toUpperCase() != 'ALL') {
+      endpoint += '&status=${status.toUpperCase()}';
+    }
+    if (search != null && search.trim().isNotEmpty) {
+      endpoint += '&search=${Uri.encodeComponent(search.trim())}';
+    }
+    final response = await _adminService.get(endpoint);
+    final data = _handleResponse(response);
+    final dynamic pageData = data['data'];
+    List<dynamic> items = [];
+    if (pageData is Map && pageData['content'] is List) {
+      items = pageData['content'];
+    } else if (pageData is List) {
+      items = pageData;
+    }
+    return items.map((e) => StudentDeletionRequest.fromJson(Map<String, dynamic>.from(e))).toList();
+  }
+
+  Future<int> getPendingStudentDeletionRequestsCount() async {
+    try {
+      final response = await _adminService.get('/api/v1/student-deletion-requests/pending-count');
+      final data = _handleResponse(response);
+      final val = data['data'];
+      if (val is int) return val;
+      if (val != null) return int.tryParse(val.toString()) ?? 0;
+      return 0;
+    } catch (_) {
+      return 0;
+    }
+  }
+
+  Future<StudentDeletionRequest> approveStudentDeletionRequest(
+    int requestId, {
+    String? remarks,
+  }) async {
+    final response = await _adminService.put(
+      '/api/v1/student-deletion-requests/$requestId/approve',
+      remarks != null && remarks.trim().isNotEmpty ? {'remarks': remarks.trim()} : {},
+    );
+    final data = _handleResponse(response);
+    final item = data['data'] ?? {};
+    return StudentDeletionRequest.fromJson(Map<String, dynamic>.from(item));
+  }
+
+  Future<StudentDeletionRequest> rejectStudentDeletionRequest(
+    int requestId, {
+    String? remarks,
+  }) async {
+    final response = await _adminService.put(
+      '/api/v1/student-deletion-requests/$requestId/reject',
+      remarks != null && remarks.trim().isNotEmpty ? {'remarks': remarks.trim()} : {},
+    );
+    final data = _handleResponse(response);
+    final item = data['data'] ?? {};
+    return StudentDeletionRequest.fromJson(Map<String, dynamic>.from(item));
   }
 
   // Generic handler for JSON response mapping

@@ -101,9 +101,12 @@ class ActivityService {
     }
   }
 
-  Future<List<dynamic>> fetchDepartments() async {
+  Future<List<dynamic>> fetchDepartments({bool all = false}) async {
+    final url = all
+        ? '${ActivityConstants.baseUrl}/departments?all=true'
+        : '${ActivityConstants.baseUrl}/departments?type=MAIN';
     final response = await http.get(
-      Uri.parse('${ActivityConstants.baseUrl}/departments?type=MAIN'),
+      Uri.parse(url),
       headers: _authHeaders,
     );
     if (response.statusCode == 200) {
@@ -115,6 +118,14 @@ class ActivityService {
     throw Exception(
       'Failed to fetch departments (status ${response.statusCode})',
     );
+  }
+
+  Future<List<dynamic>> fetchAllDepartments() async {
+    try {
+      return await fetchDepartments(all: true);
+    } catch (_) {
+      return await fetchDepartments(all: false);
+    }
   }
 
   Future<List<dynamic>> fetchUsers() async {
@@ -377,6 +388,11 @@ class ActivityService {
     bool globalEnabled, [
     List<Map<String, dynamic>>? assignments,
     int? stageId,
+    String? roleAssignment,
+    int? teacherDeptId,
+    bool? hodEnabled,
+    bool? attendanceEngineEnabled,
+    String? attendanceRule,
   ]) async {
     final url = stageId != null
         ? '${ActivityConstants.baseUrl}/activities/$activityId/assign?stageId=$stageId'
@@ -388,13 +404,18 @@ class ActivityService {
         'stageId': stageId,
         'ccEnabled': ccEnabled,
         'globalEnabled': globalEnabled,
+        'roleAssignment': roleAssignment,
+        'teacherDeptId': teacherDeptId,
+        'hodEnabled': hodEnabled,
+        'attendanceEngineEnabled': attendanceEngineEnabled,
+        'attendanceRule': attendanceRule,
         'assignments': assignments ?? [],
       }),
     );
     if (response.statusCode != 200) {
       final data = jsonDecode(response.body) as Map<String, dynamic>;
       throw Exception(
-        data['message'] ?? 'Failed to update global assignment config',
+        data['message'] ?? 'Failed to update assignment config',
       );
     }
   }

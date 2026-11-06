@@ -35,6 +35,7 @@ class ActivityProvider extends ChangeNotifier {
   List<ActivityModel> activities = [];
   List<MyActivityModel> myActivities = [];
   List<dynamic> departments = [];
+  List<dynamic> allDepartments = [];
   List<dynamic> allTeachers = [];
   List<dynamic> sections = [];
   List<dynamic> classCoordinators = [];
@@ -128,6 +129,11 @@ class ActivityProvider extends ChangeNotifier {
       departments = await _repository.getDepartments();
     } catch (_) {
       departments = [];
+    }
+    try {
+      allDepartments = await _repository.getAllDepartments();
+    } catch (_) {
+      allDepartments = [];
     }
     try {
       allTeachers = await _repository.getTeachers();
@@ -563,6 +569,11 @@ class ActivityProvider extends ChangeNotifier {
     bool globalEnabled, [
     List<Map<String, dynamic>>? assignments,
     int? stageId,
+    String? roleAssignment,
+    int? teacherDeptId,
+    bool? hodEnabled,
+    bool? attendanceEngineEnabled,
+    String? attendanceRule,
   ]) async {
     isSaving = true;
     error = null;
@@ -574,6 +585,11 @@ class ActivityProvider extends ChangeNotifier {
         globalEnabled,
         assignments,
         stageId,
+        roleAssignment,
+        teacherDeptId,
+        hodEnabled,
+        attendanceEngineEnabled,
+        attendanceRule,
       );
     } catch (e) {
       error = e.toString();

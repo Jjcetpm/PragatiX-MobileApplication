@@ -8,6 +8,7 @@ class ProfileResponse {
   final String? department;
   final String? gender;
   final String? accountStatus;
+  final String? bio;
   final DateTime? createdDate;
   final DateTime? lastUpdated;
 
@@ -28,6 +29,7 @@ class ProfileResponse {
     this.department,
     this.gender,
     this.accountStatus,
+    this.bio,
     this.createdDate,
     this.lastUpdated,
     this.superAdminDetails,
@@ -49,6 +51,7 @@ class ProfileResponse {
       department: json['department'],
       gender: json['gender'],
       accountStatus: json['accountStatus'],
+      bio: json['bio'] ?? json['studentDetails']?['bio'],
       createdDate: json['createdDate'] != null ? DateTime.tryParse(json['createdDate']) : null,
       lastUpdated: json['lastUpdated'] != null ? DateTime.tryParse(json['lastUpdated']) : null,
       superAdminDetails: json['superAdminDetails'] != null ? SuperAdminDetails.fromJson(json['superAdminDetails']) : null,
@@ -119,6 +122,7 @@ class TeacherDetails {
 }
 
 class StudentDetails {
+  final int? id;
   final String? registerNumber;
   final String? rollNumber;
   final String? academicYear;
@@ -137,10 +141,12 @@ class StudentDetails {
   final int teamMembersCount;
   final int teamXp;
   final int teamRank;
+  final String? bio;
   final List<String> permissions;
 
   StudentDetails.fromJson(Map<String, dynamic> json)
-      : registerNumber = json['registerNumber'],
+      : id = json['id'],
+        registerNumber = json['registerNumber'],
         rollNumber = json['rollNumber'],
         academicYear = json['academicYear'],
         section = json['section'],
@@ -158,6 +164,7 @@ class StudentDetails {
         teamMembersCount = json['teamMembersCount'] ?? 0,
         teamXp = json['teamXp'] ?? 0,
         teamRank = json['teamRank'] ?? 0,
+        bio = json['bio'],
         permissions = List<String>.from(json['permissions'] ?? []);
 }
 

@@ -81,7 +81,16 @@ class TeamMemberCard extends StatelessWidget {
             CircleAvatar(
               radius: 20,
               backgroundColor: avatarBgColor,
-              child: Icon(avatarIcon, size: 20, color: avatarIconColor),
+              backgroundImage: (member['profileImageUrl'] != null && member['profileImageUrl'].toString().trim().isNotEmpty)
+                  ? NetworkImage(member['profileImageUrl'].toString().trim())
+                  : (member['profileImage'] != null && member['profileImage'].toString().trim().isNotEmpty)
+                      ? NetworkImage(member['profileImage'].toString().trim())
+                      : null,
+              onBackgroundImageError: (_, __) {},
+              child: ((member['profileImageUrl'] != null && member['profileImageUrl'].toString().trim().isNotEmpty) ||
+                      (member['profileImage'] != null && member['profileImage'].toString().trim().isNotEmpty))
+                  ? null
+                  : Icon(avatarIcon, size: 20, color: avatarIconColor),
             ),
             const SizedBox(width: 12),
             Expanded(

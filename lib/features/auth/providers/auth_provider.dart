@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:pragatix/core/utils/api_client.dart' as http;
 import 'package:pragatix/core/config/api_config.dart';
 import 'package:pragatix/core/crypto/transit_crypto.dart';
+import 'package:pragatix/core/services/fcm_notification_service.dart';
 
 /// Keys used in SharedPreferences for session persistence.
 class _SessionKeys {
@@ -62,6 +63,9 @@ class AuthProvider extends ChangeNotifier {
     await prefs.setString(_SessionKeys.sessionExpiry, sessionExpiry.toIso8601String());
 
     notifyListeners();
+
+    // Register FCM device token with Spring Boot backend
+    FcmNotificationService.instance.registerTokenWithBackend();
   }
 
   // â”€â”€ Academic Year â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -80,6 +84,9 @@ class AuthProvider extends ChangeNotifier {
   /// Explicit logout: clears ALL session data immediately.
   /// After this, reopening the app MUST show Login.
   Future<void> logout() async {
+    // Unregister FCM device token before wiping session
+    await FcmNotificationService.instance.unregisterToken();
+
     _token = null;
     _role = null;
     _currentUser = null;
@@ -147,6 +154,9 @@ class AuthProvider extends ChangeNotifier {
         _currentUser = rawUser;
       }
       notifyListeners(); // — Dashboard shown immediately, no flicker
+
+      // Ensure FCM device token is synced with backend
+      FcmNotificationService.instance.registerTokenWithBackend();
     } catch (_) {
       // Corrupted stored data — force re-login
       await logout();
