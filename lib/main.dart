@@ -25,6 +25,8 @@ import 'package:pragatix/features/announcements/providers/notification_provider.
 import 'package:pragatix/core/widgets/security_gate.dart';
 import 'package:pragatix/core/widgets/server_maintenance_gate.dart';
 import 'package:pragatix/core/services/server_status_service.dart';
+import 'package:pragatix/core/widgets/app_update_gate.dart';
+import 'package:pragatix/core/services/app_version_service.dart';
 import 'package:pragatix/features/banking/providers/banking_provider.dart';
 
 import 'package:firebase_messaging/firebase_messaging.dart';
@@ -47,6 +49,7 @@ void main() async {
 
   // Check server health probe on startup.
   ServerStatusService.instance.checkServerHealth();
+  AppVersionService.instance.checkAppVersion();
 
   final authProvider = getIt<AuthProvider>();
   await authProvider.checkAuthStatus();
@@ -99,6 +102,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
       // Auto re-check auth status when user re-opens/resumes the app.
       getIt<AuthProvider>().checkAuthStatus();
       ServerStatusService.instance.checkServerHealth();
+      AppVersionService.instance.checkAppVersion();
     }
   }
 
@@ -110,8 +114,10 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
       title: 'pragatiX – Track. Learn. Grow.',
       theme: AppTheme.light(),
       builder: (context, child) => SecurityGate(
-        child: ServerMaintenanceGate(
-          child: child ?? const SizedBox.shrink(),
+        child: AppUpdateGate(
+          child: ServerMaintenanceGate(
+            child: child ?? const SizedBox.shrink(),
+          ),
         ),
       ),
       home: Consumer<AuthProvider>(

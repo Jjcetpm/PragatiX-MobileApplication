@@ -841,21 +841,97 @@ class _AdminBadgeRequestsPageState extends State<AdminBadgeRequestsPage>
     }
   }
 
-  void _handleReject(int id) async {
+  void _handleReject(int id) {
     final token = context.read<AuthProvider>().token;
-    final res = await context.read<BadgeProvider>().rejectBadgeWorkflow(
-      token!,
-      id,
-      'ADMIN',
+    if (token == null) return;
+
+    final remarksController = TextEditingController();
+    String? errorMessage;
+
+    showDialog(
+      context: context,
+      builder: (dialogCtx) => StatefulBuilder(
+        builder: (sbContext, setDialogState) {
+          return AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            title: const Row(
+              children: [
+                Icon(Icons.cancel_outlined, color: Colors.red),
+                SizedBox(width: 8),
+                Text('Reject Badge Request', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+              ],
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Please provide a mandatory reason for rejecting this badge request.',
+                  style: TextStyle(fontSize: 13, color: Color(0xFF64748B)),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: remarksController,
+                  maxLines: 3,
+                  autofocus: true,
+                  decoration: InputDecoration(
+                    labelText: 'Reason for rejection *',
+                    hintText: 'e.g. Invalid proof uploaded, criteria not met',
+                    errorText: errorMessage,
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                  ),
+                  onChanged: (val) {
+                    if (errorMessage != null && val.trim().isNotEmpty) {
+                      setDialogState(() => errorMessage = null);
+                    }
+                  },
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogCtx),
+                child: const Text('Cancel'),
+              ),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.red,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                ),
+                onPressed: () async {
+                  final reason = remarksController.text.trim();
+                  if (reason.isEmpty) {
+                    setDialogState(() {
+                      errorMessage = 'Reason is mandatory for rejection';
+                    });
+                    return;
+                  }
+                  final messenger = ScaffoldMessenger.of(context);
+                  final bp = context.read<BadgeProvider>();
+                  Navigator.pop(dialogCtx);
+                  final res = await bp.rejectBadgeWorkflow(
+                    token,
+                    id,
+                    'ADMIN',
+                    remarks: reason,
+                  );
+                  if (mounted) {
+                    messenger.showSnackBar(
+                      SnackBar(
+                        content: Text(res['message'] ?? 'Request rejected'),
+                        backgroundColor: res['success'] == true ? Colors.green : Colors.red,
+                      ),
+                    );
+                  }
+                },
+                child: const Text('Reject Request'),
+              ),
+            ],
+          );
+        },
+      ),
     );
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(res['message']),
-          backgroundColor: Colors.red,
-        ),
-      );
-    }
   }
 
   // ═══════════════════════════════════════════════════════════════════════════

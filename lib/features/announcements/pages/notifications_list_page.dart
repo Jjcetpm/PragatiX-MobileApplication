@@ -219,6 +219,7 @@ class _NotificationsListPageState extends State<NotificationsListPage> {
                   subject: item.subject,
                   message: item.message,
                   createdAt: _formatDateTime(item.createdAt),
+                  attachments: item.attachments,
                 ),
               ),
             );
@@ -341,6 +342,23 @@ class _NotificationsListPageState extends State<NotificationsListPage> {
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                       ),
+                      if (item.hasAttachments) ...[
+                        const SizedBox(height: 6),
+                        Row(
+                          children: [
+                            const Icon(Icons.attach_file_rounded, size: 14, color: Color(0xFF4F46E5)),
+                            const SizedBox(width: 4),
+                            Text(
+                              '${item.attachments.length} attachment${item.attachments.length > 1 ? 's' : ''}',
+                              style: const TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF4F46E5),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
                     ],
                   ),
                 ),

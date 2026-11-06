@@ -10,6 +10,7 @@ class SharedLeaderboardTile extends StatelessWidget {
   final Color themeColor;
   final bool isCaptain;
   final bool isViceCaptain;
+  final String? avatarUrl;
 
   const SharedLeaderboardTile({
     super.key,
@@ -22,6 +23,7 @@ class SharedLeaderboardTile extends StatelessWidget {
     this.themeColor = const Color(0xFF4F46E5),
     this.isCaptain = false,
     this.isViceCaptain = false,
+    this.avatarUrl,
   });
 
   Color _getAccentColor(int rank) {
@@ -52,15 +54,34 @@ class SharedLeaderboardTile extends StatelessWidget {
           width: 1.5,
         ),
       ),
-      child: Center(
-        child: Text(
-          name.isNotEmpty ? name[0].toUpperCase() : 'S',
-          style: TextStyle(
-            fontWeight: FontWeight.w800,
-            fontSize: 14,
-            color: isFemale ? const Color(0xFFDB2777) : const Color(0xFF2563EB),
-          ),
-        ),
+      child: ClipOval(
+        child: (avatarUrl != null && avatarUrl!.isNotEmpty)
+            ? Image.network(
+                avatarUrl!,
+                width: 38,
+                height: 38,
+                fit: BoxFit.cover,
+                errorBuilder: (ctx, err, st) => Center(
+                  child: Text(
+                    name.isNotEmpty ? name[0].toUpperCase() : 'S',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w800,
+                      fontSize: 14,
+                      color: isFemale ? const Color(0xFFDB2777) : const Color(0xFF2563EB),
+                    ),
+                  ),
+                ),
+              )
+            : Center(
+                child: Text(
+                  name.isNotEmpty ? name[0].toUpperCase() : 'S',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w800,
+                    fontSize: 14,
+                    color: isFemale ? const Color(0xFFDB2777) : const Color(0xFF2563EB),
+                  ),
+                ),
+              ),
       ),
     );
   }

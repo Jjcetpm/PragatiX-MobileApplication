@@ -11,6 +11,8 @@ import 'package:pragatix/features/teacher/pages/leaderboard_tab.dart';
 import 'package:pragatix/features/teacher/pages/teacher_stage_list_page.dart';
 import 'package:pragatix/features/teacher/services/teacher_proxy_service.dart';
 import 'package:pragatix/features/team/pages/team_group_management_tab.dart';
+import 'package:pragatix/features/badge/pages/cc_badge_requests_page.dart';
+import 'package:pragatix/features/badge/providers/badge_provider.dart';
 
 class TeacherDashboard extends StatefulWidget {
   const TeacherDashboard({super.key});
@@ -42,6 +44,7 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
       });
 
   bool get _canManageGroups => _isCc || _isHod;
+  bool get _canManageRequests => _isCc || _isHod;
 
   Future<void> _fetchProfile() async {
     if (context.read<AuthProvider>().token! == 'debug_token') {
@@ -73,6 +76,12 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
             isProfileLoading = false;
             _initializeScreens();
           });
+          if (_canManageRequests) {
+            final token = context.read<AuthProvider>().token;
+            if (token != null && token.isNotEmpty) {
+              context.read<BadgeProvider>().fetchAdminCCBadgeRequests(token, 'CC');
+            }
+          }
           return;
         }
       }
@@ -91,6 +100,7 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
       _screens = [
         TeacherStageListPage(subRoles: subRoles),
         TeacherAttendanceHubPage(subRoles: subRoles),
+        if (_canManageRequests) const CCBadgeRequestsPage(),
         const LeaderboardTab(),
         if (_canManageGroups) const TeamGroupManagementTab(),
         const ProfilePage(),
@@ -116,11 +126,29 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
         icon: Icon(Icons.co_present_rounded),
         label: 'Attendance',
       ),
+      if (_canManageRequests)
+        BottomNavigationBarItem(
+          icon: Consumer<BadgeProvider>(
+            builder: (context, badgeProvider, _) => Badge(
+              isLabelVisible: badgeProvider.pendingAdminCCRequestsCount > 0,
+              label: Text(
+                badgeProvider.pendingAdminCCRequestsCount.toString(),
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              backgroundColor: const Color(0xFFEA4335),
+              child: const Icon(Icons.workspace_premium),
+            ),
+          ),
+          label: 'Badge Request',
+        ),
       const BottomNavigationBarItem(
         icon: Icon(Icons.leaderboard_rounded),
         label: 'Leaderboard',
       ),
-
       if (_canManageGroups)
         const BottomNavigationBarItem(
           icon: Icon(Icons.groups_rounded),

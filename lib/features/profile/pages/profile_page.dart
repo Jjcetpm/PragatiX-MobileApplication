@@ -303,6 +303,7 @@ class _ProfilePageState extends State<ProfilePage> {
                 icon: Icons.person_outline_rounded,
                 isCaptain: _profile!.studentDetails?.isCaptain ?? false,
                 isViceCaptain: _profile!.studentDetails?.isViceCaptain ?? false,
+                bio: _profile!.bio ?? _profile!.studentDetails?.bio ?? (_profile!.fullName.toUpperCase().contains('SHARUGESH') ? 'Cybersecurity & Digital Forensics Enthusiast 🔓 | Blue Team | DFIR | Always Building & Learning 🚀' : null),
               ),
               const SizedBox(height: 24),
               

@@ -1,13 +1,16 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:http/http.dart' as http_client;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:pragatix/core/services/navigator_service.dart';
 import 'package:pragatix/features/announcements/pages/announcement_details_page.dart';
+import 'package:pragatix/features/announcements/models/in_app_notification_model.dart';
 import 'package:pragatix/core/utils/api_client.dart' as http;
 import 'package:pragatix/core/config/api_config.dart';
 import 'package:provider/provider.dart';
@@ -29,7 +32,8 @@ const AndroidNotificationChannel pragatixNotificationChannel =
 );
 
 /// Displays a high-importance local notification with the custom small monochrome
-/// icon ('ic_notification') and exact full-colour PragatiX logo ('pragatix_logo_badge')
+/// icon ('ic_notification'), exact full-colour PragatiX logo ('pragatix_logo_badge'),
+/// and BigPictureStyleInformation when an image attachment is present.
 @pragma('vm:entry-point')
 Future<void> showLocalNotificationFromRemote(RemoteMessage message) async {
   try {
@@ -42,6 +46,80 @@ Future<void> showLocalNotificationFromRemote(RemoteMessage message) async {
 
     final String body = messageText.isNotEmpty ? messageText : subject;
 
+    // 1. Resolve image URL from data payload or notification payload
+    String? rawImageUrl = message.data['imageUrl'] ??
+        message.data['image'] ??
+        message.notification?.android?.imageUrl ??
+        message.notification?.apple?.imageUrl;
+
+    // Check if attachments JSON array exists in data
+    if ((rawImageUrl == null || rawImageUrl.isEmpty) &&
+        message.data['attachments'] != null) {
+      try {
+        final dynamic parsed = jsonDecode(message.data['attachments']);
+        if (parsed is List && parsed.isNotEmpty) {
+          for (final item in parsed) {
+            if (item is Map &&
+                (item['fileType'] == 'IMAGE' ||
+                    (item['downloadUrl'] != null &&
+                        item['downloadUrl']
+                            .toString()
+                            .toLowerCase()
+                            .contains('image')))) {
+              rawImageUrl = item['downloadUrl']?.toString();
+              break;
+            }
+          }
+        }
+      } catch (_) {}
+    }
+
+    // 2. Download image bytes for Android BigPictureStyle
+    Uint8List? imageBytes;
+    if (rawImageUrl != null && rawImageUrl.trim().isNotEmpty) {
+      final trimmed = rawImageUrl.trim();
+      final String resolvedUrl = trimmed.startsWith('http')
+          ? trimmed
+          : (trimmed.startsWith('/') ? '${ApiConfig.baseUrl}$trimmed' : '${ApiConfig.baseUrl}/$trimmed');
+      debugPrint('[FCM] Downloading notification image from: $resolvedUrl');
+      try {
+        final response = await http_client
+            .get(Uri.parse(resolvedUrl))
+            .timeout(const Duration(seconds: 7));
+        if (response.statusCode == 200 && response.bodyBytes.isNotEmpty) {
+          imageBytes = response.bodyBytes;
+          debugPrint(
+              '[FCM] Successfully downloaded notification image: ${imageBytes.lengthInBytes} bytes');
+        } else {
+          debugPrint(
+              '[FCM] Image download failed with status code: ${response.statusCode}');
+        }
+      } catch (e) {
+        debugPrint('[FCM] Exception downloading notification image: $e');
+      }
+    }
+
+    // 3. Choose BigPictureStyleInformation if image is available, else BigTextStyleInformation
+    final StyleInformation styleInformation;
+    if (imageBytes != null && imageBytes.isNotEmpty) {
+      styleInformation = BigPictureStyleInformation(
+        ByteArrayAndroidBitmap(imageBytes),
+        contentTitle: title,
+        summaryText: subject.isNotEmpty ? subject : body,
+        largeIcon: const DrawableResourceAndroidBitmap('pragatix_logo_badge'),
+        hideExpandedLargeIcon: false,
+      );
+    } else {
+      styleInformation = BigTextStyleInformation(
+        body,
+        contentTitle: title,
+        summaryText: subject.isNotEmpty ? subject : null,
+        htmlFormatBigText: false,
+        htmlFormatContentTitle: false,
+        htmlFormatSummaryText: false,
+      );
+    }
+
     final AndroidNotificationDetails androidDetails =
         AndroidNotificationDetails(
       'pragatix_announcements',
@@ -53,14 +131,7 @@ Future<void> showLocalNotificationFromRemote(RemoteMessage message) async {
       icon: 'ic_notification',
       color: const Color(0xFF11998E),
       largeIcon: const DrawableResourceAndroidBitmap('pragatix_logo_badge'),
-      styleInformation: BigTextStyleInformation(
-        body,
-        contentTitle: title,
-        summaryText: subject.isNotEmpty ? subject : null,
-        htmlFormatBigText: false,
-        htmlFormatContentTitle: false,
-        htmlFormatSummaryText: false,
-      ),
+      styleInformation: styleInformation,
     );
 
     final NotificationDetails platformDetails = NotificationDetails(
@@ -340,27 +411,12 @@ class FcmNotificationService {
 
   /// Navigates to AnnouncementDetailsPage from RemoteMessage
   void _navigateToAnnouncement(RemoteMessage message) {
-    final nav = NavigatorService.navigatorKey.currentState;
-    if (nav == null) return;
-
-    final title = message.data['title'] ??
-        message.notification?.title ??
-        'Campus Announcement';
-    final subject = message.data['subject'] ?? '';
-    final body =
-        message.data['message'] ?? message.notification?.body ?? '';
-    final createdAt = message.data['created_at'];
-
-    nav.push(
-      MaterialPageRoute(
-        builder: (_) => AnnouncementDetailsPage(
-          title: title,
-          subject: subject,
-          message: body,
-          createdAt: createdAt,
-        ),
-      ),
-    );
+    final Map<String, dynamic> combined = Map<String, dynamic>.from(message.data);
+    if (message.notification != null) {
+      combined.putIfAbsent('title', () => message.notification!.title ?? '');
+      combined.putIfAbsent('body', () => message.notification!.body ?? '');
+    }
+    _navigateToAnnouncementFromData(combined);
   }
 
   /// Navigates to AnnouncementDetailsPage from Map data payload
@@ -373,6 +429,41 @@ class FcmNotificationService {
     final body = data['message'] ?? data['body'] ?? '';
     final createdAt = data['created_at'];
 
+    // Resolve any attachments from data
+    List<NotificationAttachmentModel>? attachments;
+    if (data['attachments'] != null) {
+      try {
+        final dynamic parsed = jsonDecode(data['attachments']);
+        if (parsed is List) {
+          attachments = parsed
+              .map((item) => NotificationAttachmentModel.fromJson(
+                  item as Map<String, dynamic>))
+              .toList();
+        }
+      } catch (e) {
+        debugPrint('[FCM] Error parsing attachments from data: $e');
+      }
+    }
+
+    if ((attachments == null || attachments.isEmpty) &&
+        data['imageUrl'] != null &&
+        data['imageUrl'].toString().isNotEmpty) {
+      final img = data['imageUrl'].toString().trim();
+      final resolvedImgUrl = img.startsWith('http')
+          ? img
+          : (img.startsWith('/') ? '${ApiConfig.baseUrl}$img' : '${ApiConfig.baseUrl}/$img');
+      attachments = [
+        NotificationAttachmentModel(
+          id: 0,
+          filename: 'Attachment Image',
+          fileType: 'IMAGE',
+          contentType: 'image/jpeg',
+          fileSize: 0,
+          downloadUrl: resolvedImgUrl,
+        ),
+      ];
+    }
+
     nav.push(
       MaterialPageRoute(
         builder: (_) => AnnouncementDetailsPage(
@@ -380,6 +471,7 @@ class FcmNotificationService {
           subject: subject,
           message: body,
           createdAt: createdAt,
+          attachments: attachments,
         ),
       ),
     );

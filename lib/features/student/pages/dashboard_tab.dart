@@ -26,6 +26,7 @@ class DashboardTab extends StatefulWidget {
 class _DashboardTabState extends State<DashboardTab> {
   bool isLoading = true;
   String studentName = '';
+  String? profileImageUrl;
   String regNo = '';
   String department = '';
   String section = '';
@@ -203,6 +204,14 @@ class _DashboardTabState extends State<DashboardTab> {
           if (mounted) {
             setState(() {
               studentName = resData['fullName'] ?? '';
+              final rawImg = resData['profileImageUrl'] ?? resData['avatar'] ?? resData['profileImage'];
+              profileImageUrl = (rawImg != null && rawImg.toString().trim().isNotEmpty)
+                  ? (rawImg.toString().trim().startsWith('http://') || rawImg.toString().trim().startsWith('https://')
+                      ? rawImg.toString().trim()
+                      : (rawImg.toString().trim().startsWith('/')
+                          ? '${ApiConfig.baseUrl}${rawImg.toString().trim()}'
+                          : '${ApiConfig.baseUrl}/${rawImg.toString().trim()}'))
+                  : null;
               regNo = resData['username'] ?? resData['regNo'] ?? '';
               section = resData['section'] ?? '';
               year = resData['year'] ?? '';
@@ -288,11 +297,10 @@ class _DashboardTabState extends State<DashboardTab> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // ── Top Header with Avatar & Streaks ─────────────────────────
+// -----------------------------------------------------------------------------
                 _buildTopHeader(),
                 const SizedBox(height: 12),
-
-                // ── Welcome Text ─────────────────────────────────────────────
+// -----------------------------------------------------------------------------
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 20),
                   child: Column(
@@ -323,15 +331,14 @@ class _DashboardTabState extends State<DashboardTab> {
                             ),
                           ),
                           const SizedBox(width: 6),
-                          const Text('👋', style: TextStyle(fontSize: 22)),
+                          const Icon(Icons.waving_hand_rounded, size: 22, color: Color(0xFFFBBF24)),
                         ],
                       ),
                     ],
                   ),
                 ),
                 const SizedBox(height: 16),
-
-                // ── Discipline Score Card ────────────────────────────────────
+// -----------------------------------------------------------------------------
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 20),
                   child: _buildDisciplineScoreCard(
@@ -340,8 +347,7 @@ class _DashboardTabState extends State<DashboardTab> {
                 ),
 
                 const SizedBox(height: 18),
-
-                // ── Current Level Card (Full Width) ──────────────────────────
+// -----------------------------------------------------------------------------
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 20),
                   child: _buildCurrentLevelCard(
@@ -354,8 +360,7 @@ class _DashboardTabState extends State<DashboardTab> {
                 ),
 
                 const SizedBox(height: 18),
-
-                // ── Leaderboard Hero Card with 3D Golden Trophy ──────────────
+// -----------------------------------------------------------------------------
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 20),
                   child: _buildLeaderboardHeroCard(rank: rank),
@@ -372,16 +377,14 @@ class _DashboardTabState extends State<DashboardTab> {
                   ),
                 ),
                 const SizedBox(height: 22),
-
-                // ── Group Card ───────────────────────────────────────────────
+// -----------------------------------------------------------------------------
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 20),
                   child: _buildGroupCard(),
                 ),
 
                 const SizedBox(height: 26),
-
-                // ── Recent Activity Feed ─────────────────────────────────────
+// -----------------------------------------------------------------------------
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 20),
                   child: Column(
@@ -408,20 +411,22 @@ class _DashboardTabState extends State<DashboardTab> {
       ),
     );
   }
-
-  // ── Top Header ───────────────────────────────────────────────────────────────
+// -----------------------------------------------------------------------------
 
   Widget _buildTopHeader() {
-    String? roleBadgeText;
+    String? roleBadgeLabel;
+    IconData? roleBadgeIcon;
     Color roleBadgeColor = const Color(0xFF6366F1);
     if (isCaptain) {
-      roleBadgeText = '★ Captain';
+      roleBadgeLabel = 'Captain';
+      roleBadgeIcon = Icons.workspace_premium_rounded;
       roleBadgeColor = const Color(0xFF8B5CF6);
     } else if (isViceCaptain) {
-      roleBadgeText = '★ Vice Captain';
+      roleBadgeLabel = 'Vice Captain';
+      roleBadgeIcon = Icons.star_rounded;
       roleBadgeColor = const Color(0xFF7C3AED);
     } else if (isMember) {
-      roleBadgeText = 'Member';
+      roleBadgeLabel = 'Member';
       roleBadgeColor = const Color(0xFF3B82F6);
     }
 
@@ -462,7 +467,7 @@ class _DashboardTabState extends State<DashboardTab> {
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Text('🔥', style: TextStyle(fontSize: 14)),
+                        const Icon(Icons.local_fire_department_rounded, size: 15, color: Color(0xFFEA580C)),
                         const SizedBox(width: 4),
                         Text(
                           '$streak',
@@ -520,18 +525,37 @@ class _DashboardTabState extends State<DashboardTab> {
                           ),
                         ],
                       ),
-                      child: Center(
-                        child: Text(
-                          studentName.isNotEmpty ? studentName[0].toUpperCase() : 'S',
-                          style: const TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w800,
-                            color: Colors.white,
-                          ),
-                        ),
+                      child: ClipOval(
+                        child: profileImageUrl != null && profileImageUrl!.isNotEmpty
+                            ? Image.network(
+                                profileImageUrl!,
+                                fit: BoxFit.cover,
+                                width: 44,
+                                height: 44,
+                                errorBuilder: (context, error, stackTrace) => Center(
+                                  child: Text(
+                                    studentName.isNotEmpty ? studentName[0].toUpperCase() : 'S',
+                                    style: const TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.w800,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                ),
+                              )
+                            : Center(
+                                child: Text(
+                                  studentName.isNotEmpty ? studentName[0].toUpperCase() : 'S',
+                                  style: const TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.w800,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ),
                       ),
                     ),
-                    if (roleBadgeText != null)
+                    if (roleBadgeLabel != null)
                       Positioned(
                         bottom: -6,
                         child: Container(
@@ -550,14 +574,23 @@ class _DashboardTabState extends State<DashboardTab> {
                               ),
                             ],
                           ),
-                          child: Text(
-                            roleBadgeText,
-                            style: const TextStyle(
-                              fontSize: 9,
-                              fontWeight: FontWeight.w800,
-                              color: Colors.white,
-                              letterSpacing: 0.2,
-                            ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              if (roleBadgeIcon != null) ...[
+                                Icon(roleBadgeIcon, size: 9, color: Colors.white),
+                                const SizedBox(width: 2.5),
+                              ],
+                              Text(
+                                roleBadgeLabel,
+                                style: const TextStyle(
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.w800,
+                                  color: Colors.white,
+                                  letterSpacing: 0.2,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ),
@@ -570,8 +603,7 @@ class _DashboardTabState extends State<DashboardTab> {
       ),
     );
   }
-
-  // ── Discipline Score Card ───────────────────────────────────────────────────
+// -----------------------------------------------------------------------------
 
   Widget _buildDisciplineScoreCard({
     required int score,
@@ -710,8 +742,7 @@ class _DashboardTabState extends State<DashboardTab> {
       ),
     );
   }
-
-  // ── Current Level Card with 3D Treasure Chest ────────────────────────────────
+// -----------------------------------------------------------------------------
 
   Widget _buildCurrentLevelCard({
     required int levelNum,
@@ -773,7 +804,7 @@ class _DashboardTabState extends State<DashboardTab> {
                           ),
                           const SizedBox(height: 2),
                           Text(
-                            'Level $levelNum — $levelTitle',
+                            'Level $levelNum - $levelTitle',
                             style: const TextStyle(
                               fontSize: 17,
                               fontWeight: FontWeight.w900,
@@ -879,8 +910,7 @@ class _DashboardTabState extends State<DashboardTab> {
       ),
     );
   }
-
-  // ── Leaderboard Hero Card ───────────────────────────────────────────────────
+// -----------------------------------------------------------------------------
 
   Widget _buildLeaderboardHeroCard({required int rank}) {
     String motivationalText;
@@ -990,10 +1020,7 @@ class _DashboardTabState extends State<DashboardTab> {
       ),
     );
   }
-
-
-
-  // ── XP Summary Boxes Hub ───────────────────────────────────────────────────
+// -----------------------------------------------------------------------------
 
   Widget _buildXpSummaryHub({
     required Map<String, int> categories,
@@ -1536,10 +1563,7 @@ class _DashboardTabState extends State<DashboardTab> {
       ),
     );
   }
-
-
-
-  // ── Group Card ───────────────────────────────────────────────────────────────
+// -----------------------------------------------------------------------------
 
   Widget _buildGroupCard() {
     if (teamDetailsData == null) {
@@ -1948,8 +1972,7 @@ class _DashboardTabState extends State<DashboardTab> {
       ),
     );
   }
-
-  // ── Activity Feed ────────────────────────────────────────────────────────────
+// -----------------------------------------------------------------------------
 
   Widget _buildActivityFeed(List<dynamic> history) {
     if (history.isEmpty) {
