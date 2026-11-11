@@ -38,7 +38,7 @@ class AppVersionInfo {
       latestBuildNumber: json['latestBuildNumber'] ?? 0,
       forceUpdate: json['forceUpdate'] ?? true,
       updateRequired: json['updateRequired'] ?? false,
-      title: json['title'] ?? 'Update Required',
+      title: json['title'] ?? 'Update to the latest version',
       message: json['message'] ??
           'A new update is available. Please update the app to continue.',
       releaseNotes: json['releaseNotes'],

@@ -86,7 +86,10 @@ class _ForceUpdatePageState extends State<ForceUpdatePage> {
           child: ValueListenableBuilder(
             valueListenable: AppVersionService.instance.updateInfo,
             builder: (context, info, _) {
-              final title = info?.title ?? 'Update Required';
+              final rawTitle = info?.title;
+              final title = (rawTitle != null && rawTitle.isNotEmpty && rawTitle != 'Update Required')
+                  ? rawTitle
+                  : 'Update to the latest version';
               final message = info?.message ??
                   'A new update of PragatiX is available. You must upgrade to the latest version to continue using the app.';
               final latestVer = info?.latestVersion ?? 'Latest';
