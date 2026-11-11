@@ -80,7 +80,10 @@ class _ProfileTabState extends State<ProfileTab> {
             if (teamName.isEmpty) teamName = 'No Team';
             rank = resData['rank'] ?? 0;
             currentLevel = resData['currentLevel']?.toString() ?? '1';
-            bio = resData['bio'] ?? resData['studentDetails']?['bio'] ?? 'Cybersecurity & Digital Forensics Enthusiast 🔓 | Blue Team | DFIR | Always Building & Learning 🚀';
+            final rawBio = resData['bio'] ?? resData['studentDetails']?['bio'];
+            bio = (rawBio != null && !rawBio.toString().toLowerCase().contains('forensics'))
+                ? rawBio.toString()
+                : 'Enter your thoughts.';
             isLoading = false;
           });
           return;

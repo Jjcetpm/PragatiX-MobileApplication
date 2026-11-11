@@ -157,18 +157,25 @@ class SharedProfileHeader extends StatelessWidget {
 
         if (bio != null && bio!.trim().isNotEmpty) ...[
           const SizedBox(height: 5),
-          Text(
-            bio!.trim(),
-            style: const TextStyle(
-              color: Color(0xFF475569),
-              fontSize: 13,
-              fontStyle: FontStyle.italic,
-              fontWeight: FontWeight.w600,
-            ),
-            textAlign: TextAlign.center,
-            maxLines: 3,
-            overflow: TextOverflow.ellipsis,
-          ),
+          () {
+            final String trimmed = bio!.trim();
+            final bool isDefaultBio = trimmed == 'Enter your thoughts.' || trimmed.toLowerCase().contains('forensics');
+            final String displayText = isDefaultBio ? 'Enter your thoughts.' : trimmed;
+            return Text(
+              displayText,
+              style: TextStyle(
+                color: isDefaultBio
+                    ? const Color(0xFF64748B).withValues(alpha: 0.6)
+                    : const Color(0xFF475569),
+                fontSize: 13,
+                fontStyle: FontStyle.italic,
+                fontWeight: isDefaultBio ? FontWeight.w400 : FontWeight.w600,
+              ),
+              textAlign: TextAlign.center,
+              maxLines: 3,
+              overflow: TextOverflow.ellipsis,
+            );
+          }(),
         ],
 
         const SizedBox(height: 4),

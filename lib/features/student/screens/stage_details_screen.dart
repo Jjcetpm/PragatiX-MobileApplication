@@ -442,20 +442,26 @@ class StageDetailsScreen extends StatelessWidget {
       xpColor = const Color(0xFF0284C7);
     }
 
+    final bool isBlocked = activity['isBlocked'] == true || activity['status'] == 'BLOCKED' || !isActive;
+
     final String numStr = indexNumber.toString().padLeft(2, '0');
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: isBlocked ? const Color(0xFFF8FAFC) : Colors.white,
         borderRadius: BorderRadius.circular(18),
         border: Border.all(
-          color: isActCompleted ? const Color(0xFFDCFCE7) : const Color(0xFFF1F5F9),
+          color: isBlocked
+              ? const Color(0xFFE2E8F0)
+              : isActCompleted
+                  ? const Color(0xFFDCFCE7)
+                  : const Color(0xFFF1F5F9),
           width: 1.2,
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.02),
+            color: Colors.black.withValues(alpha: isBlocked ? 0.01 : 0.02),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -467,6 +473,14 @@ class StageDetailsScreen extends StatelessWidget {
         child: InkWell(
           borderRadius: BorderRadius.circular(18),
           onTap: () {
+            if (isBlocked) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('This activity is blocked. You only have access to activities in your current stage.'),
+                ),
+              );
+              return;
+            }
             if (isActive) {
               Navigator.push(
                 context,
@@ -547,23 +561,41 @@ class StageDetailsScreen extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                   decoration: BoxDecoration(
-                    color: isActCompleted ? const Color(0xFFDCFCE7) : const Color(0xFFF8FAFC),
+                    color: isBlocked
+                        ? const Color(0xFFF1F5F9)
+                        : (isActCompleted ? const Color(0xFFDCFCE7) : const Color(0xFFF8FAFC)),
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: Text(
-                    isActCompleted ? '100%' : '0%',
-                    style: TextStyle(
-                      fontSize: 11.5,
-                      fontWeight: FontWeight.bold,
-                      color: isActCompleted ? const Color(0xFF16A34A) : const Color(0xFF64748B),
-                    ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (isBlocked) ...[
+                        const Icon(Icons.lock_outline_rounded, size: 12, color: Color(0xFF64748B)),
+                        const SizedBox(width: 4),
+                      ],
+                      Text(
+                        isBlocked
+                            ? 'Blocked'
+                            : (isActCompleted ? '100%' : '0%'),
+                        style: TextStyle(
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.bold,
+                          color: isBlocked
+                              ? const Color(0xFF64748B)
+                              : (isActCompleted ? const Color(0xFF16A34A) : const Color(0xFF64748B)),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
                 const SizedBox(width: 6),
 
                 // Right Chevron
-                const Icon(
-                  Icons.chevron_right_rounded,
+                Icon(
+                  isBlocked ? Icons.lock_outline_rounded : Icons.chevron_right_rounded,
+                  size: 18,
+                  color: isBlocked ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                ),
                   color: Color(0xFFCBD5E1),
                   size: 20,
                 ),
