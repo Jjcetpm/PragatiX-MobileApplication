@@ -57,7 +57,7 @@ class BankingService {
     String? search,
     String? type,
     int page = 0,
-    int size = 20,
+    int size = 5000,
   }) async {
     final queryParams = <String, String>{
       'bankId': bankId.toString(),
@@ -125,6 +125,18 @@ class BankingService {
       return BankModel.fromJson(json as Map<String, dynamic>);
     } else {
       throw Exception('Failed to load bank details');
+    }
+  }
+
+  // --- Delete Bank ---
+  Future<void> deleteBank(int bankId) async {
+    final response = await http.delete(
+      Uri.parse('$baseUrl/api/v1/banking/$bankId'),
+      headers: _headers,
+    );
+    if (response.statusCode != 200 && response.statusCode != 204) {
+      final error = jsonDecode(response.body);
+      throw Exception(error['message'] ?? 'Failed to delete bank');
     }
   }
 
@@ -245,7 +257,7 @@ class BankingService {
   Future<List<StudentBankingRecordModel>> getStudentRecords(
     int bankId, {
     int page = 0,
-    int size = 20,
+    int size = 5000,
   }) async {
     final response = await http.get(
       Uri.parse('$baseUrl/api/v1/banking/$bankId/records?page=$page&size=$size'),
@@ -286,7 +298,7 @@ class BankingService {
     String? search,
     String? type,
     int page = 0,
-    int size = 20,
+    int size = 5000,
   }) async {
     final queryParams = <String, String>{
       'page': page.toString(),
@@ -432,7 +444,7 @@ class BankingService {
   Future<List<RestoreHistoryModel>> getRestoreHistory(
     int bankId, {
     int page = 0,
-    int size = 50,
+    int size = 5000,
   }) async {
     final response = await http.get(
       Uri.parse('$baseUrl/api/v1/banking/$bankId/restore-history?page=$page&size=$size'),

@@ -76,7 +76,7 @@ class _AdminBankDetailsPageState extends State<AdminBankDetailsPage>
         }
       }
 
-      final records = await service.getStudentRecords(_bank.id);
+      final records = await service.getStudentRecords(_bank.id, size: 5000);
 
       BankSettingsModel? settings;
       try {
@@ -166,6 +166,53 @@ class _AdminBankDetailsPageState extends State<AdminBankDetailsPage>
     );
   }
 
+  Future<void> _confirmDeleteBank() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text('Delete Bank?'),
+        content: Text(
+          'Are you sure you want to delete "${_bank.bankName}" (${_bank.bankCode})?\n\nIt will be moved to the Recycle Bin and can be restored anytime.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFE11D48),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Delete to Recycle Bin'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && mounted) {
+      final token = context.read<AuthProvider>().token;
+      if (token == null) return;
+      final success = await context.read<BankingProvider>().deleteBank(token, _bank.id);
+      if (mounted) {
+        if (success) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Bank "${_bank.bankName}" moved to Recycle Bin')),
+          );
+          Navigator.pop(context, true);
+        } else {
+          final err = context.read<BankingProvider>().adminError ?? 'Failed to delete bank';
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(err), backgroundColor: Colors.red),
+          );
+        }
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -186,6 +233,11 @@ class _AdminBankDetailsPageState extends State<AdminBankDetailsPage>
           onPressed: () => Navigator.pop(context),
         ),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.delete_outline_rounded, color: Color(0xFFE11D48)),
+            tooltip: 'Delete Bank (Recycle Bin)',
+            onPressed: _confirmDeleteBank,
+          ),
           IconButton(
             icon: const Icon(Icons.refresh_rounded, color: Color(0xFF0F766E)),
             onPressed: _loadDetails,

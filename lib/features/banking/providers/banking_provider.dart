@@ -104,7 +104,7 @@ class BankingProvider extends ChangeNotifier {
         search: search,
         type: type,
         page: 0,
-        size: 50,
+        size: 5000,
       );
     } catch (e) {
       _studentTransactions = [];
@@ -202,6 +202,20 @@ class BankingProvider extends ChangeNotifier {
     } finally {
       _executingAction = false;
       notifyListeners();
+    }
+  }
+
+  Future<bool> deleteBank(String token, int bankId) async {
+    try {
+      final service = BankingService(token: token);
+      await service.deleteBank(bankId);
+      _banks.removeWhere((b) => b.id == bankId);
+      await loadAdminDashboard(token);
+      return true;
+    } catch (e) {
+      _adminError = e.toString().replaceAll('Exception: ', '');
+      notifyListeners();
+      return false;
     }
   }
 }

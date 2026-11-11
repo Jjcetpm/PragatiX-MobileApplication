@@ -983,7 +983,24 @@ class _AssignStaffPageState extends State<AssignStaffPage> {
   }
 
   Widget _buildDepartmentList() {
-    List<dynamic> depts = widget.provider.departments;
+    final rawDepts = widget.provider.departments;
+    const unwantedSections = {'MECH', 'CIVIL', 'ABC'};
+    final deptsList = <dynamic>[];
+    for (final d in rawDepts) {
+      final dName = (d['name'] ?? d['deptName'] ?? '').toString().trim().toUpperCase();
+      if (dName == 'ABC') continue;
+      final dCopy = Map<String, dynamic>.from(d as Map);
+      if (dCopy['sections'] is List) {
+        final secs = (dCopy['sections'] as List).where((s) {
+          final sName = (s['sectionName'] ?? s['name'] ?? '').toString().trim().toUpperCase();
+          return !unwantedSections.contains(sName);
+        }).toList();
+        dCopy['sections'] = secs;
+        dCopy['hasSections'] = secs.isNotEmpty;
+      }
+      deptsList.add(dCopy);
+    }
+    List<dynamic> depts = deptsList;
     if (widget.isCc) {
       final ccDeptId = _ccDeptId;
       final ccDeptName = _ccDeptName;
@@ -1084,7 +1101,10 @@ class _AssignStaffPageState extends State<AssignStaffPage> {
                 ),
                 const SizedBox(height: 16),
                 if (hasSections)
-                  ...sections.map((sec) {
+                  ...sections.where((sec) {
+                    final sName = (sec['sectionName'] ?? sec['name'] ?? '').toString().trim().toUpperCase();
+                    return !const {'MECH', 'CIVIL', 'ABC'}.contains(sName);
+                  }).map((sec) {
                     final secId = sec['id'] as int;
                     final secName = sec['sectionName'] ?? 'Section';
                     
